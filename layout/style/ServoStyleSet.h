@@ -134,6 +134,10 @@ public:
    */
   void RestyleSubtree(nsINode* aNode, bool aForce);
 
+  uint64_t RestyleTime() const {
+    return mRestyleTime;
+  }
+
 private:
   already_AddRefed<nsStyleContext> GetContext(already_AddRefed<ServoComputedValues>,
                                               nsStyleContext* aParentContext,
@@ -150,6 +154,7 @@ private:
   EnumeratedArray<SheetType, SheetType::Count,
                   nsTArray<RefPtr<ServoStyleSheet>>> mSheets;
   int32_t mBatching;
+  uint64_t mRestyleTime;
 };
 
 } // namespace mozilla

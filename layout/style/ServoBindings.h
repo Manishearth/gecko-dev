@@ -262,6 +262,8 @@ void Servo_Initialize();
 void Servo_RestyleDocument(RawGeckoDocument* doc, RawServoStyleSet* set);
 void Servo_RestyleSubtree(RawGeckoNode* node, RawServoStyleSet* set);
 
+uint32_t Servo_StyleWorkerThreadCount();
+
 // Restyle hints.
 nsRestyleHint Servo_ComputeRestyleHint(RawGeckoElement* element,
                                        ServoElementSnapshot* snapshot,
