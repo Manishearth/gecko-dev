@@ -949,6 +949,11 @@ public:
     const nsAttrValue* mValue;
   };
 
+  const nsAttrValue* GetParsedAttr(nsIAtom* aAttr, int32_t aNameSpaceID) const
+  {
+    return mAttrsAndChildren.GetAttr(aAttr, aNameSpaceID);
+  }
+
   const nsAttrValue* GetParsedAttr(nsIAtom* aAttr) const
   {
     return mAttrsAndChildren.GetAttr(aAttr);
