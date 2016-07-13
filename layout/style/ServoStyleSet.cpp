@@ -381,7 +381,8 @@ nsRestyleHint
 ServoStyleSet::HasStateDependentStyle(dom::Element* aElement,
                                       EventStates aStateMask)
 {
-  MOZ_CRASH("stylo: not implemented");
+  NS_ERROR("stylo: HasStateDependentStyle not implemented");
+  return nsRestyleHint(0);
 }
 
 nsRestyleHint
@@ -390,7 +391,8 @@ ServoStyleSet::HasStateDependentStyle(dom::Element* aElement,
                                      dom::Element* aPseudoElement,
                                      EventStates aStateMask)
 {
-  MOZ_CRASH("stylo: not implemented");
+  NS_ERROR("stylo: HasStateDependentStyle not implemented");
+  return nsRestyleHint(0);
 }
 
 void
