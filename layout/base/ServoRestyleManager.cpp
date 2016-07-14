@@ -48,6 +48,11 @@ ServoRestyleManager::PostRestyleEvent(Element* aElement,
     return;
   }
 
+  if (aRestyleHint == 0 && !aMinChangeHint) {
+    // Nothing to do here
+    return;
+  }
+
   nsIPresShell* presShell = PresContext()->PresShell();
   if (!ObservingRefreshDriver()) {
     SetObservingRefreshDriver(PresContext()->RefreshDriver()->
