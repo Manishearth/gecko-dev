@@ -76,8 +76,10 @@ ServoStyleSet::ForceRestyle(nsPresContext* aPresContext)
 {
   PRTime t1 = PR_Now();
   nsIDocument* doc = aPresContext->Document();
-  doc->SetFlags(NODE_IS_DIRTY_FOR_SERVO | NODE_HAS_DIRTY_DESCENDANTS_FOR_SERVO);
-  Servo_RestyleDocument(doc, mRawSet.get());
+  Element* root = doc->GetRootElement();
+  if (root) {
+    RestyleSubtree(root, /* aForce = */ true);
+  }
   PRTime t2 = PR_Now();
   mRestyleTime = t2 - t1;
 }
