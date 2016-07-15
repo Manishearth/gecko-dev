@@ -131,6 +131,8 @@ public:
     return mRestyleTime;
   }
 
+  bool InitialRestyleDone() const { return mInitialRestyleDone; }
+
 private:
   already_AddRefed<nsStyleContext> GetContext(already_AddRefed<ServoComputedValues>,
                                               nsStyleContext* aParentContext,
@@ -148,6 +150,7 @@ private:
                   nsTArray<RefPtr<ServoStyleSheet>>> mSheets;
   int32_t mBatching;
   uint64_t mRestyleTime;
+  bool mInitialRestyleDone;
 };
 
 } // namespace mozilla
