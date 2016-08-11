@@ -2640,8 +2640,11 @@ css::URLValueData::operator==(const URLValueData& aOther) const
 bool
 css::URLValueData::URIEquals(const URLValueData& aOther) const
 {
-  MOZ_ASSERT(mURIResolved && aOther.mURIResolved,
-             "How do you know the URIs aren't null?");
+
+  if (MOZ_UNLIKELY(!mURIResolved || !aOther.mURIResolved)) {
+    NS_WARNING("Comparing unresolved URIs");
+    return false;
+  }
   bool eq;
   // Cast away const so we can call nsIPrincipal::Equals.
   auto& self = *const_cast<URLValueData*>(this);
