@@ -26,6 +26,17 @@
 #include "mozilla/ServoElementSnapshot.h"
 #include "mozilla/dom/Element.h"
 
+#define DEFINE_STRONG_REF_TYPE_METHODS(name, T) \
+  already_AddRefed<T> name::GetRefPtr() {       \
+    RefPtr<T> result = dont_AddRef(mPtr);       \
+    mPtr = nullptr;                             \
+    return result.forget();                     \
+  }; 
+
+
+DEFINE_STRONG_REF_TYPE_METHODS(ServoComputedValuesStrong, ServoComputedValues);
+DEFINE_STRONG_REF_TYPE_METHODS(RawServoStyleSheetStrong, RawServoStyleSheet);
+
 uint32_t
 Gecko_ChildrenCount(RawGeckoNode* aNode)
 {

@@ -105,7 +105,7 @@ ServoRestyleManager::RecreateStyleContexts(nsIContent* aContent,
     // Even if we don't have a change hint, we still need to swap style contexts
     // so our new style is updated properly.
     RefPtr<ServoComputedValues> computedValues =
-      dont_AddRef(Servo_GetComputedValues(aContent));
+      Servo_GetComputedValues(aContent).GetRefPtr();
 
     // TODO: Figure out what pseudos does this content have, and do the proper
     // thing with them.
