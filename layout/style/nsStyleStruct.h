@@ -2609,11 +2609,16 @@ private:
   StyleBasicShapeType mType;
   int32_t mFillRule;
 
-  // mCoordinates has coordinates for polygon or radii for
-  // ellipse and circle.
-  nsTArray<nsStyleCoord> mCoordinates;
-  Position mPosition;
-  nsStyleCorners mRadius;
+
+  nsTArray<nsStyleCoord> mCoordinates;  // mCoordinates has coordinates
+                                        // for polygon or radii for
+                                        // ellipse and circle.
+                                        //(top, right, bottom, left) for inset
+
+  Position mPosition;                   // position of center for ellipse
+                                        // or circle
+
+  nsStyleCorners mRadius;               // radius for inset (0 if not set)
 };
 
 template<typename ReferenceBox>
