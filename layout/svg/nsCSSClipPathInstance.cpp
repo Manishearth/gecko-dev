@@ -101,7 +101,7 @@ nsCSSClipPathInstance::CreateClipPath(DrawTarget* aDrawTarget)
     case StyleBasicShapeType::Polygon:
       return CreateClipPathPolygon(aDrawTarget, r);
     case StyleBasicShapeType::Inset:
-      // XXXkrit support all basic shapes
+      return CreateClipPathInset(aDrawTarget, r);
       break;
     default:
       MOZ_MAKE_COMPILER_ASSUME_IS_UNREACHABLE("Unexpected shape type");
@@ -237,5 +237,52 @@ nsCSSClipPathInstance::CreateClipPathPolygon(DrawTarget* aDrawTarget,
     builder->LineTo(Point(aRefBox.x + x, aRefBox.y + y) / appUnitsPerDevPixel);
   }
   builder->Close();
+  return builder->Finish();
+}
+
+already_AddRefed<Path>
+nsCSSClipPathInstance::CreateClipPathInset(DrawTarget* aDrawTarget,
+                                           const nsRect& aRefBox)
+{
+  StyleBasicShape* basicShape = mClipPathStyle.GetBasicShape();
+  const nsTArray<nsStyleCoord>& coords = basicShape->Coordinates();
+  MOZ_ASSERT(coords.Length() == 4, "wrong number of arguments");
+
+  RefPtr<PathBuilder> builder = aDrawTarget->CreatePathBuilder();
+
+  nscoord appUnitsPerDevPixel =
+    mTargetFrame->PresContext()->AppUnitsPerDevPixel();
+  nscoord top = nsRuleNode::ComputeCoordPercentCalc(coords[0], aRefBox.height);
+  nscoord right = nsRuleNode::ComputeCoordPercentCalc(coords[1], aRefBox.width);
+  nscoord bottom = nsRuleNode::ComputeCoordPercentCalc(coords[2],
+                                                       aRefBox.height);
+  nscoord left = nsRuleNode::ComputeCoordPercentCalc(coords[3], aRefBox.width);
+
+  Point anchor =
+      Point(aRefBox.x + left, aRefBox.y + top) / appUnitsPerDevPixel;
+  Size size = Size(aRefBox.width - left - right,
+                   aRefBox.height - top - bottom) / appUnitsPerDevPixel;
+  Rect rect(anchor, size);
+
+  nsStyleCorners& radius = basicShape->GetRadius();
+
+  if (nsLayoutUtils::HasNonZeroCorner(radius)) {
+    Size sizes[4]; // tl, tr, br, bl
+    NS_FOR_CSS_FULL_CORNERS(corner) {
+      int cx = NS_FULL_TO_HALF_CORNER(corner, false);
+      int cy = NS_FULL_TO_HALF_CORNER(corner, true);
+      nscoord x = nsRuleNode::ComputeCoordPercentCalc(radius.Get(cx),
+                                                      aRefBox.width);
+      nscoord y = nsRuleNode::ComputeCoordPercentCalc(radius.Get(cy),
+                                                      aRefBox.height);
+      sizes[corner] = Size(x, y) / appUnitsPerDevPixel;
+    }
+
+    RectCornerRadii corners(sizes[0], sizes[1], sizes[2], sizes[3]);
+
+    AppendRoundedRectToPath(builder, rect, corners, true);
+  } else {
+    AppendRectToPath(builder, rect, true);
+  }
   return builder->Finish();
 }
