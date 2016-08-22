@@ -1067,4 +1067,6 @@ private:
                                   void* aStruct);
 };
 
+void FillAllBackgroundLists(nsStyleImageLayers& aLayers,
+                            uint32_t aMaxItemCount);
 #endif
