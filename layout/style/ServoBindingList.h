@@ -19,7 +19,7 @@
  */
 
 // Node data
-SERVO_BINDING_FUNC(Servo_NodeData_Drop, void, ServoNodeData* data)
+SERVO_BINDING_FUNC(Servo_NodeData_Drop, void, ServoNodeDataMaybeOwned data)
 
 // Styleset and Stylesheet management
 SERVO_BINDING_FUNC(Servo_StyleSheet_FromUTF8Bytes, RawServoStyleSheetStrong,
@@ -30,37 +30,37 @@ SERVO_BINDING_FUNC(Servo_StyleSheet_FromUTF8Bytes, RawServoStyleSheetStrong,
                    ThreadSafeURIHolder* referrer,
                    ThreadSafePrincipalHolder* principal)
 SERVO_BINDING_FUNC(Servo_StyleSheet_AddRef, void,
-                   RawServoStyleSheetBorrowed sheet)
+                   RawServoStyleSheetMaybeBorrowed sheet)
 SERVO_BINDING_FUNC(Servo_StyleSheet_Release, void,
-                   RawServoStyleSheetBorrowed sheet)
+                   RawServoStyleSheetMaybeBorrowed sheet)
 SERVO_BINDING_FUNC(Servo_StyleSheet_HasRules, bool,
-                   RawServoStyleSheetBorrowed sheet)
-SERVO_BINDING_FUNC(Servo_StyleSet_Init, RawServoStyleSet*)
-SERVO_BINDING_FUNC(Servo_StyleSet_Drop, void, RawServoStyleSet* set)
+                   RawServoStyleSheetMaybeBorrowed sheet)
+SERVO_BINDING_FUNC(Servo_StyleSet_Init, RawServoStyleSetOwned)
+SERVO_BINDING_FUNC(Servo_StyleSet_Drop, void, RawServoStyleSetOwned set)
 SERVO_BINDING_FUNC(Servo_StyleSet_AppendStyleSheet, void,
-                   RawServoStyleSet* set, RawServoStyleSheetBorrowed sheet)
+                   RawServoStyleSetBorrowedMut set, RawServoStyleSheetMaybeBorrowed sheet)
 SERVO_BINDING_FUNC(Servo_StyleSet_PrependStyleSheet, void,
-                   RawServoStyleSet* set, RawServoStyleSheetBorrowed sheet)
+                   RawServoStyleSetBorrowedMut set, RawServoStyleSheetMaybeBorrowed sheet)
 SERVO_BINDING_FUNC(Servo_StyleSet_RemoveStyleSheet, void,
-                   RawServoStyleSet* set, RawServoStyleSheetBorrowed sheet)
+                   RawServoStyleSetBorrowedMut set, RawServoStyleSheetMaybeBorrowed sheet)
 SERVO_BINDING_FUNC(Servo_StyleSet_InsertStyleSheetBefore, void,
-                   RawServoStyleSet* set, RawServoStyleSheetBorrowed sheet,
-                   RawServoStyleSheetBorrowed reference)
+                   RawServoStyleSetBorrowedMut set, RawServoStyleSheetMaybeBorrowed sheet,
+                   RawServoStyleSheetMaybeBorrowed reference)
 
 // Style attribute
 SERVO_BINDING_FUNC(Servo_ParseStyleAttribute, ServoDeclarationBlockStrong,
                    const uint8_t* bytes, uint32_t length,
                    nsHTMLCSSStyleSheet* cache)
 SERVO_BINDING_FUNC(Servo_DeclarationBlock_AddRef, void,
-                   ServoDeclarationBlockBorrowed declarations)
+                   ServoDeclarationBlockMaybeBorrowed declarations)
 SERVO_BINDING_FUNC(Servo_DeclarationBlock_Release, void,
-                   ServoDeclarationBlockBorrowed declarations)
+                   ServoDeclarationBlockMaybeBorrowed declarations)
 SERVO_BINDING_FUNC(Servo_DeclarationBlock_GetCache, nsHTMLCSSStyleSheet*,
-                   ServoDeclarationBlockBorrowed declarations)
+                   ServoDeclarationBlockMaybeBorrowed declarations)
 SERVO_BINDING_FUNC(Servo_DeclarationBlock_SetImmutable, void,
-                   ServoDeclarationBlockBorrowed declarations)
+                   ServoDeclarationBlockMaybeBorrowed declarations)
 SERVO_BINDING_FUNC(Servo_DeclarationBlock_ClearCachePointer, void,
-                   ServoDeclarationBlockBorrowed declarations)
+                   ServoDeclarationBlockMaybeBorrowed declarations)
 
 // CSS supports()
 SERVO_BINDING_FUNC(Servo_CSSSupports, bool,
@@ -69,22 +69,22 @@ SERVO_BINDING_FUNC(Servo_CSSSupports, bool,
 
 // Computed style data
 SERVO_BINDING_FUNC(Servo_ComputedValues_Get, ServoComputedValuesStrong,
-                   RawGeckoNode* node)
+                   RawGeckoNodeBorrowed node)
 SERVO_BINDING_FUNC(Servo_ComputedValues_GetForAnonymousBox,
                    ServoComputedValuesStrong,
-                   ServoComputedValuesBorrowed parent_style_or_null,
-                   nsIAtom* pseudoTag, RawServoStyleSet* set)
+                   ServoComputedValuesMaybeBorrowed parent_style_or_null,
+                   nsIAtom* pseudoTag, RawServoStyleSetBorrowedMut set)
 SERVO_BINDING_FUNC(Servo_ComputedValues_GetForPseudoElement,
                    ServoComputedValuesStrong,
-                   ServoComputedValuesBorrowed parent_style,
-                   RawGeckoElement* match_element, nsIAtom* pseudo_tag,
-                   RawServoStyleSet* set, bool is_probe)
+                   ServoComputedValuesMaybeBorrowed parent_style,
+                   RawGeckoElementBorrowed match_element, nsIAtom* pseudo_tag,
+                   RawServoStyleSetBorrowedMut set, bool is_probe)
 SERVO_BINDING_FUNC(Servo_ComputedValues_Inherit, ServoComputedValuesStrong,
-                   ServoComputedValuesBorrowed parent_style)
+                   ServoComputedValuesMaybeBorrowed parent_style)
 SERVO_BINDING_FUNC(Servo_ComputedValues_AddRef, void,
-                   ServoComputedValuesBorrowed computed_values)
+                   ServoComputedValuesMaybeBorrowed computed_values)
 SERVO_BINDING_FUNC(Servo_ComputedValues_Release, void,
-                   ServoComputedValuesBorrowed computed_values)
+                   ServoComputedValuesMaybeBorrowed computed_values)
 
 // Initialize Servo components. Should be called exactly once at startup.
 SERVO_BINDING_FUNC(Servo_Initialize, void)
@@ -94,18 +94,18 @@ SERVO_BINDING_FUNC(Servo_Shutdown, void)
 // Restyle hints
 SERVO_BINDING_FUNC(Servo_ComputeRestyleHint, nsRestyleHint,
                    RawGeckoElement* element, ServoElementSnapshot* snapshot,
-                   RawServoStyleSet* set)
+                   RawServoStyleSetBorrowedMut set)
 
 // Restyle the given document or subtree
 SERVO_BINDING_FUNC(Servo_RestyleDocument, void,
-                   RawGeckoDocument* doc, RawServoStyleSet* set)
+                   RawGeckoDocumentBorrowed doc, RawServoStyleSetBorrowedMut set)
 SERVO_BINDING_FUNC(Servo_RestyleSubtree, void,
-                   RawGeckoNode* node, RawServoStyleSet* set)
+                   RawGeckoNodeBorrowed node, RawServoStyleSetBorrowedMut set)
 
 // Style-struct management.
 #define STYLE_STRUCT(name, checkdata_cb)                            \
   struct nsStyle##name;                                             \
   SERVO_BINDING_FUNC(Servo_GetStyle##name, const nsStyle##name*,  \
-                     ServoComputedValuesBorrowed computed_values)
+                     ServoComputedValuesMaybeBorrowed computed_values)
 #include "nsStyleStructList.h"
 #undef STYLE_STRUCT

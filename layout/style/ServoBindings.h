@@ -61,19 +61,57 @@ class StyleChildrenIterator;
 }
 }
 
-#define DECL_REF_TYPE_FOR(type_)          \
-  typedef type_* type_##Borrowed;         \
+using mozilla::dom::StyleChildrenIterator;
+
+#define DECL_BORROWED_REF_TYPE_FOR(type_) typedef type_* type_##Borrowed;
+#define DECL_MAYBE_BORROWED_REF_TYPE_FOR(type_) typedef type_* type_##MaybeBorrowed;
+#define DECL_BORROWED_MUT_REF_TYPE_FOR(type_) typedef type_* type_##BorrowedMut;
+#define DECL_MAYBE_BORROWED_MUT_REF_TYPE_FOR(type_) typedef type_* type_##MaybeBorrowedMut;
+
+#define DECL_ARC_REF_TYPE_FOR(type_)      \
+  DECL_MAYBE_BORROWED_REF_TYPE_FOR(type_) \
   struct MOZ_MUST_USE_TYPE type_##Strong  \
   {                                       \
     type_* mPtr;                          \
     already_AddRefed<type_> Consume();    \
   };
 
-DECL_REF_TYPE_FOR(ServoComputedValues)
-DECL_REF_TYPE_FOR(RawServoStyleSheet)
-DECL_REF_TYPE_FOR(ServoDeclarationBlock)
+#define DECL_OWNED_REF_TYPE_FOR(type_)    \
+  typedef type_* type_##Owned;            \
+  DECL_BORROWED_REF_TYPE_FOR(type_)       \
+  DECL_BORROWED_MUT_REF_TYPE_FOR(type_)
 
-#undef DECL_REF_TYPE_FOR
+#define DECL_MAYBE_OWNED_REF_TYPE_FOR(type_)    \
+  typedef type_* type_##MaybeOwned;             \
+  DECL_MAYBE_BORROWED_REF_TYPE_FOR(type_)       \
+  DECL_MAYBE_BORROWED_MUT_REF_TYPE_FOR(type_)
+
+DECL_ARC_REF_TYPE_FOR(ServoComputedValues)
+DECL_ARC_REF_TYPE_FOR(RawServoStyleSheet)
+DECL_ARC_REF_TYPE_FOR(ServoDeclarationBlock)
+
+DECL_OWNED_REF_TYPE_FOR(RawServoStyleSet)
+DECL_MAYBE_OWNED_REF_TYPE_FOR(ServoNodeData)
+
+// We don't use BorrowedMut because the nodes may alias
+DECL_BORROWED_REF_TYPE_FOR(RawGeckoNode)
+DECL_MAYBE_BORROWED_REF_TYPE_FOR(RawGeckoNode)
+DECL_BORROWED_REF_TYPE_FOR(RawGeckoElement)
+DECL_MAYBE_BORROWED_REF_TYPE_FOR(RawGeckoElement)
+DECL_BORROWED_REF_TYPE_FOR(RawGeckoDocument)
+DECL_MAYBE_BORROWED_REF_TYPE_FOR(RawGeckoDocument)
+DECL_BORROWED_MUT_REF_TYPE_FOR(StyleChildrenIterator)
+DECL_MAYBE_BORROWED_MUT_REF_TYPE_FOR(StyleChildrenIterator)
+DECL_BORROWED_REF_TYPE_FOR(StyleChildrenIterator)
+
+#undef DECL_ARC_REF_TYPE_FOR
+#undef DECL_OWNED_REF_TYPE_FOR
+#undef DECL_Maybe_OWNED_REF_TYPE_FOR
+#undef DECL_BORROWED_REF_TYPE_FOR
+#undef DECL_Maybe_BORROWED_REF_TYPE_FOR
+#undef DECL_BORROWED_MUT_REF_TYPE_FOR
+#undef DECL_Maybe_BORROWED_MUT_REF_TYPE_FOR
+
 
 #define NS_DECL_THREADSAFE_FFI_REFCOUNTING(class_, name_)                     \
   void Gecko_AddRef##name_##ArbitraryThread(class_* aPtr);                    \
@@ -100,19 +138,19 @@ DECL_REF_TYPE_FOR(ServoDeclarationBlock)
 extern "C" {
 
 // DOM Traversal.
-uint32_t Gecko_ChildrenCount(RawGeckoNode* node);
-bool Gecko_NodeIsElement(RawGeckoNode* node);
-RawGeckoNode* Gecko_GetParentNode(RawGeckoNode* node);
-RawGeckoNode* Gecko_GetFirstChild(RawGeckoNode* node);
-RawGeckoNode* Gecko_GetLastChild(RawGeckoNode* node);
-RawGeckoNode* Gecko_GetPrevSibling(RawGeckoNode* node);
-RawGeckoNode* Gecko_GetNextSibling(RawGeckoNode* node);
-RawGeckoElement* Gecko_GetParentElement(RawGeckoElement* element);
-RawGeckoElement* Gecko_GetFirstChildElement(RawGeckoElement* element);
-RawGeckoElement* Gecko_GetLastChildElement(RawGeckoElement* element);
-RawGeckoElement* Gecko_GetPrevSiblingElement(RawGeckoElement* element);
-RawGeckoElement* Gecko_GetNextSiblingElement(RawGeckoElement* element);
-RawGeckoElement* Gecko_GetDocumentElement(RawGeckoDocument* document);
+uint32_t Gecko_ChildrenCount(RawGeckoNodeBorrowed node);
+bool Gecko_NodeIsElement(RawGeckoNodeBorrowed node);
+RawGeckoNodeMaybeBorrowed Gecko_GetParentNode(RawGeckoNodeBorrowed node);
+RawGeckoNodeMaybeBorrowed Gecko_GetFirstChild(RawGeckoNodeBorrowed node);
+RawGeckoNodeMaybeBorrowed Gecko_GetLastChild(RawGeckoNodeBorrowed node);
+RawGeckoNodeMaybeBorrowed Gecko_GetPrevSibling(RawGeckoNodeBorrowed node);
+RawGeckoNodeMaybeBorrowed Gecko_GetNextSibling(RawGeckoNodeBorrowed node);
+RawGeckoElementMaybeBorrowed Gecko_GetParentElement(RawGeckoElementBorrowed element);
+RawGeckoElementMaybeBorrowed Gecko_GetFirstChildElement(RawGeckoElementBorrowed element);
+RawGeckoElementMaybeBorrowed Gecko_GetLastChildElement(RawGeckoElementBorrowed element);
+RawGeckoElementMaybeBorrowed Gecko_GetPrevSiblingElement(RawGeckoElementBorrowed element);
+RawGeckoElementMaybeBorrowed Gecko_GetNextSiblingElement(RawGeckoElementBorrowed element);
+RawGeckoElementMaybeBorrowed Gecko_GetDocumentElement(RawGeckoDocumentBorrowed document);
 
 // By default, Servo walks the DOM by traversing the siblings of the DOM-view
 // first child. This generally works, but misses anonymous children, which we
@@ -120,53 +158,53 @@ RawGeckoElement* Gecko_GetDocumentElement(RawGeckoDocument* document);
 // optional heap-allocated iterator for nodes that need it. If the creation
 // method returns null, Servo falls back to the aforementioned simpler (and
 // faster) sibling traversal.
-mozilla::dom::StyleChildrenIterator* Gecko_MaybeCreateStyleChildrenIterator(RawGeckoNode* node);
-void Gecko_DropStyleChildrenIterator(mozilla::dom::StyleChildrenIterator* it);
-RawGeckoNode* Gecko_GetNextStyleChild(mozilla::dom::StyleChildrenIterator* it);
+StyleChildrenIteratorMaybeBorrowedMut Gecko_MaybeCreateStyleChildrenIterator(RawGeckoNodeBorrowed node);
+void Gecko_DropStyleChildrenIterator(StyleChildrenIteratorBorrowedMut it);
+RawGeckoNodeMaybeBorrowed Gecko_GetNextStyleChild(StyleChildrenIteratorBorrowed it);
 
 // Selector Matching.
-uint8_t Gecko_ElementState(RawGeckoElement* element);
-bool Gecko_IsHTMLElementInHTMLDocument(RawGeckoElement* element);
-bool Gecko_IsLink(RawGeckoElement* element);
-bool Gecko_IsTextNode(RawGeckoNode* node);
-bool Gecko_IsVisitedLink(RawGeckoElement* element);
-bool Gecko_IsUnvisitedLink(RawGeckoElement* element);
-bool Gecko_IsRootElement(RawGeckoElement* element);
-nsIAtom* Gecko_LocalName(RawGeckoElement* element);
-nsIAtom* Gecko_Namespace(RawGeckoElement* element);
-nsIAtom* Gecko_GetElementId(RawGeckoElement* element);
+uint8_t Gecko_ElementState(RawGeckoElementBorrowed element);
+bool Gecko_IsHTMLElementInHTMLDocument(RawGeckoElementBorrowed element);
+bool Gecko_IsLink(RawGeckoElementBorrowed element);
+bool Gecko_IsTextNode(RawGeckoNodeBorrowed node);
+bool Gecko_IsVisitedLink(RawGeckoElementBorrowed element);
+bool Gecko_IsUnvisitedLink(RawGeckoElementBorrowed element);
+bool Gecko_IsRootElement(RawGeckoElementBorrowed element);
+nsIAtom* Gecko_LocalName(RawGeckoElementBorrowed element);
+nsIAtom* Gecko_Namespace(RawGeckoElementBorrowed element);
+nsIAtom* Gecko_GetElementId(RawGeckoElementBorrowed element);
 
 // Attributes.
-#define SERVO_DECLARE_ELEMENT_ATTR_MATCHING_FUNCTIONS(prefix_, implementor_)   \
-  nsIAtom* prefix_##AtomAttrValue(implementor_* element, nsIAtom* attribute);  \
-  bool prefix_##HasAttr(implementor_* element, nsIAtom* ns, nsIAtom* name);    \
-  bool prefix_##AttrEquals(implementor_* element, nsIAtom* ns, nsIAtom* name,  \
-                           nsIAtom* str, bool ignoreCase);                     \
-  bool prefix_##AttrDashEquals(implementor_* element, nsIAtom* ns,             \
-                               nsIAtom* name, nsIAtom* str);                   \
-  bool prefix_##AttrIncludes(implementor_* element, nsIAtom* ns,               \
-                             nsIAtom* name, nsIAtom* str);                     \
-  bool prefix_##AttrHasSubstring(implementor_* element, nsIAtom* ns,           \
-                                 nsIAtom* name, nsIAtom* str);                 \
-  bool prefix_##AttrHasPrefix(implementor_* element, nsIAtom* ns,              \
-                              nsIAtom* name, nsIAtom* str);                    \
-  bool prefix_##AttrHasSuffix(implementor_* element, nsIAtom* ns,              \
-                              nsIAtom* name, nsIAtom* str);                    \
-  uint32_t prefix_##ClassOrClassList(implementor_* element, nsIAtom** class_,  \
+#define SERVO_DECLARE_ELEMENT_ATTR_MATCHING_FUNCTIONS(prefix_, implementor_)  \
+  nsIAtom* prefix_##AtomAttrValue(implementor_ element, nsIAtom* attribute);  \
+  bool prefix_##HasAttr(implementor_ element, nsIAtom* ns, nsIAtom* name);    \
+  bool prefix_##AttrEquals(implementor_ element, nsIAtom* ns, nsIAtom* name,  \
+                           nsIAtom* str, bool ignoreCase);                    \
+  bool prefix_##AttrDashEquals(implementor_ element, nsIAtom* ns,             \
+                               nsIAtom* name, nsIAtom* str);                  \
+  bool prefix_##AttrIncludes(implementor_ element, nsIAtom* ns,               \
+                             nsIAtom* name, nsIAtom* str);                    \
+  bool prefix_##AttrHasSubstring(implementor_ element, nsIAtom* ns,           \
+                                 nsIAtom* name, nsIAtom* str);                \
+  bool prefix_##AttrHasPrefix(implementor_ element, nsIAtom* ns,              \
+                              nsIAtom* name, nsIAtom* str);                   \
+  bool prefix_##AttrHasSuffix(implementor_ element, nsIAtom* ns,              \
+                              nsIAtom* name, nsIAtom* str);                   \
+  uint32_t prefix_##ClassOrClassList(implementor_ element, nsIAtom** class_,  \
                                      nsIAtom*** classList);
 
-SERVO_DECLARE_ELEMENT_ATTR_MATCHING_FUNCTIONS(Gecko_, RawGeckoElement)
+SERVO_DECLARE_ELEMENT_ATTR_MATCHING_FUNCTIONS(Gecko_, RawGeckoElementBorrowed)
 SERVO_DECLARE_ELEMENT_ATTR_MATCHING_FUNCTIONS(Gecko_Snapshot,
-                                              ServoElementSnapshot)
+                                              ServoElementSnapshot*)
 
 #undef SERVO_DECLARE_ELEMENT_ATTR_MATCHING_FUNCTIONS
 
 // Style attributes.
-ServoDeclarationBlockBorrowed Gecko_GetServoDeclarationBlock(RawGeckoElement* element);
+ServoDeclarationBlockMaybeBorrowed Gecko_GetServoDeclarationBlock(RawGeckoElementBorrowed element);
 
 // Node data.
-ServoNodeData* Gecko_GetNodeData(RawGeckoNode* node);
-void Gecko_SetNodeData(RawGeckoNode* node, ServoNodeData* data);
+ServoNodeDataMaybeBorrowed Gecko_GetNodeData(RawGeckoNodeBorrowed node);
+void Gecko_SetNodeData(RawGeckoNodeBorrowed node, ServoNodeDataMaybeOwned data);
 
 // Atoms.
 nsIAtom* Gecko_Atomize(const char* aString, uint32_t aLength);
@@ -211,9 +249,9 @@ void Gecko_SetMozBinding(nsStyleDisplay* style_struct,
 void Gecko_CopyMozBindingFrom(nsStyleDisplay* des, const nsStyleDisplay* src);
 
 // Dirtiness tracking.
-uint32_t Gecko_GetNodeFlags(RawGeckoNode* node);
-void Gecko_SetNodeFlags(RawGeckoNode* node, uint32_t flags);
-void Gecko_UnsetNodeFlags(RawGeckoNode* node, uint32_t flags);
+uint32_t Gecko_GetNodeFlags(RawGeckoNodeBorrowed node);
+void Gecko_SetNodeFlags(RawGeckoNodeBorrowed node, uint32_t flags);
+void Gecko_UnsetNodeFlags(RawGeckoNodeBorrowed node, uint32_t flags);
 
 // Incremental restyle.
 // TODO: We would avoid a few ffi calls if we decide to make an API like the
@@ -222,11 +260,11 @@ void Gecko_UnsetNodeFlags(RawGeckoNode* node, uint32_t flags);
 //
 // Also, we might want a ComputedValues to ComputedValues API for animations?
 // Not if we do them in Gecko...
-nsStyleContext* Gecko_GetStyleContext(RawGeckoNode* node,
+nsStyleContext* Gecko_GetStyleContext(RawGeckoNodeBorrowed node,
                                       nsIAtom* aPseudoTagOrNull);
 nsChangeHint Gecko_CalcStyleDifference(nsStyleContext* oldstyle,
-                                       ServoComputedValuesBorrowed newstyle);
-void Gecko_StoreStyleDifference(RawGeckoNode* node, nsChangeHint change);
+                                       ServoComputedValuesMaybeBorrowed newstyle);
+void Gecko_StoreStyleDifference(RawGeckoNodeBorrowed node, nsChangeHint change);
 
 // `array` must be an nsTArray
 // If changing this signature, please update the

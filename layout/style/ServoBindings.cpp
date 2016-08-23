@@ -49,85 +49,85 @@ IMPL_STRONG_REF_TYPE_FOR(ServoDeclarationBlock)
 #undef IMPL_STRONG_REF_TYPE_FOR
 
 uint32_t
-Gecko_ChildrenCount(RawGeckoNode* aNode)
+Gecko_ChildrenCount(RawGeckoNodeBorrowed aNode)
 {
   return aNode->GetChildCount();
 }
 
 bool
-Gecko_NodeIsElement(RawGeckoNode* aNode)
+Gecko_NodeIsElement(RawGeckoNodeBorrowed aNode)
 {
   return aNode->IsElement();
 }
 
-RawGeckoNode*
-Gecko_GetParentNode(RawGeckoNode* aNode)
+RawGeckoNodeMaybeBorrowed
+Gecko_GetParentNode(RawGeckoNodeBorrowed aNode)
 {
   return aNode->GetFlattenedTreeParentNode();
 }
 
-RawGeckoNode*
-Gecko_GetFirstChild(RawGeckoNode* aNode)
+RawGeckoNodeMaybeBorrowed
+Gecko_GetFirstChild(RawGeckoNodeBorrowed aNode)
 {
   return aNode->GetFirstChild();
 }
 
-RawGeckoNode*
-Gecko_GetLastChild(RawGeckoNode* aNode)
+RawGeckoNodeMaybeBorrowed
+Gecko_GetLastChild(RawGeckoNodeBorrowed aNode)
 {
   return aNode->GetLastChild();
 }
 
-RawGeckoNode*
-Gecko_GetPrevSibling(RawGeckoNode* aNode)
+RawGeckoNodeMaybeBorrowed
+Gecko_GetPrevSibling(RawGeckoNodeBorrowed aNode)
 {
   return aNode->GetPreviousSibling();
 }
 
-RawGeckoNode*
-Gecko_GetNextSibling(RawGeckoNode* aNode)
+RawGeckoNodeMaybeBorrowed
+Gecko_GetNextSibling(RawGeckoNodeBorrowed aNode)
 {
   return aNode->GetNextSibling();
 }
 
-RawGeckoElement*
-Gecko_GetParentElement(RawGeckoElement* aElement)
+RawGeckoElementMaybeBorrowed
+Gecko_GetParentElement(RawGeckoElementBorrowed aElement)
 {
   nsINode* parentNode = aElement->GetFlattenedTreeParentNode();
   return parentNode->IsElement() ? parentNode->AsElement() : nullptr;
 }
 
-RawGeckoElement*
-Gecko_GetFirstChildElement(RawGeckoElement* aElement)
+RawGeckoElementMaybeBorrowed
+Gecko_GetFirstChildElement(RawGeckoElementBorrowed aElement)
 {
   return aElement->GetFirstElementChild();
 }
 
-RawGeckoElement* Gecko_GetLastChildElement(RawGeckoElement* aElement)
+RawGeckoElementMaybeBorrowed Gecko_GetLastChildElement(RawGeckoElementBorrowed aElement)
 {
   return aElement->GetLastElementChild();
 }
 
-RawGeckoElement*
-Gecko_GetPrevSiblingElement(RawGeckoElement* aElement)
+RawGeckoElementMaybeBorrowed
+Gecko_GetPrevSiblingElement(RawGeckoElementBorrowed aElement)
 {
   return aElement->GetPreviousElementSibling();
 }
 
-RawGeckoElement*
-Gecko_GetNextSiblingElement(RawGeckoElement* aElement)
+RawGeckoElementMaybeBorrowed
+Gecko_GetNextSiblingElement(RawGeckoElementBorrowed aElement)
 {
   return aElement->GetNextElementSibling();
 }
 
-RawGeckoElement*
-Gecko_GetDocumentElement(RawGeckoDocument* aDoc)
+RawGeckoElementMaybeBorrowed
+Gecko_GetDocumentElement(RawGeckoDocumentBorrowed aDoc)
 {
   return aDoc->GetDocumentElement();
 }
 
-StyleChildrenIterator*
-Gecko_MaybeCreateStyleChildrenIterator(RawGeckoNode* aNode)
+StyleChildrenIteratorBorrowedMut
+Gecko_MaybeCreateStyleChildrenIterator(RawGeckoNodeBorrowed aNode)
 {
   if (!aNode->IsElement()) {
     return nullptr;
@@ -139,76 +139,76 @@ Gecko_MaybeCreateStyleChildrenIterator(RawGeckoNode* aNode)
 }
 
 void
-Gecko_DropStyleChildrenIterator(StyleChildrenIterator* aIterator)
+Gecko_DropStyleChildrenIterator(StyleChildrenIteratorBorrowedMut aIterator)
 {
   MOZ_ASSERT(aIterator);
   delete aIterator;
 }
 
-RawGeckoNode*
-Gecko_GetNextStyleChild(StyleChildrenIterator* aIterator)
+RawGeckoNodeBorrowed
+Gecko_GetNextStyleChild(StyleChildrenIteratorBorrowed aIterator)
 {
   MOZ_ASSERT(aIterator);
   return aIterator->GetNextChild();
 }
 
 EventStates::ServoType
-Gecko_ElementState(RawGeckoElement* aElement)
+Gecko_ElementState(RawGeckoElementBorrowed aElement)
 {
   return aElement->StyleState().ServoValue();
 }
 
 bool
-Gecko_IsHTMLElementInHTMLDocument(RawGeckoElement* aElement)
+Gecko_IsHTMLElementInHTMLDocument(RawGeckoElementBorrowed aElement)
 {
   return aElement->IsHTMLElement() && aElement->OwnerDoc()->IsHTMLDocument();
 }
 
 bool
-Gecko_IsLink(RawGeckoElement* aElement)
+Gecko_IsLink(RawGeckoElementBorrowed aElement)
 {
   return nsCSSRuleProcessor::IsLink(aElement);
 }
 
 bool
-Gecko_IsTextNode(RawGeckoNode* aNode)
+Gecko_IsTextNode(RawGeckoNodeBorrowed aNode)
 {
   return aNode->NodeInfo()->NodeType() == nsIDOMNode::TEXT_NODE;
 }
 
 bool
-Gecko_IsVisitedLink(RawGeckoElement* aElement)
+Gecko_IsVisitedLink(RawGeckoElementBorrowed aElement)
 {
   return aElement->StyleState().HasState(NS_EVENT_STATE_VISITED);
 }
 
 bool
-Gecko_IsUnvisitedLink(RawGeckoElement* aElement)
+Gecko_IsUnvisitedLink(RawGeckoElementBorrowed aElement)
 {
   return aElement->StyleState().HasState(NS_EVENT_STATE_UNVISITED);
 }
 
 bool
-Gecko_IsRootElement(RawGeckoElement* aElement)
+Gecko_IsRootElement(RawGeckoElementBorrowed aElement)
 {
   return aElement->OwnerDoc()->GetRootElement() == aElement;
 }
 
 nsIAtom*
-Gecko_LocalName(RawGeckoElement* aElement)
+Gecko_LocalName(RawGeckoElementBorrowed aElement)
 {
   return aElement->NodeInfo()->NameAtom();
 }
 
 nsIAtom*
-Gecko_Namespace(RawGeckoElement* aElement)
+Gecko_Namespace(RawGeckoElementBorrowed aElement)
 {
   int32_t id = aElement->NodeInfo()->NamespaceID();
   return nsContentUtils::NameSpaceManager()->NameSpaceURIAtomForServo(id);
 }
 
 nsIAtom*
-Gecko_GetElementId(RawGeckoElement* aElement)
+Gecko_GetElementId(RawGeckoElementBorrowed aElement)
 {
   const nsAttrValue* attr = aElement->GetParsedAttr(nsGkAtoms::id);
   return attr ? attr->GetAtomValue() : nullptr;
@@ -216,25 +216,25 @@ Gecko_GetElementId(RawGeckoElement* aElement)
 
 // Dirtiness tracking.
 uint32_t
-Gecko_GetNodeFlags(RawGeckoNode* aNode)
+Gecko_GetNodeFlags(RawGeckoNodeBorrowed aNode)
 {
   return aNode->GetFlags();
 }
 
 void
-Gecko_SetNodeFlags(RawGeckoNode* aNode, uint32_t aFlags)
+Gecko_SetNodeFlags(RawGeckoNodeBorrowed aNode, uint32_t aFlags)
 {
   aNode->SetFlags(aFlags);
 }
 
 void
-Gecko_UnsetNodeFlags(RawGeckoNode* aNode, uint32_t aFlags)
+Gecko_UnsetNodeFlags(RawGeckoNodeBorrowed aNode, uint32_t aFlags)
 {
   aNode->UnsetFlags(aFlags);
 }
 
 nsStyleContext*
-Gecko_GetStyleContext(RawGeckoNode* aNode, nsIAtom* aPseudoTagOrNull)
+Gecko_GetStyleContext(RawGeckoNodeBorrowed aNode, nsIAtom* aPseudoTagOrNull)
 {
   MOZ_ASSERT(aNode->IsContent());
   nsIFrame* relevantFrame =
@@ -249,7 +249,7 @@ Gecko_GetStyleContext(RawGeckoNode* aNode, nsIAtom* aPseudoTagOrNull)
 
 nsChangeHint
 Gecko_CalcStyleDifference(nsStyleContext* aOldStyleContext,
-                          ServoComputedValuesBorrowed aComputedValues)
+                          ServoComputedValuesMaybeBorrowed aComputedValues)
 {
   MOZ_ASSERT(aOldStyleContext);
   MOZ_ASSERT(aComputedValues);
@@ -272,7 +272,7 @@ Gecko_CalcStyleDifference(nsStyleContext* aOldStyleContext,
 }
 
 void
-Gecko_StoreStyleDifference(RawGeckoNode* aNode, nsChangeHint aChangeHintToStore)
+Gecko_StoreStyleDifference(RawGeckoNodeBorrowed aNode, nsChangeHint aChangeHintToStore)
 {
 #ifdef MOZ_STYLO
   MOZ_ASSERT(aNode->IsContent());
@@ -315,7 +315,7 @@ Gecko_StoreStyleDifference(RawGeckoNode* aNode, nsChangeHint aChangeHintToStore)
 }
 
 ServoDeclarationBlock*
-Gecko_GetServoDeclarationBlock(RawGeckoElement* aElement)
+Gecko_GetServoDeclarationBlock(RawGeckoElementBorrowed aElement)
 {
   const nsAttrValue* attr = aElement->GetParsedAttr(nsGkAtoms::style);
   if (!attr || attr->Type() != nsAttrValue::eServoCSSDeclaration) {
@@ -516,63 +516,63 @@ ClassOrClassList(Implementor* aElement, nsIAtom** aClass, nsIAtom*** aClassList)
 }
 
 #define SERVO_IMPL_ELEMENT_ATTR_MATCHING_FUNCTIONS(prefix_, implementor_)      \
-  nsIAtom* prefix_##AtomAttrValue(implementor_* aElement, nsIAtom* aName)      \
+  nsIAtom* prefix_##AtomAttrValue(implementor_ aElement, nsIAtom* aName)      \
   {                                                                            \
     return AtomAttrValue(aElement, aName);                                     \
   }                                                                            \
-  bool prefix_##HasAttr(implementor_* aElement, nsIAtom* aNS, nsIAtom* aName)  \
+  bool prefix_##HasAttr(implementor_ aElement, nsIAtom* aNS, nsIAtom* aName)  \
   {                                                                            \
     return HasAttr(aElement, aNS, aName);                                      \
   }                                                                            \
-  bool prefix_##AttrEquals(implementor_* aElement, nsIAtom* aNS,               \
+  bool prefix_##AttrEquals(implementor_ aElement, nsIAtom* aNS,               \
                            nsIAtom* aName, nsIAtom* aStr, bool aIgnoreCase)    \
   {                                                                            \
     return AttrEquals(aElement, aNS, aName, aStr, aIgnoreCase);                \
   }                                                                            \
-  bool prefix_##AttrDashEquals(implementor_* aElement, nsIAtom* aNS,           \
+  bool prefix_##AttrDashEquals(implementor_ aElement, nsIAtom* aNS,           \
                                nsIAtom* aName, nsIAtom* aStr)                  \
   {                                                                            \
     return AttrDashEquals(aElement, aNS, aName, aStr);                         \
   }                                                                            \
-  bool prefix_##AttrIncludes(implementor_* aElement, nsIAtom* aNS,             \
+  bool prefix_##AttrIncludes(implementor_ aElement, nsIAtom* aNS,             \
                              nsIAtom* aName, nsIAtom* aStr)                    \
   {                                                                            \
     return AttrIncludes(aElement, aNS, aName, aStr);                           \
   }                                                                            \
-  bool prefix_##AttrHasSubstring(implementor_* aElement, nsIAtom* aNS,         \
+  bool prefix_##AttrHasSubstring(implementor_ aElement, nsIAtom* aNS,         \
                                  nsIAtom* aName, nsIAtom* aStr)                \
   {                                                                            \
     return AttrHasSubstring(aElement, aNS, aName, aStr);                       \
   }                                                                            \
-  bool prefix_##AttrHasPrefix(implementor_* aElement, nsIAtom* aNS,            \
+  bool prefix_##AttrHasPrefix(implementor_ aElement, nsIAtom* aNS,            \
                               nsIAtom* aName, nsIAtom* aStr)                   \
   {                                                                            \
     return AttrHasPrefix(aElement, aNS, aName, aStr);                          \
   }                                                                            \
-  bool prefix_##AttrHasSuffix(implementor_* aElement, nsIAtom* aNS,            \
+  bool prefix_##AttrHasSuffix(implementor_ aElement, nsIAtom* aNS,            \
                               nsIAtom* aName, nsIAtom* aStr)                   \
   {                                                                            \
     return AttrHasSuffix(aElement, aNS, aName, aStr);                          \
   }                                                                            \
-  uint32_t prefix_##ClassOrClassList(implementor_* aElement, nsIAtom** aClass, \
+  uint32_t prefix_##ClassOrClassList(implementor_ aElement, nsIAtom** aClass, \
                                      nsIAtom*** aClassList)                    \
   {                                                                            \
     return ClassOrClassList(aElement, aClass, aClassList);                     \
   }
 
-SERVO_IMPL_ELEMENT_ATTR_MATCHING_FUNCTIONS(Gecko_, RawGeckoElement)
-SERVO_IMPL_ELEMENT_ATTR_MATCHING_FUNCTIONS(Gecko_Snapshot, ServoElementSnapshot)
+SERVO_IMPL_ELEMENT_ATTR_MATCHING_FUNCTIONS(Gecko_, RawGeckoElementBorrowed)
+SERVO_IMPL_ELEMENT_ATTR_MATCHING_FUNCTIONS(Gecko_Snapshot, ServoElementSnapshot*)
 
 #undef SERVO_IMPL_ELEMENT_ATTR_MATCHING_FUNCTIONS
 
-ServoNodeData*
-Gecko_GetNodeData(RawGeckoNode* aNode)
+ServoNodeDataMaybeBorrowed
+Gecko_GetNodeData(RawGeckoNodeBorrowed aNode)
 {
   return aNode->ServoData().get();
 }
 
 void
-Gecko_SetNodeData(RawGeckoNode* aNode, ServoNodeData* aData)
+Gecko_SetNodeData(RawGeckoNodeBorrowed aNode, ServoNodeDataMaybeOwned aData)
 {
   MOZ_ASSERT(!aNode->ServoData());
   aNode->ServoData().reset(aData);
@@ -901,7 +901,7 @@ Gecko_Destroy_nsStyle##name(nsStyle##name* ptr)                               \
 
 #ifdef MOZ_STYLO
 const nsStyleVariables*
-Servo_GetStyleVariables(ServoComputedValuesBorrowed aComputedValues)
+Servo_GetStyleVariables(ServoComputedValuesMaybeBorrowed aComputedValues)
 {
   // Servo can't provide us with Variables structs yet, so instead of linking
   // to a Servo_GetStyleVariables defined in Servo we define one here that
