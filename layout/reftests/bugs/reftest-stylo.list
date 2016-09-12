@@ -88,7 +88,7 @@ fails fuzzy-if(gtkWidget,6,26200) == 28811-2b.html 28811-2b.html
 == 68061-1.xml 68061-1.xml
 == 68061-2.xml 68061-2.xml
 == 76331-1.html 76331-1.html
-== 81947-1.html 81947-1.html
+random == 81947-1.html 81947-1.html
 == 82711-1.html 82711-1.html
 == 82711-2.html 82711-2.html
 == 82711-3.html 82711-3.html
@@ -267,25 +267,25 @@ skip-if((B2G&&browserIsRemote)||Mulet) == 232990-1b.xhtml 232990-1b.xhtml
 == 233094-2a.html 233094-2a.html
 == 233094-2b.html 233094-2b.html
 == 233094-2c.html 233094-2c.html
-fails == 234686-1.html 234686-1.html
-fails == 234686-2.html 234686-2.html
-fails == 234686-3.html 234686-3.html
-== 234686-4.html 234686-4.html
-== 234686-5.html 234686-5.html
-fails == 234686-6.html 234686-6.html
-== 234686-7.html 234686-7.html
+random == 234686-1.html 234686-1.html
+random == 234686-2.html 234686-2.html
+random == 234686-3.html 234686-3.html
+random == 234686-4.html 234686-4.html
+random == 234686-5.html 234686-5.html
+random == 234686-6.html 234686-6.html
+random == 234686-7.html 234686-7.html
 # == 234686-8.html 234686-8.html
-== 234686-9.html 234686-9.html
-fails == 234686-10.html 234686-10.html
-fails == 234686-11.html 234686-11.html
-== 234686-12.html 234686-12.html
-== 234686-13.html 234686-13.html
-fails == 234686-14.html 234686-14.html
-== 234686-15.html 234686-15.html
-== 234686-16.html 234686-16.html
-== 234686-17.html 234686-17.html
-fails == 234686-18.html 234686-18.html
-fails == 234686-19.html 234686-19.html
+random == 234686-9.html 234686-9.html
+random == 234686-10.html 234686-10.html
+random == 234686-11.html 234686-11.html
+random == 234686-12.html 234686-12.html
+random == 234686-13.html 234686-13.html
+random == 234686-14.html 234686-14.html
+random == 234686-15.html 234686-15.html
+random == 234686-16.html 234686-16.html
+random == 234686-17.html 234686-17.html
+random == 234686-18.html 234686-18.html
+random == 234686-19.html 234686-19.html
 skip-if(B2G||Mulet) == 234964-1.html 234964-1.html
 # Initial mulet triage: parity with B2G/B2G Desktop
 == 234964-2.html 234964-2.html
@@ -338,7 +338,7 @@ skip-if((B2G&&browserIsRemote)||Mulet) == 261826-1.xul 261826-1.xul
 # bug 974780
 # Initial mulet triage: parity with B2G/B2G Desktop
 == 262151-1.html 262151-1.html
-fuzzy-if(skiaContent,1,5) == 262998-1.html 262998-1.html
+skip == 262998-1.html 262998-1.html
 == 267353-1.html 267353-1.html
 == 269908-1.html 269908-1.html
 == 269908-2.html 269908-2.html
@@ -762,7 +762,7 @@ skip-if(B2G||Mulet) == 370629-2.html 370629-2.html
 == 370692-1.xhtml 370692-1.xhtml
 == 371041-1.html 371041-1.html
 == 371043-1.html 371043-1.html
-== 371354-1.html 371354-1.html
+random == 371354-1.html 371354-1.html
 == 371483-1.html 371483-1.html
 # assertion test
 fails-if(Android&&!asyncPan) == 371561-1.html 371561-1.html
@@ -828,7 +828,7 @@ skip-if(B2G||Mulet) == 378933-1.html 378933-1.html
 # Initial mulet triage: parity with B2G/B2G Desktop
 skip-if(B2G||Mulet) == 378935-1.html 378935-1.html
 # Initial mulet triage: parity with B2G/B2G Desktop
-skip-if(B2G||Mulet) == 378937-1.html 378937-1.html
+skip == 378937-1.html 378937-1.html
 # Initial mulet triage: parity with B2G/B2G Desktop
 == 379178-xhtml.xhtml 379178-xhtml.xhtml
 == 379178-html.html 379178-html.html
@@ -853,9 +853,9 @@ skip-if(B2G||Mulet) fuzzy-if(Android,2,140) == 379349-3b.xhtml 379349-3b.xhtml
 == 379361-3.html 379361-3.html
 == 379461-1.xhtml 379461-1.xhtml
 == 379461-2.xhtml 379461-2.xhtml
-skip-if(B2G||Mulet) == 379461-3-container-xhtml.html 379461-3-container-xhtml.html
+skip == 379461-3-container-xhtml.html 379461-3-container-xhtml.html
 # Initial mulet triage: parity with B2G/B2G Desktop
-skip-if(B2G||Mulet) fails-if(Android&&!asyncPan) == 379461-3-container-xhtml.html 379461-3-container-xhtml.html
+skip == 379461-3-container-xhtml.html 379461-3-container-xhtml.html
 # there is a scrollbar
 # Initial mulet triage: parity with B2G/B2G Desktop
 fuzzy-if(skiaContent,1,5) == 380004-1.html 380004-1.html
@@ -897,9 +897,9 @@ fuzzy-if(skiaContent,2,3) == 385870-2.html 385870-2.html
 == 386014-1c.html 386014-1c.html
 == 386065-1.html 386065-1.html
 == 386065-2.html 386065-2.html
-test-pref(layout.float-fragments-inside-column.enabled,false) skip-if(B2G||Mulet) fails == 386147-1.html 386147-1.html
+skip == 386147-1.html 386147-1.html
 # Initial mulet triage: parity with B2G/B2G Desktop
-test-pref(layout.float-fragments-inside-column.enabled,true) skip-if(B2G||Mulet) == 386147-1.html 386147-1.html
+skip == 386147-1.html 386147-1.html
 # Initial mulet triage: parity with B2G/B2G Desktop
 == 386310-1a.html 386310-1a.html
 == 386310-1b.html 386310-1b.html
@@ -975,7 +975,7 @@ fuzzy-if(skiaContent,1,400) == 393760-2.xml 393760-2.xml
 == 394111-1.html 394111-1.html
 # Really an assertion test rather than a rendering test
 == 394534-1.html 394534-1.html
-skip-if((B2G&&browserIsRemote)||Mulet) == 394676-1.xhtml 394676-1.xhtml
+skip == 394676-1.xhtml 394676-1.xhtml
 # bug 975911
 # Initial mulet triage: parity with B2G/B2G Desktop
 == 395107-1.html 395107-1.html
@@ -1143,7 +1143,7 @@ fuzzy-if(winWidget,123,1900) == 409659-1d.html 409659-1d.html
 == 411367-3.html 411367-3.html
 == 411585-1.html 411585-1.html
 == 411585-2.html 411585-2.html
-fails-if(!B2G&&!Mulet) == 411585-3.html 411585-3.html
+skip == 411585-3.html 411585-3.html
 # bug 426909
 # Initial mulet triage: parity with B2G/B2G Desktop
 == 411792-1.html 411792-1.html
