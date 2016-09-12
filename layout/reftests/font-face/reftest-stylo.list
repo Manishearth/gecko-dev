@@ -167,7 +167,7 @@ HTTP(..) == 507960-1-woff-bad-hint.html 507960-1-woff-bad-hint.html
 
 # Tests for bug 523717
 HTTP(..) == underline-offset-change-1.html underline-offset-change-1.html
-HTTP(..) == underline-offset-change-2.html underline-offset-change-2.html
+skip == underline-offset-change-2.html underline-offset-change-2.html
 fails-if(cocoaWidget) fails-if(winWidget) HTTP(..) == underline-offset-change-1-ref.html underline-offset-change-1-ref.html
 # Bug 534132
 

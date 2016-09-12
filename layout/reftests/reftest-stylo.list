@@ -57,7 +57,8 @@ include canvas/reftest-stylo.list
 include ../../dom/canvas/test/reftest/reftest-stylo.list
 
 # css animations
-include css-animations/reftest-stylo.list
+# disabled due to timeouts
+# include css-animations/reftest-stylo.list
 
 # blending/
 include css-blending/reftest-stylo.list
