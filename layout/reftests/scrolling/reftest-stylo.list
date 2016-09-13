@@ -1,14 +1,14 @@
 # DO NOT EDIT! This is a auto-generated temporary list for Stylo testing
-skip-if((B2G&&browserIsRemote)||Mulet) HTTP == deferred-anchor.xhtml#d deferred-anchor.xhtml#d
+skip HTTP == deferred-anchor.xhtml#d deferred-anchor.xhtml#d
 # Initial mulet triage: parity with B2G/B2G Desktop
-fuzzy-if(xulRuntime.widgetToolkit=="gtk3",1,23) == deferred-anchor2.xhtml deferred-anchor2.xhtml
+skip == deferred-anchor2.xhtml deferred-anchor2.xhtml
 # bug 1182632
 HTTP == fixed-1.html fixed-1.html
-fails fuzzy-if(skiaContent,1,30200) HTTP == fixed-table-1.html fixed-table-1.html
+random HTTP == fixed-table-1.html fixed-table-1.html
 HTTP == fixed-opacity-1.html fixed-opacity-1.html
 skip-if(B2G||Mulet) HTTP == fixed-opacity-2.html fixed-opacity-2.html
 # Initial mulet triage: parity with B2G/B2G Desktop
-fails skip-if(B2G||Mulet) random-if(gtkWidget) fuzzy-if(Android,3,60) HTTP == fixed-text-1.html fixed-text-1.html
+random HTTP == fixed-text-1.html fixed-text-1.html
 # Initial mulet triage: parity with B2G/B2G Desktop
 HTTP == fixed-text-2.html fixed-text-2.html
 random-if(Android) skip-if((B2G&&browserIsRemote)||Mulet) fuzzy-if(/^Windows\x20NT\x2010\.0/.test(http.oscpu),1,12) == iframe-border-radius.html iframe-border-radius.html
@@ -47,7 +47,7 @@ skip-if((B2G&&browserIsRemote)||Mulet) HTTP == simple-1.html simple-1.html
 # Initial mulet triage: parity with B2G/B2G Desktop
 skip skip-if(B2G||Mulet) HTTP == subpixel-1.html#d subpixel-1.html#d
 # Initial mulet triage: parity with B2G/B2G Desktop
-fails fuzzy-if(Android,4,120) HTTP == text-1.html text-1.html
+random HTTP == text-1.html text-1.html
 fuzzy-if(Android,4,120) HTTP == text-2.html?up text-2.html?up
 skip-if(B2G||Mulet) fuzzy-if(d2d,1,4) HTTP == transformed-1.html transformed-1.html
 # Initial mulet triage: parity with B2G/B2G Desktop
