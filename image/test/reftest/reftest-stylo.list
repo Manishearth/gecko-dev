@@ -40,10 +40,10 @@ skip-if(B2G) include pngsuite-zlib/reftest-stylo.list
 skip-if(Android) include ico/reftest-stylo.list
 
 # JPEG tests
-#include jpeg/reftest-stylo.list
+# include jpeg/reftest-stylo.list
 
 # GIF tests
-#include gif/reftest-stylo.list
+# include gif/reftest-stylo.list
 
 # APNG tests
 include apng/reftest-stylo.list
