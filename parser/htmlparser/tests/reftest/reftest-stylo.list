@@ -17,7 +17,7 @@ fails fuzzy-if(skiaContent,2,3) == bug659763-4.html bug659763-4.html
 fails fuzzy-if(skiaContent,1,5) == bug659763-5.html bug659763-5.html
 fails fuzzy-if(skiaContent,1,5) == bug659763-6.html bug659763-6.html
 skip skip-if(B2G) == view-source:bug673094-1.html view-source:bug673094-1.html
-fails == bug696651-1.html bug696651-1.html
+random == bug696651-1.html bug696651-1.html
 skip-if(B2G) == bug696651-2.html bug696651-2.html
 == view-source:bug700260-1.html view-source:bug700260-1.html
 == view-source:bug704667-1.html view-source:bug704667-1.html

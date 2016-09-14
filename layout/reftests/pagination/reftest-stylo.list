@@ -39,8 +39,8 @@ skip == content-inserted-008.xhtml content-inserted-008.xhtml
 == float-clear-000.html float-clear-000.html
 == float-clear-000.html float-clear-000.html
 == float-clear-001.html float-clear-001.html
-test-pref(layout.float-fragments-inside-column.enabled,false) fails == float-clear-002.html float-clear-002.html
-test-pref(layout.float-fragments-inside-column.enabled,true) == float-clear-002.html float-clear-002.html
+skip == float-clear-002.html float-clear-002.html
+skip == float-clear-002.html float-clear-002.html
 == float-clear-003.html float-clear-003.html
 == float-clear-000-print.html float-clear-000-print.html
 == float-clear-001-print.html float-clear-001-print.html

@@ -1960,7 +1960,7 @@ random-if(Android) == 594333-1.html 594333-1.html
 fuzzy-if(B2G,1,40000) == 594624-1.html 594624-1.html
 == 594737-1.html 594737-1.html
 fails fuzzy-if(skiaContent,1,80) == 597721-1.html 597721-1.html
-random-if(winWidget) fuzzy-if(B2G,3,40) fuzzy-if(Android,38,539) fuzzy-if(skiaContent,1,480) needs-focus == 598726-1.html 598726-1.html
+skip == 598726-1.html 598726-1.html
 # Fails on Windows, bug 782196
 == 599113-1.html 599113-1.html
 fails skip fails-if(!haveTestPlugin) == 599476.html 599476.html
@@ -2215,9 +2215,9 @@ skip-if(Android) == 966510-1.html 966510-1.html
 skip-if(Android) == 966510-2.html 966510-2.html
 # same as above
 fuzzy-if(skiaContent,1,123) == 978911-1.svg 978911-1.svg
-== 983084-1.html 983084-1.html
-fails == 983084-2.html 983084-2.html
-fails == 983084-3.html 983084-3.html
+skip == 983084-1.html 983084-1.html
+skip == 983084-2.html 983084-2.html
+skip == 983084-3.html 983084-3.html
 == 983691-1.html 983691-1.html
 HTTP(..) == 983985-1.html 983985-1.html
 HTTP(..) == 983985-2.html 983985-2.html
@@ -2256,7 +2256,7 @@ skip-if(Mulet) == 1062108-1.html 1062108-1.html
 # Bug 1139893: font rounding failure, tracked in bug 1141535
 fuzzy-if(Mulet,1,5) == 1062792-1.html 1062792-1.html
 == 1062963-floatmanager-reflow.html 1062963-floatmanager-reflow.html
-fails test-pref(dom.webcomponents.enabled,true) == 1066554-1.html 1066554-1.html
+skip == 1066554-1.html 1066554-1.html
 == 1069716-1.html 1069716-1.html
 == 1078262-1.html 1078262-1.html
 test-pref(layout.testing.overlay-scrollbars.always-visible,false) == 1081072-1.html 1081072-1.html
@@ -2266,7 +2266,7 @@ test-pref(layout.testing.overlay-scrollbars.always-visible,false) == 1081072-1.h
 # assertion crash test with layers culling test
 == 1105137-1.html 1105137-1.html
 fuzzy-if(d2d,36,304) fuzzy-if(/^Windows\x20NT\x2010\.0/.test(http.oscpu)&&d2d,127,701) HTTP(..) == 1116480-1-fakeitalic-overflow.html 1116480-1-fakeitalic-overflow.html
-fails == 1111753-1.html 1111753-1.html
+skip == 1111753-1.html 1111753-1.html
 == 1114526-1.html 1114526-1.html
 fuzzy-if(skiaContent,1,800000) == 1119117-1a.html 1119117-1a.html
 fuzzy-if(skiaContent,1,800000) == 1119117-1b.html 1119117-1b.html
