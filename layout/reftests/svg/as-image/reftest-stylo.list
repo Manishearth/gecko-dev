@@ -29,7 +29,7 @@ skip-if(B2G||Mulet) == background-simple-1.html background-simple-1.html
 == background-scale-with-viewbox-1.html background-scale-with-viewbox-1.html
 
 # Tests with -moz-image-rect()
-fails == background-image-rect-1svg.html background-image-rect-1svg.html
+random == background-image-rect-1svg.html background-image-rect-1svg.html
 # bug 773482
 # Initial mulet triage: parity with B2G/B2G Desktop
 == background-image-rect-1png.html background-image-rect-1png.html

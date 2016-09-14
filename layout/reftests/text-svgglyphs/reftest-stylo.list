@@ -24,4 +24,4 @@ pref(gfx.font_rendering.opentype_svg.enabled,true) == svg-glyph-mask.svg svg-gly
 # bug 872483
 pref(gfx.font_rendering.opentype_svg.enabled,true) == svg-glyph-paint-server.svg svg-glyph-paint-server.svg
 pref(gfx.font_rendering.opentype_svg.enabled,true) == svg-glyph-transform.svg svg-glyph-transform.svg
-pref(gfx.font_rendering.opentype_svg.enabled,true) fails == svg-glyph-extents.html svg-glyph-extents.html
+skip == svg-glyph-extents.html svg-glyph-extents.html

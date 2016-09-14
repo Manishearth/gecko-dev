@@ -51,7 +51,7 @@ fuzzy-if(/^Windows\x20NT\x2010\.0/.test(http.oscpu)||/^Windows\x20NT\x206\.[12]/
 == conditions-04.svg conditions-04.svg
 random-if(Mulet) == conditions-05.svg conditions-05.svg
 # bug 1178062
-fails == conditions-06.svg conditions-06.svg
+skip == conditions-06.svg conditions-06.svg
 == conditions-07.svg conditions-07.svg
 fuzzy-if(skiaContent,1,320) == conditions-08.svg conditions-08.svg
 == conditions-09.svg conditions-09.svg

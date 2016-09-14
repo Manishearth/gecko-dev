@@ -39,7 +39,7 @@ skip-if(Android) pref(layout.css.scroll-behavior.enabled,true) pref(layout.css.s
 # see bug 1041833
 skip-if(Android) pref(layout.css.scroll-behavior.enabled,true) pref(layout.css.scroll-behavior.property-enabled,true) == scroll-behavior-8.html scroll-behavior-8.html
 # see bug 1041833
-skip-if(Android) pref(layout.css.scroll-behavior.enabled,true) pref(layout.css.scroll-behavior.property-enabled,true) == scroll-behavior-9.html scroll-behavior-9.html
+skip == scroll-behavior-9.html scroll-behavior-9.html
 # see bug 1041833
 skip-if(Android) pref(layout.css.scroll-behavior.enabled,true) pref(layout.css.scroll-behavior.property-enabled,true) == scroll-behavior-10.html scroll-behavior-10.html
 # see bug 1041833

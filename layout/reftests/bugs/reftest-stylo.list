@@ -148,7 +148,7 @@ random == 99850-1b.html 99850-1b.html
 == 144004-2.html 144004-2.html
 == 144004-3.html 144004-3.html
 == 163504-1a.html 163504-1a.html
-== 163504-1b.html 163504-1b.html
+random == 163504-1b.html 163504-1b.html
 == 163504-2a.html 163504-2a.html
 == 163504-2b.html 163504-2b.html
 == 167496-1.html 167496-1.html
@@ -569,7 +569,7 @@ skip-if((B2G&&browserIsRemote)||Mulet) == 348049-1.xhtml 348049-1.xhtml
 == 348516-1.html 348516-1.html
 == 348516-2.html 348516-2.html
 == 348516-2.html 348516-2.html
-== 348516-3.html 348516-3.html
+random == 348516-3.html 348516-3.html
 == 348597-1.html 348597-1.html
 == 348809-1a.html 348809-1a.html
 == 348809-1b.html 348809-1b.html
@@ -691,7 +691,7 @@ skip-if(B2G||Mulet) fails-if(Android) == 367247-s-auto.html 367247-s-auto.html
 == 367247-l-visible.html 367247-l-visible.html
 skip-if(B2G||Mulet) fails-if(Android&&!asyncPan) == 367247-l-hidden.html 367247-l-hidden.html
 # Initial mulet triage: parity with B2G/B2G Desktop
-skip-if(B2G||Mulet) == 367247-l-scroll.html 367247-l-scroll.html
+skip == 367247-l-scroll.html 367247-l-scroll.html
 # Initial mulet triage: parity with B2G/B2G Desktop
 == 367332-1a.html 367332-1a.html
 skip == 367332-1b.html 367332-1b.html
@@ -754,7 +754,7 @@ skip-if((B2G&&browserIsRemote)||Mulet) == 369882.xul 369882.xul
 == 370525-rowspan-4.html 370525-rowspan-4.html
 == 370525-sib.html 370525-sib.html
 == 370586-1.xhtml 370586-1.xhtml
-skip-if(B2G||Mulet) == 370629-1.html 370629-1.html
+skip == 370629-1.html 370629-1.html
 # bug 1060869
 # Initial mulet triage: parity with B2G/B2G Desktop
 skip-if(B2G||Mulet) == 370629-2.html 370629-2.html

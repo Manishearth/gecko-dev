@@ -317,6 +317,6 @@ skip == dynamic--inline-resize-window-height.xhtml dynamic--inline-resize-window
 # XXX breaks the reftest run as the window height somehow is not restored
 skip == dynamic--inline-resize-window-width.xhtml dynamic--inline-resize-window-width.xhtml
 # Fails way too much
-random-if(Android) == dynamic--object-svg-unloaded.xhtml dynamic--object-svg-unloaded.xhtml
+skip == dynamic--object-svg-unloaded.xhtml dynamic--object-svg-unloaded.xhtml
 # == ==
 
