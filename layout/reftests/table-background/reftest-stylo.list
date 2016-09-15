@@ -9,7 +9,7 @@ asserts-if(gtkWidget,0-6) == backgr_border-table-quirks.html backgr_border-table
 == backgr_border-table-row.html backgr_border-table-row.html
 == backgr_border-table.html backgr_border-table.html
 == backgr_fixed-bg.html backgr_fixed-bg.html
-fails == backgr_index.html backgr_index.html
+skip == backgr_index.html backgr_index.html
 == backgr_layers-hide.html backgr_layers-hide.html
 == backgr_layers-opacity.html backgr_layers-opacity.html
 random == backgr_layers-show.html backgr_layers-show.html

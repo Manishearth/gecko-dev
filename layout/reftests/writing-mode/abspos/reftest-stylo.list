@@ -5,7 +5,7 @@
 default-preferences pref(layout.css.vertical-text.enabled,true)
 
 # All of these are fuzzy-if on skia content on OS X due to subpixel text positioning.
-fails fuzzy-if(cocoaWidget,15,5) fuzzy-if(d2d,102,164) fuzzy-if(skiaContent,255,248) == s71-abs-pos-non-replaced-vlr-003.xht s71-abs-pos-non-replaced-vlr-003.xht
+skip == s71-abs-pos-non-replaced-vlr-003.xht s71-abs-pos-non-replaced-vlr-003.xht
 fails fuzzy-if(cocoaWidget,15,5) fuzzy-if(d2d,102,164) fuzzy-if(skiaContent,255,248) == s71-abs-pos-non-replaced-vlr-005.xht s71-abs-pos-non-replaced-vlr-005.xht
 fails fuzzy-if(cocoaWidget,15,5) fuzzy-if(d2d,102,164) fuzzy-if(skiaContent,255,248) == s71-abs-pos-non-replaced-vlr-007.xht s71-abs-pos-non-replaced-vlr-007.xht
 fails fuzzy-if(cocoaWidget,15,5) fuzzy-if(d2d,102,164) fuzzy-if(skiaContent,255,248) == s71-abs-pos-non-replaced-vlr-009.xht s71-abs-pos-non-replaced-vlr-009.xht

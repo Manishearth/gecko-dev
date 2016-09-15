@@ -32,7 +32,7 @@ fuzzy-if(skiaContent,2,10) == input-radio-dyn-valid-1.html input-radio-dyn-valid
 fuzzy-if(skiaContent,2,10) == input-radio-dyn-valid-2.html input-radio-dyn-valid-2.html
 fuzzy-if(skiaContent,2,10) == input-radio-nogroup-required-valid.html input-radio-nogroup-required-valid.html
 fuzzy-if(skiaContent,2,10) == input-radio-nogroup-required-invalid.html input-radio-nogroup-required-invalid.html
-fails fuzzy-if(skiaContent,2,10) == input-radio-focus-click.html input-radio-focus-click.html
+skip == input-radio-focus-click.html input-radio-focus-click.html
 == input-submit.html input-submit.html
 == input-image.html input-image.html
 # input type='hidden' shouldn't show
