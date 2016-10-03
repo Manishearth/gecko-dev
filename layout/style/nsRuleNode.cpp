@@ -1221,12 +1221,6 @@ static void SetGradient(const nsCSSValue& aValue, nsPresContext* aPresContext,
     aResult.mAngle.SetNoneValue();
   }
 
-  if (gradient->mIsLegacySyntax) {
-    MOZ_ASSERT(aResult.mAngle.IsAngleValue());
-    aResult.mAngle.SetAngleValue(M_PI_2 - aResult.mAngle.GetAngleValueInRadians(),
-                                 eStyleUnit_Radian);
-  }
-
   // stops
   for (uint32_t i = 0; i < gradient->mStops.Length(); i++) {
     nsStyleGradientStop stop;

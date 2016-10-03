@@ -1624,9 +1624,6 @@ nsCSSValue::AppendToString(nsCSSPropertyID aProperty, nsAString& aResult,
   else if (eCSSUnit_Gradient == unit) {
     nsCSSValueGradient* gradient = GetGradientValue();
 
-    if (gradient->mIsLegacySyntax) {
-      aResult.AppendLiteral("-moz-");
-    }
     if (gradient->mIsRepeating) {
       aResult.AppendLiteral("repeating-");
     }
@@ -1637,7 +1634,7 @@ nsCSSValue::AppendToString(nsCSSPropertyID aProperty, nsAString& aResult,
     }
 
     bool needSep = false;
-    if (gradient->mIsRadial && !gradient->mIsLegacySyntax) {
+    if (gradient->mIsRadial) {
       if (!gradient->mIsExplicitSize) {
         if (gradient->GetRadialShape().GetUnit() != eCSSUnit_None) {
           MOZ_ASSERT(gradient->GetRadialShape().GetUnit() ==
@@ -1677,7 +1674,7 @@ nsCSSValue::AppendToString(nsCSSPropertyID aProperty, nsAString& aResult,
         needSep = true;
       }
     }
-    if (!gradient->mIsRadial && !gradient->mIsLegacySyntax) {
+    if (!gradient->mIsRadial) {
       if (gradient->mBgPos.mXValue.GetUnit() != eCSSUnit_None ||
           gradient->mBgPos.mYValue.GetUnit() != eCSSUnit_None) {
         MOZ_ASSERT(gradient->mAngle.GetUnit() == eCSSUnit_None);
@@ -1706,7 +1703,7 @@ nsCSSValue::AppendToString(nsCSSPropertyID aProperty, nsAString& aResult,
       if (needSep) {
         aResult.Append(' ');
       }
-      if (gradient->mIsRadial && !gradient->mIsLegacySyntax) {
+      if (gradient->mIsRadial) {
         aResult.AppendLiteral("at ");
       }
       if (gradient->mBgPos.mXValue.GetUnit() != eCSSUnit_None) {
@@ -1719,43 +1716,9 @@ nsCSSValue::AppendToString(nsCSSPropertyID aProperty, nsAString& aResult,
                                                 aResult, aSerialization);
         aResult.Append(' ');
       }
-      if (gradient->mAngle.GetUnit() != eCSSUnit_None) {
-        MOZ_ASSERT(gradient->mIsLegacySyntax,
-                   "angle is allowed only for legacy syntax");
-        gradient->mAngle.AppendToString(aProperty, aResult, aSerialization);
-      }
       needSep = true;
     }
 
-    if (gradient->mIsRadial && gradient->mIsLegacySyntax &&
-        (gradient->GetRadialShape().GetUnit() != eCSSUnit_None ||
-         gradient->GetRadialSize().GetUnit() != eCSSUnit_None)) {
-      MOZ_ASSERT(!gradient->mIsExplicitSize);
-      if (needSep) {
-        aResult.AppendLiteral(", ");
-      }
-      if (gradient->GetRadialShape().GetUnit() != eCSSUnit_None) {
-        MOZ_ASSERT(gradient->GetRadialShape().GetUnit() == eCSSUnit_Enumerated,
-                   "bad unit for radial gradient shape");
-        int32_t intValue = gradient->GetRadialShape().GetIntValue();
-        MOZ_ASSERT(intValue != NS_STYLE_GRADIENT_SHAPE_LINEAR,
-                   "radial gradient with linear shape?!");
-        AppendASCIItoUTF16(nsCSSProps::ValueToKeyword(intValue,
-                               nsCSSProps::kRadialGradientShapeKTable),
-                           aResult);
-        aResult.Append(' ');
-      }
-
-      if (gradient->GetRadialSize().GetUnit() != eCSSUnit_None) {
-        MOZ_ASSERT(gradient->GetRadialSize().GetUnit() == eCSSUnit_Enumerated,
-                   "bad unit for radial gradient size");
-        int32_t intValue = gradient->GetRadialSize().GetIntValue();
-        AppendASCIItoUTF16(nsCSSProps::ValueToKeyword(intValue,
-                               nsCSSProps::kRadialGradientSizeKTable),
-                           aResult);
-      }
-      needSep = true;
-    }
     if (needSep) {
       aResult.AppendLiteral(", ");
     }
@@ -2866,7 +2829,6 @@ nsCSSValueGradient::nsCSSValueGradient(bool aIsRadial,
                                        bool aIsRepeating)
   : mIsRadial(aIsRadial),
     mIsRepeating(aIsRepeating),
-    mIsLegacySyntax(false),
     mIsExplicitSize(false),
     mBgPos(eCSSUnit_None),
     mAngle(eCSSUnit_None)
