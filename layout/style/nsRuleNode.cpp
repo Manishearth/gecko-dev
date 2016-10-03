@@ -1203,8 +1203,6 @@ static void SetGradient(const nsCSSValue& aValue, nsPresContext* aPresContext,
     aResult.mSize = NS_STYLE_GRADIENT_SIZE_FARTHEST_CORNER;
   }
 
-  aResult.mLegacySyntax = gradient->mIsLegacySyntax;
-
   // bg-position
   SetGradientCoord(gradient->mBgPos.mXValue, aPresContext, aContext,
                    aResult.mBgPosX, aConditions);
@@ -1221,6 +1219,12 @@ static void SetGradient(const nsCSSValue& aValue, nsPresContext* aPresContext,
     NS_ASSERTION(gradient->mAngle.GetUnit() == eCSSUnit_None,
                  "bad unit for gradient angle");
     aResult.mAngle.SetNoneValue();
+  }
+
+  if (gradient->mIsLegacySyntax) {
+    MOZ_ASSERT(aResult.mAngle.IsAngleValue());
+    aResult.mAngle.SetAngleValue(M_PI_2 - aResult.mAngle.GetAngleValueInRadians(),
+                                 eStyleUnit_Radian);
   }
 
   // stops

@@ -731,7 +731,6 @@ Gecko_CreateGradient(uint8_t aShape,
   result->mShape = aShape;
   result->mSize = aSize;
   result->mRepeating = aRepeating;
-  result->mLegacySyntax = aLegacySyntax;
 
   result->mAngle.SetNoneValue();
   result->mBgPosX.SetNoneValue();

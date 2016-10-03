@@ -10219,8 +10219,8 @@ CSSParserImpl::ParseLinearGradient(nsCSSValue& aValue,
       }
 
       // -webkit-linear-gradient only supports edge keywords here.
-      if ((aFlags & eGradient_WebkitLegacy) &&
-          !IsBoxPositionStrictlyEdgeKeywords(cssGradient->mBgPos)) {
+      // -moz-linear-gradient used to, but not anymore (see bug 1307049)
+      if (!IsBoxPositionStrictlyEdgeKeywords(cssGradient->mBgPos)) {
         SkipUntil(')');
         return false;
       }
