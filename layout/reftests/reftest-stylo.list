@@ -397,9 +397,6 @@ skip-if(Android) include ../xul/grid/reftests/reftest-stylo.list
 # -webkit-box & associated properties (mapped to modern flexbox)
 include webkit-box/reftest-stylo.list
 
-# -webkit-gradient expressions
-include webkit-gradient/reftest-stylo.list
-
 # writing-mode
 include writing-mode/reftest-stylo.list
 
