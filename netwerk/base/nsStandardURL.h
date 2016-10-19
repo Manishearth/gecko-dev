@@ -22,6 +22,11 @@
 #include "nsIIPCSerializableURI.h"
 #include "nsISensitiveInfoHiddenURI.h"
 
+#ifdef MOZ_RUST_URLPARSE
+#include "rust-url-capi/src/rust-url-capi.h"
+#endif
+
+
 #ifdef NS_BUILD_REFCNT_LOGGING
 #define DEBUG_DUMP_URLS_AT_SHUTDOWN
 #endif
@@ -253,6 +258,46 @@ private:
 
     void FindHostLimit(nsACString::const_iterator& aStart,
                        nsACString::const_iterator& aEnd);
+
+#ifdef MOZ_RUST_URLPARSE
+    class RustUrlWrapper {
+    public:
+        RustUrlWrapper()
+        {
+            mPtr = nullptr;
+        }
+        nsresult Init(const nsACString &input)
+        {
+            if (input.Length() == 0)
+                return NS_ERROR_FAILURE;
+            struct rusturl* url = rusturl_new(input.BeginReading(), input.Length());
+            if (!url) {
+                printf("[RUST] Parsing error for %s\n", input.BeginReading());
+                return NS_ERROR_FAILURE;
+            }
+            mPtr = url;
+            return NS_OK;
+        }
+        ~RustUrlWrapper()
+        {
+            if (mPtr)
+                rusturl_free(mPtr);
+        }
+        operator rusturl*() const {
+            return mPtr;
+        }
+    private:
+        RustUrlWrapper(struct rusturl* ptr)
+        {
+            mPtr = ptr;
+        }
+        struct rusturl* mPtr;
+    };
+
+
+    RustUrlWrapper mURL;
+#endif
+
 
     // mSpec contains the normalized version of the URL spec (UTF-8 encoded).
     nsCString mSpec;

@@ -35,7 +35,9 @@ namespace net {
 
 static NS_DEFINE_CID(kThisImplCID, NS_THIS_STANDARDURL_IMPL_CID);
 static NS_DEFINE_CID(kStandardURLCID, NS_STANDARDURL_CID);
-
+#ifdef MOZ_RUST_URLPARSE
+static bool sUseRust = false;
+#endif
 nsIIDNService *nsStandardURL::gIDN = nullptr;
 bool nsStandardURL::gInitialized = false;
 bool nsStandardURL::gEscapeUTF8 = true;
@@ -64,6 +66,19 @@ static LazyLogModule gStandardURLLog("nsStandardURL");
   PR_END_MACRO
 
 //----------------------------------------------------------------------------
+
+#ifdef MOZ_RUST_URLPARSE
+extern "C" int32_t c_fn_set_size(void * container, size_t size)
+{
+  ((nsACString *) container)->SetLength(size);
+  return 0;
+}
+
+extern "C" char * c_fn_get_buffer(void * container)
+{
+  return ((nsACString *) container)->BeginWriting();
+}
+#endif
 
 static nsresult
 EncodeString(nsIUnicodeEncoder *encoder, const nsAFlatString &str, nsACString &result)
@@ -325,6 +340,10 @@ nsStandardURL::InitGlobalObjects()
 
         PrefsChanged(prefBranch, nullptr);
     }
+
+#ifdef MOZ_RUST_URLPARSE
+    Preferences::AddBoolVarCache(&sUseRust, "network.standard-url.use-rust", false);
+#endif
 
 #ifdef DEBUG_DUMP_URLS_AT_SHUTDOWN
     PR_INIT_CLIST(&gAllURLs);
@@ -1196,6 +1215,49 @@ NS_INTERFACE_MAP_END
 //----------------------------------------------------------------------------
 // nsStandardURL::nsIURI
 //----------------------------------------------------------------------------
+ 
+#ifdef MOZ_RUST_URLPARSE
+static void CheckDifference(const char * method, nsACString & standardResult, nsACString & rustResult)
+{
+    if (standardResult != rustResult) {
+        printf("[RUST] Difference occured in ::%s\n", method);
+        printf("\t c++  : %s\n", standardResult.BeginReading());
+        printf("\t rust : %s\n", rustResult.BeginReading());
+    }
+
+    if (sUseRust) {
+        standardResult.Assign(rustResult);
+    }
+}
+
+static void CheckDifference(const char * method, int32_t & standardResult, int32_t & rustResult)
+{
+    if (standardResult != rustResult) {
+        printf("[RUST] Difference occured in ::%s\n", method);
+        printf("\t c++  : %d\n", standardResult);
+        printf("\t rust : %d\n", rustResult);
+    }
+
+    if (sUseRust) {
+        standardResult = rustResult;
+    }
+}
+
+
+static void CheckDifference(const char * method, bool & standardResult, bool & rustResult)
+{
+    if (standardResult != rustResult) {
+        printf("[RUST] Difference occured in ::%s\n", method);
+        printf("\t c++  : %d\n", standardResult);
+        printf("\t rust : %d\n", rustResult);
+    }
+
+    if (sUseRust) {
+        standardResult = rustResult;
+    }
+}
+#endif
+ 
 
 // result may contain unescaped UTF-8 characters
 NS_IMETHODIMP
@@ -1204,6 +1266,14 @@ nsStandardURL::GetSpec(nsACString &result)
     MOZ_ASSERT(mSpec.Length() <= (uint32_t) net_GetURLMaxLength(),
                "The spec should never be this long, we missed a check.");
     result = mSpec;
+
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustResult;
+    rusturl_get_spec(mURL, &rustResult);
+
+    CheckDifference(__FUNCTION__, result, rustResult);
+#endif
+
     return NS_OK;
 }
 
@@ -1230,6 +1300,18 @@ nsStandardURL::GetSpecIgnoringRef(nsACString &result)
     } else {
         result = mSpec;
     }
+
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustResult;
+
+    rusturl_get_spec(mURL, &rustResult);
+    int32_t hashPos = rustResult.FindChar('#');
+    if (hashPos != kNotFound) {
+        rustResult.SetLength(hashPos);
+    }
+
+    CheckDifference(__FUNCTION__, result, rustResult);
+#endif
     return NS_OK;
 }
 
@@ -1238,6 +1320,38 @@ NS_IMETHODIMP
 nsStandardURL::GetPrePath(nsACString &result)
 {
     result = Prepath();
+
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustResult;
+
+    nsAutoCString part;
+
+    rusturl_get_scheme(mURL, &part);
+    rustResult.Append(part);
+    rustResult += "://";
+    part = "";
+
+    rusturl_get_username(mURL, &part);
+    if (!part.IsEmpty()) {
+        rustResult += part;
+    }
+
+    rusturl_get_password(mURL, &part);
+    if (!part.IsEmpty()) {
+        rustResult += ":";
+        rustResult += part;
+    }
+
+    if (!part.IsEmpty()) {
+        rustResult += "@";
+    }
+
+    GetHostPort(part);
+    rustResult += part;
+
+    CheckDifference(__FUNCTION__, result, rustResult);
+#endif
+
     return NS_OK;
 }
 
@@ -1246,6 +1360,14 @@ NS_IMETHODIMP
 nsStandardURL::GetScheme(nsACString &result)
 {
     result = Scheme();
+
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustResult;
+    rusturl_get_scheme(mURL, &rustResult);
+
+    CheckDifference(__FUNCTION__, result, rustResult);
+#endif
+
     return NS_OK;
 }
 
@@ -1254,6 +1376,29 @@ NS_IMETHODIMP
 nsStandardURL::GetUserPass(nsACString &result)
 {
     result = Userpass();
+
+
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustResult;
+    nsresult rv = GetUsername(rustResult);
+    if (NS_FAILED(rv)) {
+       return rv;
+    }
+
+    nsAutoCString password;
+    rv = GetPassword(password);
+    if (NS_FAILED(rv)) {
+       return rv;
+    }
+
+    if (password.Length()) {
+       rustResult.Append(':');
+       rustResult.Append(password);
+    }
+
+    CheckDifference(__FUNCTION__, result, rustResult);
+#endif
+
     return NS_OK;
 }
 
@@ -1262,6 +1407,13 @@ NS_IMETHODIMP
 nsStandardURL::GetUsername(nsACString &result)
 {
     result = Username();
+
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustResult;
+    rusturl_get_username(mURL, &rustResult);
+
+    CheckDifference(__FUNCTION__, result, rustResult);
+#endif
     return NS_OK;
 }
 
@@ -1277,6 +1429,23 @@ NS_IMETHODIMP
 nsStandardURL::GetHostPort(nsACString &result)
 {
     result = Hostport();
+
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustResult;
+    rusturl_get_host(mURL, &rustResult);
+
+    int32_t port;
+    nsresult rv = GetPort(&port);
+    if (NS_FAILED(rv)) {
+        return rv;
+    }
+    if (port>=0) {
+        rustResult.Append(':');
+        rustResult.AppendInt(port);
+    }
+
+    CheckDifference(__FUNCTION__, result, rustResult);
+#endif
     return NS_OK;
 }
 
@@ -1284,6 +1453,15 @@ NS_IMETHODIMP
 nsStandardURL::GetHost(nsACString &result)
 {
     result = Host();
+
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustResult;
+    rusturl_get_host(mURL, &rustResult);
+    if (rustResult.Length() > 0 && rustResult[0] == '[' && rustResult[rustResult.Length()-1] == ']')
+        rustResult = Substring(rustResult, 1, rustResult.Length()-2);
+
+    CheckDifference(__FUNCTION__, result, rustResult);
+#endif
     return NS_OK;
 }
 
@@ -1293,6 +1471,12 @@ nsStandardURL::GetPort(int32_t *result)
     // should never be more than 16 bit
     MOZ_ASSERT(mPort <= std::numeric_limits<uint16_t>::max());
     *result = mPort;
+
+#ifdef MOZ_RUST_URLPARSE
+    int32_t rustResult = rusturl_get_port(mURL);
+
+    CheckDifference(__FUNCTION__, *result, rustResult);
+#endif
     return NS_OK;
 }
 
@@ -1301,6 +1485,29 @@ NS_IMETHODIMP
 nsStandardURL::GetPath(nsACString &result)
 {
     result = Path();
+
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustResult;
+    rusturl_get_path(mURL, &rustResult);
+
+    nsAutoCString query;
+    rusturl_get_query(mURL, &query);
+
+    nsAutoCString ref;
+    rusturl_get_fragment(mURL, &ref);
+
+    if (!query.IsEmpty()) {
+        rustResult.Append('?');
+        rustResult.Append(query);
+    }
+
+    if (!ref.IsEmpty()) {
+        rustResult.Append('#');
+        rustResult.Append(ref);
+    }
+
+    CheckDifference(__FUNCTION__, result, rustResult);
+#endif
     return NS_OK;
 }
 
@@ -1356,6 +1563,8 @@ nsStandardURL::GetAsciiHostPort(nsACString &result)
     if (pos < mPath.mPos)
         result += Substring(mSpec, pos, mPath.mPos - pos);
 
+    // TODO
+
     return NS_OK;
 }
 
@@ -1386,6 +1595,8 @@ nsStandardURL::GetAsciiHost(nsACString &result)
 
     // something went wrong... guess all we can do is URL escape :-/
     NS_EscapeURL(Host(), esc_OnlyNonASCII | esc_AlwaysCopy, result);
+
+    // TODO
     return NS_OK;
 }
 
@@ -1441,6 +1652,10 @@ nsStandardURL::SetSpec(const nsACString &input)
     if (filteredURI.Length() == 0) {
         return NS_ERROR_MALFORMED_URI;
     }
+
+#ifdef MOZ_RUST_URLPARSE
+    mURL.Init(input);
+#endif
 
     // Make a backup of the curent URL
     nsStandardURL prevURL(false,false);
@@ -1505,6 +1720,13 @@ nsStandardURL::SetSpec(const nsACString &input)
         LOG((" query     = (%u,%d)\n", mQuery.mPos,     mQuery.mLen));
         LOG((" ref       = (%u,%d)\n", mRef.mPos,       mRef.mLen));
     }
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustSpec;
+    rusturl_get_spec(mURL, &rustSpec);
+    nsAutoCString cSpec(mSpec);
+    CheckDifference(__FUNCTION__, cSpec, rustSpec);
+#endif
+
     return rv;
 }
 
@@ -1512,6 +1734,9 @@ NS_IMETHODIMP
 nsStandardURL::SetScheme(const nsACString &input)
 {
     ENSURE_MUTABLE();
+#ifdef MOZ_RUST_URLPARSE
+    rusturl_set_scheme(mURL, input.BeginReading(), input.Length());
+#endif
 
     const nsPromiseFlatCString &scheme = PromiseFlatCString(input);
 
@@ -1549,6 +1774,7 @@ nsStandardURL::SetScheme(const nsACString &input)
     // XXX the string code unfortunately doesn't provide a ToLowerCase
     //     that operates on a substring.
     net_ToLowerCase((char *) mSpec.get(), mScheme.mLen);
+
     return NS_OK;
 }
 
@@ -1556,6 +1782,23 @@ NS_IMETHODIMP
 nsStandardURL::SetUserPass(const nsACString &input)
 {
     ENSURE_MUTABLE();
+#ifdef MOZ_RUST_URLPARSE
+    {
+        int32_t colonPos = input.FindChar(':');
+        nsAutoCString user;
+        nsAutoCString pass;
+        if (colonPos == kNotFound) {
+            user = input;
+        } else {
+            user = Substring(input, 0, colonPos);
+            pass = Substring(input, colonPos + 1, input.Length());
+        }
+
+        rusturl_set_username(mURL, user.BeginReading(), user.Length());
+        rusturl_set_password(mURL, pass.BeginReading(), pass.Length());
+    }
+#endif
+
 
     const nsPromiseFlatCString &userpass = PromiseFlatCString(input);
 
@@ -1654,6 +1897,7 @@ nsStandardURL::SetUserPass(const nsACString &input)
     mPassword.mLen = passwordLen;
     if (passwordLen)
         mPassword.mPos = mUsername.mPos + mUsername.mLen + 1;
+
     return NS_OK;
 }
 
@@ -1661,6 +1905,9 @@ NS_IMETHODIMP
 nsStandardURL::SetUsername(const nsACString &input)
 {
     ENSURE_MUTABLE();
+#ifdef MOZ_RUST_URLPARSE
+    rusturl_set_username(mURL, input.BeginReading(), input.Length());
+#endif
 
     const nsPromiseFlatCString &username = PromiseFlatCString(input);
 
@@ -1703,6 +1950,7 @@ nsStandardURL::SetUsername(const nsACString &input)
         mAuthority.mLen += shift;
         ShiftFromPassword(shift);
     }
+
     return NS_OK;
 }
 
@@ -1710,6 +1958,9 @@ NS_IMETHODIMP
 nsStandardURL::SetPassword(const nsACString &input)
 {
     ENSURE_MUTABLE();
+#ifdef MOZ_RUST_URLPARSE
+    rusturl_set_password(mURL, input.BeginReading(), input.Length());
+#endif
 
     const nsPromiseFlatCString &password = PromiseFlatCString(input);
 
@@ -1764,6 +2015,7 @@ nsStandardURL::SetPassword(const nsACString &input)
         mAuthority.mLen += shift;
         ShiftFromHost(shift);
     }
+
     return NS_OK;
 }
 
@@ -1785,6 +2037,9 @@ NS_IMETHODIMP
 nsStandardURL::SetHostPort(const nsACString &aValue)
 {
     ENSURE_MUTABLE();
+#ifdef MOZ_RUST_URLPARSE
+    rusturl_set_host_and_port(mURL, aValue.BeginReading(), aValue.Length());
+#endif
 
     // We cannot simply call nsIURI::SetHost because that would treat the name as
     // an IPv6 address (like http:://[server:443]/).  We also cannot call
@@ -1928,6 +2183,10 @@ nsStandardURL::SetHost(const nsACString &input)
         return NS_ERROR_MALFORMED_URI;
     }
 
+#ifdef MOZ_RUST_URLPARSE
+    rusturl_set_host(mURL, host, len);
+#endif
+
     if (mHost.mLen < 0) {
         int port_length = 0;
         if (mPort != -1) {
@@ -1963,6 +2222,9 @@ NS_IMETHODIMP
 nsStandardURL::SetPort(int32_t port)
 {
     ENSURE_MUTABLE();
+#ifdef MOZ_RUST_URLPARSE
+    rusturl_set_port_no(mURL, port);
+#endif
 
     LOG(("nsStandardURL::SetPort [port=%d]\n", port));
 
@@ -2054,6 +2316,10 @@ nsStandardURL::SetPath(const nsACString &input)
         return SetSpec(spec);
     }
     else if (mPath.mLen >= 1) {
+#ifdef MOZ_RUST_URLPARSE
+        rusturl_set_path(mURL, input.BeginReading(), input.Length());
+#endif
+
         mSpec.Cut(mPath.mPos + 1, mPath.mLen - 1);
         // these contain only a '/'
         mPath.mLen = 1;
@@ -2065,6 +2331,7 @@ nsStandardURL::SetPath(const nsACString &input)
         mQuery.mLen = -1;
         mRef.mLen = -1;
     }
+
     return NS_OK;
 }
 
@@ -2103,6 +2370,14 @@ nsStandardURL::EqualsInternal(nsIURI *unknownOther,
         return NS_OK;
     }
 
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString spec1;
+    GetSpecIgnoringRef(spec1);
+    nsAutoCString spec2;
+    other->GetSpecIgnoringRef(spec2);
+    bool rustResult = spec1 == spec2;
+#endif
+
     // Next check parts of a URI that, if different, automatically make the
     // URIs different
     if (!SegmentIs(mScheme, other->mSpec.get(), other->mScheme) ||
@@ -2116,20 +2391,37 @@ nsStandardURL::EqualsInternal(nsIURI *unknownOther,
         // No need to compare files or other URI parts -- these are different
         // beasties
         *result = false;
+#ifdef MOZ_RUST_URLPARSE
+        CheckDifference(__FUNCTION__, *result, rustResult);
+#endif
         return NS_OK;
     }
+
+#ifdef MOZ_RUST_URLPARSE
+    if (refHandlingMode == eHonorRef) {
+        GetRef(spec1);
+        other->GetRef(spec2);
+        rustResult = spec1 == spec2;
+    }
+#endif
 
     if (refHandlingMode == eHonorRef &&
         !SegmentIs(mRef, other->mSpec.get(), other->mRef)) {
         *result = false;
+#ifdef MOZ_RUST_URLPARSE
+        CheckDifference(__FUNCTION__, *result, rustResult);
+#endif
         return NS_OK;
     }
-    
+
     // Then check for exact identity of URIs.  If we have it, they're equal
     if (SegmentIs(mDirectory, other->mSpec.get(), other->mDirectory) &&
         SegmentIs(mBasename, other->mSpec.get(), other->mBasename) &&
         SegmentIs(mExtension, other->mSpec.get(), other->mExtension)) {
         *result = true;
+#ifdef MOZ_RUST_URLPARSE
+        CheckDifference(__FUNCTION__, *result, rustResult);
+#endif
         return NS_OK;
     }
 
@@ -2267,6 +2559,10 @@ nsresult nsStandardURL::CopyMembers(nsStandardURL * source,
         SetRef(newRef);
     }
 
+#ifdef MOZ_RUST_URLPARSE
+    mURL.Init(mSpec);
+#endif
+
     return NS_OK;
 }
 
@@ -2296,6 +2592,11 @@ nsStandardURL::Resolve(const nsACString &in, nsACString &out)
         NS_WARNING("unable to Resolve URL: this URL not initialized");
         return NS_ERROR_NOT_INITIALIZED;
     }
+
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustResult;
+    rusturl_resolve(mURL, relpath, relpathLen, &rustResult);
+#endif
 
     nsresult rv;
     URLSegment scheme;
@@ -2449,6 +2750,16 @@ nsStandardURL::Resolve(const nsACString &in, nsACString &out)
         }
     }
     out.Adopt(result);
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString outTest(out);
+    CheckDifference(__FUNCTION__, outTest, rustResult);
+
+    nsAutoCString rustSpec;
+    rusturl_get_spec(mURL, &rustSpec);
+    nsAutoCString cSpec(mSpec);
+    CheckDifference("Resolve-Spec", cSpec, rustSpec);
+#endif
+
     return NS_OK;
 }
 
@@ -2468,6 +2779,13 @@ nsStandardURL::GetCommonBaseSpec(nsIURI *uri2, nsACString &aResult)
     // check pre-path; if they don't match, then return empty string
     nsStandardURL *stdurl2;
     nsresult rv = uri2->QueryInterface(kThisImplCID, (void **) &stdurl2);
+
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustResult;
+    if (stdurl2)
+        rusturl_common_base_spec(mURL, stdurl2->mURL, &rustResult);
+#endif
+
     isEquals = NS_SUCCEEDED(rv)
             && SegmentIs(mScheme, stdurl2->mSpec.get(), stdurl2->mScheme)    
             && SegmentIs(mHost, stdurl2->mSpec.get(), stdurl2->mHost)
@@ -2478,6 +2796,9 @@ nsStandardURL::GetCommonBaseSpec(nsIURI *uri2, nsACString &aResult)
     {
         if (NS_SUCCEEDED(rv))
             NS_RELEASE(stdurl2);
+#ifdef MOZ_RUST_URLPARSE
+        CheckDifference(__FUNCTION__, aResult, rustResult);
+#endif
         return NS_OK;
     }
 
@@ -2502,6 +2823,10 @@ nsStandardURL::GetCommonBaseSpec(nsIURI *uri2, nsACString &aResult)
     aResult = Substring(mSpec, mScheme.mPos, thisIndex - mSpec.get());
 
     NS_RELEASE(stdurl2);
+#ifdef MOZ_RUST_URLPARSE
+    CheckDifference(__FUNCTION__, aResult, rustResult);
+#endif
+
     return rv;
 }
 
@@ -2519,6 +2844,13 @@ nsStandardURL::GetRelativeSpec(nsIURI *uri2, nsACString &aResult)
 
     nsStandardURL *stdurl2;
     nsresult rv = uri2->QueryInterface(kThisImplCID, (void **) &stdurl2);
+
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustResult;
+    if (stdurl2)
+        rusturl_relative_spec(mURL, stdurl2->mURL, &rustResult);
+#endif
+
     isEquals = NS_SUCCEEDED(rv)
             && SegmentIs(mScheme, stdurl2->mSpec.get(), stdurl2->mScheme)    
             && SegmentIs(mHost, stdurl2->mSpec.get(), stdurl2->mHost)
@@ -2530,7 +2862,13 @@ nsStandardURL::GetRelativeSpec(nsIURI *uri2, nsACString &aResult)
         if (NS_SUCCEEDED(rv))
             NS_RELEASE(stdurl2);
 
+#ifdef MOZ_RUST_URLPARSE
+        uri2->GetSpec(aResult);
+        CheckDifference(__FUNCTION__, aResult, rustResult);
+        return NS_OK;
+#else
         return uri2->GetSpec(aResult);
+#endif
     }
 
     // scan for first mismatched character
@@ -2594,6 +2932,10 @@ nsStandardURL::GetRelativeSpec(nsIURI *uri2, nsACString &aResult)
                              stdurl2->mSpec.Length() - startPos));
 
     NS_RELEASE(stdurl2);
+
+#ifdef MOZ_RUST_URLPARSE
+    CheckDifference(__FUNCTION__, aResult, rustResult);
+#endif
     return rv;
 }
 
@@ -2606,6 +2948,13 @@ NS_IMETHODIMP
 nsStandardURL::GetFilePath(nsACString &result)
 {
     result = Filepath();
+
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustResult;
+    rusturl_get_path(mURL, &rustResult);
+    CheckDifference(__FUNCTION__, result, rustResult);
+#endif
+
     return NS_OK;
 }
 
@@ -2614,6 +2963,18 @@ NS_IMETHODIMP
 nsStandardURL::GetQuery(nsACString &result)
 {
     result = Query();
+
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustResult;
+    rusturl_get_query(mURL, &rustResult);
+    CheckDifference(__FUNCTION__, result, rustResult);
+
+    nsAutoCString rustSpec;
+    rusturl_get_spec(mURL, &rustSpec);
+    nsAutoCString cSpec(mSpec);
+    CheckDifference("GetQuery-Spec", cSpec, rustSpec);
+#endif
+
     return NS_OK;
 }
 
@@ -2622,6 +2983,13 @@ NS_IMETHODIMP
 nsStandardURL::GetRef(nsACString &result)
 {
     result = Ref();
+
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustResult;
+    rusturl_get_fragment(mURL, &rustResult);
+    CheckDifference(__FUNCTION__, result, rustResult);
+#endif
+
     return NS_OK;
 }
 
@@ -2629,6 +2997,21 @@ NS_IMETHODIMP
 nsStandardURL::GetHasRef(bool *result)
 {
     *result = (mRef.mLen >= 0);
+
+#ifdef MOZ_RUST_URLPARSE
+    int32_t rustResult = rusturl_has_fragment(mURL);
+
+    if (rustResult != *result) {
+        printf("[RUST] Difference occured in ::%s\n", __FUNCTION__);
+        printf("\t c++  : %d\n", *result);
+        printf("\t rust : %d\n", rustResult);
+    }
+
+    if (sUseRust) {
+        *result = rustResult;
+    }
+#endif
+
     return NS_OK;
 }
 
@@ -2637,6 +3020,17 @@ NS_IMETHODIMP
 nsStandardURL::GetDirectory(nsACString &result)
 {
     result = Directory();
+#ifdef MOZ_RUST_URLPARSE
+
+    nsAutoCString rustResult;
+    GetFilePath(rustResult);
+
+    int32_t slashPos = rustResult.RFindChar('/');
+    if (slashPos != kNotFound)
+        rustResult.SetLength(slashPos+1);
+    CheckDifference(__FUNCTION__, result, rustResult);
+#endif
+
     return NS_OK;
 }
 
@@ -2645,6 +3039,18 @@ NS_IMETHODIMP
 nsStandardURL::GetFileName(nsACString &result)
 {
     result = Filename();
+
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustResult;
+    GetFilePath(rustResult);
+
+    int32_t slashPos = rustResult.RFindChar('/');
+    if (slashPos != kNotFound)
+        rustResult = Substring(rustResult, slashPos+1);
+
+    CheckDifference(__FUNCTION__, result, rustResult);
+#endif
+
     return NS_OK;
 }
 
@@ -2653,6 +3059,18 @@ NS_IMETHODIMP
 nsStandardURL::GetFileBaseName(nsACString &result)
 {
     result = Basename();
+
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustResult;
+    GetFileName(rustResult);
+
+    int32_t dotPos = rustResult.RFindChar('.');
+    if (dotPos != kNotFound)
+        rustResult.SetLength(dotPos);
+
+    CheckDifference(__FUNCTION__, result, rustResult);
+#endif
+
     return NS_OK;
 }
 
@@ -2661,6 +3079,20 @@ NS_IMETHODIMP
 nsStandardURL::GetFileExtension(nsACString &result)
 {
     result = Extension();
+
+#ifdef MOZ_RUST_URLPARSE
+    nsAutoCString rustResult;
+    GetFileName(rustResult);
+
+    int32_t dotPos = rustResult.RFindChar('.');
+    if (dotPos != kNotFound)
+        rustResult = Substring(rustResult, dotPos + 1);
+    else
+        rustResult.SetLength(0);
+
+    CheckDifference(__FUNCTION__, result, rustResult);
+#endif
+
     return NS_OK;
 }
 
@@ -2668,6 +3100,9 @@ NS_IMETHODIMP
 nsStandardURL::SetFilePath(const nsACString &input)
 {
     ENSURE_MUTABLE();
+#ifdef MOZ_RUST_URLPARSE
+    rusturl_set_path(mURL, input.BeginReading(), input.Length());
+#endif
 
     const nsPromiseFlatCString &flat = PromiseFlatCString(input);
     const char *filepath = flat.get();
@@ -2739,6 +3174,7 @@ nsStandardURL::SetFilePath(const nsACString &input)
         mBasename.mLen = -1;
         mExtension.mLen = -1;
     }
+
     return NS_OK;
 }
 
@@ -2763,6 +3199,9 @@ nsStandardURL::SetQuery(const nsACString &input)
 
     if (!query || !*query) {
         // remove existing query
+#ifdef MOZ_RUST_URLPARSE
+        rusturl_set_query(mURL, input.BeginReading(), input.Length());
+#endif
         if (mQuery.mLen >= 0) {
             // remove query and leading '?'
             mSpec.Cut(mQuery.mPos - 1, mQuery.mLen + 1);
@@ -2811,6 +3250,9 @@ nsStandardURL::SetQuery(const nsACString &input)
         mPath.mLen += shift;
         ShiftFromRef(shift);
     }
+#ifdef MOZ_RUST_URLPARSE
+    rusturl_set_query(mURL, input.BeginReading(), input.Length());
+#endif
     return NS_OK;
 }
 
@@ -2818,14 +3260,18 @@ NS_IMETHODIMP
 nsStandardURL::SetRef(const nsACString &input)
 {
     ENSURE_MUTABLE();
+#ifdef MOZ_RUST_URLPARSE
+    rusturl_set_fragment(mURL, input.BeginReading(), input.Length());
+#endif
 
     const nsPromiseFlatCString &flat = PromiseFlatCString(input);
     const char *ref = flat.get();
 
     LOG(("nsStandardURL::SetRef [ref=%s]\n", ref));
 
-    if (mPath.mLen < 0)
+    if (mPath.mLen < 0) {
         return SetPath(flat);
+    }
 
     if (mSpec.Length() + input.Length() - Ref().Length() > (uint32_t) net_GetURLMaxLength()) {
         return NS_ERROR_MALFORMED_URI;
@@ -2876,6 +3322,7 @@ nsStandardURL::SetRef(const nsACString &input)
     int32_t shift = ReplaceSegment(mRef.mPos, mRef.mLen, ref, refLen);
     mPath.mLen += shift;
     mRef.mLen = refLen;
+
     return NS_OK;
 }
 
@@ -3326,7 +3773,11 @@ nsStandardURL::Read(nsIObjectInputStream *stream)
         mBasename.Merge(mSpec,  ';', old_param);
         mExtension.Merge(mSpec, ';', old_param);
     }
-    
+
+#ifdef MOZ_RUST_URLPARSE
+    mURL.Init(mSpec);
+#endif
+
     return NS_OK;
 }
 
@@ -3517,6 +3968,9 @@ nsStandardURL::Deserialize(const URIParams& aParams)
     mSupportsFileURL = params.supportsFileURL();
     mHostEncoding = params.hostEncoding();
 
+#ifdef MOZ_RUST_URLPARSE
+    mURL.Init(mSpec);
+#endif
     // mSpecEncoding and mHostA are just caches that can be recovered as needed.
     return true;
 }
