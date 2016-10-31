@@ -256,6 +256,17 @@ NS_DECL_THREADSAFE_FFI_REFCOUNTING(nsCSSShadowArray, CSSShadowArray);
 nsStyleQuoteValues* Gecko_NewStyleQuoteValues(uint32_t len);
 NS_DECL_THREADSAFE_FFI_REFCOUNTING(nsStyleQuoteValues, QuoteValues);
 
+nsCSSValueSharedList* Gecko_NewCSSValueSharedList(uint32_t len);
+void Gecko_SetAbsoluteLength_CSSValue(nsCSSValueBorrowedMut css_value, int32_t len);
+void Gecko_SetNumber_CSSValue(nsCSSValueBorrowedMut css_value, float number);
+void Gecko_SetKeyword_CSSValue(nsCSSValueBorrowedMut css_value, nsCSSKeyword keyword);
+void Gecko_SetPercentage_CSSValue(nsCSSValueBorrowedMut css_value, float percent);
+void Gecko_SetAngle_CSSValue(nsCSSValueBorrowedMut css_value, float radians);
+void Gecko_SetCalc_CSSValue(nsCSSValueBorrowedMut css_value, nsStyleCoord::CalcValue  calc);
+void Gecko_SetArray_CSSValue(nsCSSValueBorrowedMut css_value, int32_t len);
+nsCSSValueBorrowedMut Gecko_GetArrayItem_CSSValue(nsCSSValueBorrowedMut css_value, int32_t index);
+NS_DECL_THREADSAFE_FFI_REFCOUNTING(nsCSSValueSharedList, CSSValueSharedList);
+
 // Style-struct management.
 #define STYLE_STRUCT(name, checkdata_cb)                                       \
   void Gecko_Construct_nsStyle##name(nsStyle##name* ptr);                      \

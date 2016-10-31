@@ -1207,7 +1207,7 @@ private:
   ~nsCSSValueSharedList();
 
 public:
-  NS_INLINE_DECL_REFCOUNTING(nsCSSValueSharedList)
+  NS_INLINE_DECL_THREADSAFE_REFCOUNTING(nsCSSValueSharedList)
 
   void AppendToString(nsCSSPropertyID aProperty, nsAString& aResult,
                       nsCSSValue::Serialization aValueSerialization) const;

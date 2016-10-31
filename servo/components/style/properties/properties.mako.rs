@@ -1261,7 +1261,7 @@ impl ComputedValues {
 
     pub fn transform_requires_layer(&self) -> bool {
         // Check if the transform matrix is 2D or 3D
-        if let Some(ref transform_list) = self.get_effects().transform.0 {
+        if let Some(ref transform_list) = self.get_box().transform.0 {
             for transform in transform_list {
                 match *transform {
                     computed_values::transform::ComputedOperation::Perspective(..) => {

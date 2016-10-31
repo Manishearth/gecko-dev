@@ -11,6 +11,7 @@
 
 use app_units::Au;
 use custom_properties::ComputedValuesMap;
+use gecko_bindings::bindings;
 % for style_struct in data.style_structs:
 use gecko_bindings::structs::${style_struct.gecko_ffi_name};
 use gecko_bindings::bindings::Gecko_Construct_${style_struct.gecko_ffi_name};
@@ -850,7 +851,7 @@ fn static_assert() {
 </%self:impl_trait>
 
 <% skip_box_longhands= """display overflow-y vertical-align
-                          -moz-binding page-break-before page-break-after""" %>
+                          -moz-binding page-break-before page-break-after transform""" %>
 <%self:impl_trait style_struct_name="Box" skip_longhands="${skip_box_longhands}">
 
     // We manually-implement the |display| property until we get general
@@ -975,7 +976,100 @@ fn static_assert() {
     }
 
     ${impl_simple_copy('page_break_after', 'mBreakAfter')}
+    <%def name="transform_function_arm(name, keyword, items)">
+        <%
+            # Generate contents of pattern from items
+            pattern = ", ".join([b + str(a+1) for (a,b) in enumerate(items)])
+            if name == "matrix":
+                # m11, m12, m13, ..
+                indices = [str(i) + str(j) for i in range(1, 5) for j in range(1, 5)]
+                # m12: item1
+                single_patterns = ["m%s: number%s" % (index, i + 1) for (i, index) in enumerate(indices)]
+                pattern = "ComputedMatrix { %s }" % ", ".join(single_patterns)
 
+            # First %s substituted with the call to GetArrayItem, the second
+            # %s substituted with the corresponding variable
+            function_names = {
+                "length" : "bindings::Gecko_SetAbsoluteLength_CSSValue(%s, %s.0)",
+                "percentage" : "bindings::Gecko_SetPercentage_CSSValue(%s, %s)",
+                "lop" : "set_lop(%s, %s)",
+                "angle" : "bindings::Gecko_SetAngle_CSSValue(%s, %s.0)",
+                "number" : "bindings::Gecko_SetNumber_CSSValue(%s, %s)",
+            }
+        %>
+        ComputedOperation::${name.title()}(${pattern}) => {
+            bindings::Gecko_SetArray_CSSValue(gecko_value, ${len(items) + 1});
+            bindings::Gecko_SetKeyword_CSSValue(
+                bindings::Gecko_GetArrayItem_CSSValue(gecko_value, 0),
+                eCSSKeyword_${keyword}
+            );
+            % for index, item in enumerate(items):
+                ${function_names[item] % (
+                    "bindings::Gecko_GetArrayItem_CSSValue(gecko_value, %d)" % (index + 1),
+                    item + str(index + 1)
+                )};
+            % endfor
+        }
+    </%def>
+    pub fn set_transform(&mut self, other: longhands::transform::computed_value::T) {
+        use gecko_bindings::structs::nsCSSKeyword::*;
+        use gecko_bindings::sugar::refptr::RefPtr;
+        use properties::longhands::transform::computed_value::ComputedMatrix;
+        use properties::longhands::transform::computed_value::ComputedOperation;
+        use values::computed::LengthOrPercentage;
+
+        unsafe fn set_lop(value: &mut structs::nsCSSValue, lop: LengthOrPercentage) {
+            match lop {
+                LengthOrPercentage::Length(au) => {
+                    bindings::Gecko_SetAbsoluteLength_CSSValue(value, au.0)
+                }
+                LengthOrPercentage::Percentage(pc) => {
+                    bindings::Gecko_SetPercentage_CSSValue(value, pc)
+                }
+                LengthOrPercentage::Calc(calc) => {
+                    bindings::Gecko_SetCalc_CSSValue(value, calc.into())
+                }
+            }
+        }
+
+        let vec = if let Some(v) = other.0 {
+            v
+        } else {
+            unsafe {
+                self.gecko.mSpecifiedTransform.clear();
+            }
+            return;
+        };
+
+        let list = unsafe {
+            RefPtr::from_addrefed(bindings::Gecko_NewCSSValueSharedList(vec.len() as u32))
+        };
+
+        let mut cur = list.mHead;
+        let mut iter = vec.into_iter();
+        while !cur.is_null() {
+            let gecko_value = unsafe { &mut (*cur).mValue };
+            let servo = iter.next().expect("Gecko_NewCSSValueSharedList should create a shared \
+                                            value list of the same length as the transform vector");
+            unsafe {
+                match servo {
+                    ${transform_function_arm("matrix", "matrix3d", ["number"] * 16)}
+                    ${transform_function_arm("skew", "skew", ["angle"] * 2)}
+                    ${transform_function_arm("translate", "translate3d", ["lop", "lop", "length"])}
+                    ${transform_function_arm("scale", "scale3d", ["number"] * 3)}
+                    ${transform_function_arm("rotate", "rotate3d", ["number"] * 3 + ["angle"])}
+                    ${transform_function_arm("perspective", "perspective", ["length"])}
+                }
+                cur = (*cur).mNext;
+            }
+        }
+
+        unsafe {self.gecko.mSpecifiedTransform.set_move(list)};
+    }
+
+    pub fn copy_transform_from(&mut self, other: &Self) {
+        unsafe { self.gecko.mSpecifiedTransform.set(&other.gecko.mSpecifiedTransform); }
+    }
 </%self:impl_trait>
 
 <%def name="simple_image_array_property(name, shorthand, field_name)">
@@ -1665,7 +1759,6 @@ fn static_assert() {
             Gecko_CopyFiltersFrom(&other.gecko as *const _ as *mut _, &mut self.gecko);
         }
     }
-
 </%self:impl_trait>
 
 

@@ -104,6 +104,7 @@ COMPILATION_TARGETS = {
             "nsBorderColors",
             "nsChangeHint",
             "nscolor",
+            "nsCSSKeyword",
             "nsCSSPropertyID",
             "nsCSSRect",
             "nsCSSRect_heap",
@@ -268,7 +269,10 @@ COMPILATION_TARGETS = {
             "StyleBasicShape",
             "StyleBasicShapeType",
             "StyleClipPath",
+            "nsCSSKeyword",
             "nsCSSShadowArray",
+            "nsCSSValueSharedList",
+            "nsCSSValue",
             "nsChangeHint",
             "nsFont",
             "nsIAtom",
@@ -331,6 +335,9 @@ COMPILATION_TARGETS = {
             "RawGeckoElement",
             "RawGeckoDocument",
             "RawServoDeclarationBlockStrong",
+        ],
+        "servo_borrow_types": [
+            "nsCSSValue",
         ],
         "whitelist_functions": [
             "Servo_.*",
@@ -541,7 +548,7 @@ Option<&'a {0}>;".format(ty))
             zero_size_type(ty, flags)
 
     if "servo_immutable_borrow_types" in current_target:
-        for ty in current_target["servo_immutable_borrow_types"]:
+        for ty in current_target["servo_immutable_borrow_types"] + current_target["servo_borrow_types"]:
             flags.append("--blacklist-type")
             flags.append("{}Borrowed".format(ty))
             flags.append("--raw-line")
@@ -551,6 +558,17 @@ Option<&'a {0}>;".format(ty))
             flags.append("--raw-line")
             flags.append("pub type {0}BorrowedOrNull<'a> = \
 Option<&'a {0}>;".format(ty))
+    if "servo_borrow_types" in current_target:
+        for ty in current_target["servo_borrow_types"]:
+            flags.append("--blacklist-type")
+            flags.append("{}BorrowedMut".format(ty))
+            flags.append("--raw-line")
+            flags.append("pub type {0}BorrowedMut<'a> = &'a mut {0};".format(ty))
+            flags.append("--blacklist-type")
+            flags.append("{}BorrowedMutOrNull".format(ty))
+            flags.append("--raw-line")
+            flags.append("pub type {0}BorrowedMutOrNull<'a> = \
+Option<&'a mut {0}>;".format(ty))
             # Right now the only immutable borrow types are ones which we import
             # from the |structs| module. As such, we don't need to create an opaque
             # type with zero_size_type. If we ever introduce immutable borrow types

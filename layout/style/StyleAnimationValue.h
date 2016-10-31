@@ -16,6 +16,7 @@
 #include "nsColor.h"
 #include "nsCSSProps.h"
 #include "nsCSSValue.h"
+#include "nsStyleCoord.h"
 
 class nsIFrame;
 class nsStyleContext;
@@ -597,6 +598,8 @@ struct PropertyStyleAnimationValuePair
   StyleAnimationValue mValue;
 };
 
+void nscoordToCSSValue(nscoord aCoord, nsCSSValue& aCSSValue);
+void CalcValueToCSSValue(const nsStyleCoord::CalcValue* aCalc, nsCSSValue& aValue);
 } // namespace mozilla
 
 #endif
