@@ -89,6 +89,16 @@ SERVO_BINDING_FUNC(Servo_RestyleWithAddedDeclaration,
                    RawServoDeclarationBlockBorrowed declarations,
                    ServoComputedValuesBorrowed previous_style)
 
+// AnimationValues handling
+SERVO_BINDING_FUNC(Servo_AnimationValues_Populate, void,
+                   ServoAnimationValuesBorrowedMut,
+                   RawServoDeclarationBlockBorrowed,
+                   ServoComputedValuesBorrowed)
+SERVO_BINDING_FUNC(Servo_AnimationValues_Clear, void,
+                   ServoAnimationValuesBorrowedMut)
+SERVO_BINDING_FUNC(Servo_AnimationValues_Init, void,
+                   ServoAnimationValuesBorrowedMut)
+
 // Style attribute
 SERVO_BINDING_FUNC(Servo_ParseStyleAttribute, RawServoDeclarationBlockStrong,
                    const nsACString* data)

@@ -9,6 +9,7 @@
 
 #include "mozilla/RefPtr.h"
 #include "mozilla/UniquePtr.h"
+#include "mozilla/ServoTypes.h"
 
 struct ServoComputedValues;
 struct ServoCssRules;
@@ -100,6 +101,7 @@ DECL_NULLABLE_BORROWED_REF_TYPE_FOR(RawGeckoDocument)
 DECL_BORROWED_MUT_REF_TYPE_FOR(StyleChildrenIterator)
 DECL_BORROWED_REF_TYPE_FOR(nsCSSValue)
 DECL_BORROWED_MUT_REF_TYPE_FOR(nsCSSValue)
+DECL_BORROWED_MUT_REF_TYPE_FOR(ServoAnimationValues)
 
 #undef DECL_ARC_REF_TYPE_FOR
 #undef DECL_OWNED_REF_TYPE_FOR

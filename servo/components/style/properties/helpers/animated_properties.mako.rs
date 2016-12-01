@@ -5,7 +5,7 @@
 use app_units::Au;
 use cssparser::{Color as CSSParserColor, Parser, RGBA};
 use euclid::{Point2D, Size2D};
-use properties::PropertyDeclaration;
+use properties::{DeclaredValue, PropertyDeclaration};
 use properties::longhands;
 use properties::longhands::background_position::computed_value::T as BackgroundPosition;
 use properties::longhands::background_size::computed_value::T as BackgroundSize;
@@ -25,7 +25,7 @@ use super::ComputedValues;
 use values::Either;
 use values::computed::{Angle, LengthOrPercentageOrAuto, LengthOrPercentageOrNone};
 use values::computed::{BorderRadiusSize, LengthOrNone};
-use values::computed::{CalcLengthOrPercentage, LengthOrPercentage};
+use values::computed::{CalcLengthOrPercentage, Context, LengthOrPercentage};
 use values::computed::position::Position;
 use values::computed::ToComputedValue;
 
@@ -191,6 +191,33 @@ impl AnimationValue {
                     }
                 % endif
             % endfor
+        }
+    }
+
+    pub fn from_declaration(decl: &PropertyDeclaration, context: &Context) -> Option<Self> {
+        match *decl {
+            % for prop in data.longhands:
+                % if prop.animatable:
+                    PropertyDeclaration::${prop.camel_case}(ref val) => {
+                        let computed = match *val {
+                            DeclaredValue::WithVariables{..} => unimplemented!(),
+                            DeclaredValue::Value(ref val) => val.to_computed_value(context),
+                            DeclaredValue::Initial => {
+                                let initial_struct = ComputedValues::initial_values()
+                                                      .get_${prop.style_struct.name_lower}();
+                                initial_struct.clone_${prop.ident}()
+                            },
+                            DeclaredValue::Inherit => {
+                                let inherit_struct = context.inherited_style
+                                                            .get_${prop.style_struct.name_lower}();
+                                inherit_struct.clone_${prop.ident}()
+                            }
+                        };
+                        Some(AnimationValue::${prop.camel_case}(computed))
+                    }
+                % endif
+            % endfor
+            _ => None // non animatable properties will get included because of shorthands. ignore.
         }
     }
 }

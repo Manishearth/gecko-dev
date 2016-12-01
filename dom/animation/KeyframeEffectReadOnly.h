@@ -20,6 +20,7 @@
 #include "mozilla/EffectCompositor.h"
 #include "mozilla/KeyframeEffectParams.h"
 #include "mozilla/LayerAnimationInfo.h" // LayerAnimations::kRecords
+#include "mozilla/ServoTypes.h" // ServoAnimationValues
 #include "mozilla/ServoBindingTypes.h" // RawServoDeclarationBlock and
                                        // associated RefPtrTraits
 #include "mozilla/StyleAnimationValue.h"
@@ -119,6 +120,9 @@ struct AnimationPropertySegment
 {
   float mFromKey, mToKey;
   StyleAnimationValue mFromValue, mToValue;
+#ifdef MOZ_STYLO
+  ServoAnimationValues mServoFromValue, mServoToValue;
+#endif
   Maybe<ComputedTimingFunction> mTimingFunction;
 
   bool operator==(const AnimationPropertySegment& aOther) const

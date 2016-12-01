@@ -1110,3 +1110,14 @@ Servo_GetStyleVariables(ServoComputedValuesBorrowed aComputedValues)
   return &variables;
 }
 #endif
+
+#ifdef MOZ_STYLO
+ServoAnimationValues::ServoAnimationValues()
+{
+  Servo_AnimationValues_Init(this);
+}
+ServoAnimationValues::~ServoAnimationValues()
+{
+  Servo_AnimationValues_Clear(this);
+}
+#endif // MOZ_STYLO

@@ -39,8 +39,12 @@ pub type RawServoDeclarationBlockStrongBorrowed<'a> = &'a RawServoDeclarationBlo
 pub type RawServoDeclarationBlockStrongBorrowedOrNull<'a> = Option<&'a RawServoDeclarationBlockStrong>;
 pub type nsCSSValueBorrowed<'a> = &'a nsCSSValue;
 pub type nsCSSValueBorrowedOrNull<'a> = Option<&'a nsCSSValue>;
+pub type ServoAnimationValuesBorrowed<'a> = &'a ServoAnimationValues;
+pub type ServoAnimationValuesBorrowedOrNull<'a> = Option<&'a ServoAnimationValues>;
 pub type nsCSSValueBorrowedMut<'a> = &'a mut nsCSSValue;
 pub type nsCSSValueBorrowedMutOrNull<'a> = Option<&'a mut nsCSSValue>;
+pub type ServoAnimationValuesBorrowedMut<'a> = &'a mut ServoAnimationValues;
+pub type ServoAnimationValuesBorrowedMutOrNull<'a> = Option<&'a mut ServoAnimationValues>;
 pub type RawServoStyleSetBorrowed<'a> = &'a RawServoStyleSet;
 pub type RawServoStyleSetBorrowedMut<'a> = &'a mut RawServoStyleSet;
 pub type RawServoStyleSetOwned = ::gecko_bindings::sugar::ownership::Owned<RawServoStyleSet>;
@@ -60,6 +64,7 @@ pub struct StyleChildrenIterator(StyleChildrenIteratorVoid);
 use gecko_bindings::structs::Element;
 use gecko_bindings::structs::FontFamilyList;
 use gecko_bindings::structs::FontFamilyType;
+use gecko_bindings::structs::ServoAnimationValues;
 use gecko_bindings::structs::ServoElementSnapshot;
 use gecko_bindings::structs::SheetParsingMode;
 use gecko_bindings::structs::StyleBasicShape;
@@ -1046,6 +1051,19 @@ extern "C" {
                                              previous_style:
                                                  ServoComputedValuesBorrowed)
      -> ServoComputedValuesStrong;
+}
+extern "C" {
+    pub fn Servo_AnimationValues_Populate(arg1:
+                                              ServoAnimationValuesBorrowedMut,
+                                          arg2:
+                                              RawServoDeclarationBlockBorrowed,
+                                          arg3: ServoComputedValuesBorrowed);
+}
+extern "C" {
+    pub fn Servo_AnimationValues_Clear(arg1: ServoAnimationValuesBorrowedMut);
+}
+extern "C" {
+    pub fn Servo_AnimationValues_Init(arg1: ServoAnimationValuesBorrowedMut);
 }
 extern "C" {
     pub fn Servo_ParseStyleAttribute(data: *const nsACString_internal)

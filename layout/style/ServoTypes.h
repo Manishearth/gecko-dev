@@ -35,6 +35,22 @@ struct ServoCell {
   ServoCell() : value() {};
 };
 
+template<typename T>
+struct ServoVec {
+    T* ptr;
+    size_t cap;
+    size_t len;
+};
+
 } // namespace mozilla
+
+
+struct ServoAnimationValue;
+struct ServoAnimationValues {
+    mozilla::ServoVec<ServoAnimationValue> val;
+    // defined in ServoBindings.cpp
+    ServoAnimationValues();
+    ~ServoAnimationValues();
+};
 
 #endif // mozilla_ServoTypes_h

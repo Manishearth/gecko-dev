@@ -10,7 +10,7 @@ use euclid::Size2D;
 use parking_lot::RwLock;
 use servo_url::ServoUrl;
 use std::fmt::Write;
-use std::mem::transmute;
+use std::mem::{self, transmute};
 use std::sync::{Arc, Mutex};
 use style::arc_ptr_eq;
 use style::context::{LocalStyleContextCreationInfo, ReflowGoal, SharedStyleContext};
@@ -32,6 +32,7 @@ use style::gecko_bindings::bindings::{ServoCssRulesBorrowed, ServoCssRulesStrong
 use style::gecko_bindings::bindings::{ThreadSafePrincipalHolder, ThreadSafeURIHolder};
 use style::gecko_bindings::bindings::{nsACString, nsAString};
 use style::gecko_bindings::bindings::Gecko_Utf8SliceToString;
+use style::gecko_bindings::bindings::ServoAnimationValuesBorrowedMut;
 use style::gecko_bindings::bindings::ServoComputedValuesBorrowedOrNull;
 use style::gecko_bindings::bindings::nsTArrayBorrowed_uintptr_t;
 use style::gecko_bindings::structs::{SheetParsingMode, nsIAtom};
@@ -133,6 +134,63 @@ pub extern "C" fn Servo_RestyleSubtree(node: RawGeckoNodeBorrowed,
     if let Some(element) = node.as_element() {
         restyle_subtree(element, raw_data);
     }
+}
+
+/// Takes a ServoAnimationValues and populates it with the animation values corresponding
+/// to a given property declaration block
+#[no_mangle]
+pub extern "C" fn Servo_AnimationValues_Populate(anim: ServoAnimationValuesBorrowedMut,
+                                                 declarations: RawServoDeclarationBlockBorrowed,
+                                                 previous_style: ServoComputedValuesBorrowed)
+{
+    use style::properties::animated_properties::AnimationValue;
+    use style::properties::ComputedValues;
+    use style::values::computed::Context;
+
+    let previous_style = ComputedValues::as_arc(&previous_style);
+    let declarations = RwLock::<PropertyDeclarationBlock>::as_arc(&declarations);
+    let guard = declarations.read();
+
+    // FIXME this wrong
+    let starting_style = ComputedValues::initial_values().clone();
+
+    let context = Context {
+        is_root_element: false,
+        // FIXME (bug 1303229): Use the actual viewport size here
+        viewport_size: Size2D::new(Au(0), Au(0)),
+        inherited_style: previous_style,
+        style: starting_style,
+        font_metrics_provider: None,
+    };
+
+    // FIXME figure out what to do about !important
+    let new_vec = guard.declarations
+                       .iter()
+                       .filter_map(|&(ref decl, _)| {
+                            AnimationValue::from_declaration(decl, &context)
+                        })
+                       .collect();
+
+    mem::replace(&mut anim.val, new_vec);
+}
+
+/// Takes an uninitialized ServoAnimationValues and initializes it to an empty vector
+/// Leaky when run on initialized values
+#[no_mangle]
+pub extern "C" fn Servo_AnimationValues_Init(anim: ServoAnimationValuesBorrowedMut)
+{
+    use style::gecko_bindings::structs::ServoAnimationValues;
+    let new_anim = ServoAnimationValues {val: Vec::new()};
+    mem::forget(mem::replace(anim, new_anim));
+}
+
+/// Drops the contents of a ServoAnimationValues
+#[no_mangle]
+pub extern "C" fn Servo_AnimationValues_Clear(anim: ServoAnimationValuesBorrowedMut)
+{
+    use style::gecko_bindings::structs::ServoAnimationValues;
+    let new_anim = ServoAnimationValues {val: Vec::new()};
+    mem::replace(anim, new_anim); // implicit drop
 }
 
 #[no_mangle]

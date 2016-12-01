@@ -68,9 +68,10 @@ COMPILATION_TARGETS = {
         "raw_lines": [
             "use atomic_refcell::AtomicRefCell;",
             "use data::ElementData;",
-            "pub use nsstring::nsStringRepr as nsString;"
+            "pub use nsstring::nsStringRepr as nsString;",
+            "pub use properties::animated_properties::AnimationValue as ServoAnimationValue;"
         ],
-        "blacklist_types": ["nsString"],
+        "blacklist_types": ["nsString", "ServoAnimationValue"],
         "whitelist_vars": [
             "NS_THEME_.*",
             "NODE_.*",
@@ -174,6 +175,7 @@ COMPILATION_TARGETS = {
             "pair",
             "Position",
             "Runnable",
+            "ServoAnimationValues",
             "ServoAttrSnapshot",
             "ServoElementSnapshot",
             "SheetParsingMode",
@@ -227,6 +229,10 @@ COMPILATION_TARGETS = {
                 "gecko": "ServoCell",
                 "servo": "::std::cell::Cell"
             }, {
+                "generic": True,
+                "gecko": "ServoVec",
+                "servo": "::std::vec::Vec"
+            }, {
                 "generic": False,
                 "gecko": "ServoNodeData",
                 "servo": "AtomicRefCell<ElementData>",
@@ -268,6 +274,7 @@ COMPILATION_TARGETS = {
             "Element",
             "FontFamilyList",
             "FontFamilyType",
+            "ServoAnimationValues",
             "ServoElementSnapshot",
             "SheetParsingMode",
             "StyleBasicShape",
@@ -350,6 +357,7 @@ COMPILATION_TARGETS = {
         ],
         "servo_borrow_types": [
             "nsCSSValue",
+            "ServoAnimationValues",
         ],
         "whitelist_functions": [
             "Servo_.*",

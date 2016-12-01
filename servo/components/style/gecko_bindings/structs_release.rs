@@ -3,8 +3,10 @@
 use atomic_refcell::AtomicRefCell;
 use data::ElementData;
 pub use nsstring::nsStringRepr as nsString;
+pub use properties::animated_properties::AnimationValue as ServoAnimationValue;
 pub type ServoUnsafeCell<T> = ::std::cell::UnsafeCell<T>;
 pub type ServoCell<T> = ::std::cell::Cell<T>;
+pub type ServoVec<T> = ::std::vec::Vec<T>;
 pub type ServoNodeData = AtomicRefCell<ElementData>;
 
 #[repr(C)]
@@ -6106,6 +6108,16 @@ extern "C" {
 fn bindgen_test_layout_nsAttrValue() {
     assert_eq!(::std::mem::size_of::<nsAttrValue>() , 8usize);
     assert_eq!(::std::mem::align_of::<nsAttrValue>() , 8usize);
+}
+#[repr(C)]
+#[derive(Debug)]
+pub struct ServoAnimationValues {
+    pub val: ServoVec<ServoAnimationValue>,
+}
+#[test]
+fn bindgen_test_layout_ServoAnimationValues() {
+    assert_eq!(::std::mem::size_of::<ServoAnimationValues>() , 24usize);
+    assert_eq!(::std::mem::align_of::<ServoAnimationValues>() , 8usize);
 }
 #[repr(C)]
 #[derive(Debug)]
