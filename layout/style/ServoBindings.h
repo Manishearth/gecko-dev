@@ -16,6 +16,7 @@
 #include "nsChangeHint.h"
 #include "nsCSSPseudoClasses.h"
 #include "nsStyleStruct.h"
+#include "ServoPropPrefList.h"
 
 /*
  * API for Servo to access Gecko data structures. This file must compile as valid
