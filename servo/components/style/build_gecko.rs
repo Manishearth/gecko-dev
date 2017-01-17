@@ -91,7 +91,7 @@ mod bindings {
         added_paths.insert(path);
         // Find all includes and add them recursively
         for cap in INCLUDE_RE.captures_iter(&content) {
-            if let Some(path) = search_include(cap.at(1).unwrap()) {
+            if let Some(path) = search_include(cap.get(1).unwrap().as_str()) {
                 add_headers_recursively(path, added_paths);
             }
         }
@@ -212,7 +212,8 @@ mod bindings {
         }
         let mut result = builder.generate().expect("Unable to generate bindings").to_string();
         for fixup in fixups.iter() {
-            result = Regex::new(&format!(r"\b{}\b", fixup.pat)).unwrap().replace_all(&result, fixup.rep.as_str());
+            result = Regex::new(&format!(r"\b{}\b", fixup.pat)).unwrap().replace_all(&result, fixup.rep.as_str())
+                .into_owned().into();
         }
         File::create(&out_file).unwrap().write_all(&result.into_bytes()).expect("Unable to write output");
     }
@@ -406,6 +407,7 @@ mod bindings {
             "gfxSize",  // <- union { struct { T width; T height; }; T components[2] };
             "gfxSize_Super",  // Ditto.
             "mozilla::ErrorResult",  // Causes JSWhyMagic to be included & handled incorrectly.
+            "mozilla::binding_danger::TErrorResult",  // Dependency of ErrorResult.
             "mozilla::StyleAnimationValue",
             "StyleAnimationValue", // pulls in a whole bunch of stuff we don't need in the bindings
         ];

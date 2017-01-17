@@ -1454,7 +1454,6 @@ pub mod root {
  * conceptual!
  */
         #[repr(C)]
-        #[derive(Debug, Copy, Clone)]
         pub struct Pair<A, B> {
             pub _address: u8,
             pub _phantom_0: ::std::marker::PhantomData<A>,
@@ -1861,7 +1860,7 @@ pub mod root {
                 pub mAsyncStack: [u64; 4usize],
                 pub mAsyncStackSetter: [u64; 7usize],
                 pub mAc: [u64; 4usize],
-                pub mErrorResult: *mut [u64; 4usize],
+                pub mErrorResult: *mut root::mozilla::ErrorResult,
                 pub mExceptionHandling: root::mozilla::dom::CallbackObject_ExceptionHandling,
                 pub mIsMainThread: bool,
             }
@@ -2455,6 +2454,20 @@ pub mod root {
             impl Clone for Grid {
                 fn clone(&self) -> Self { *self }
             }
+        }
+        #[repr(C)]
+        #[derive(Debug, Copy)]
+        pub struct ErrorResult {
+            pub _bindgen_opaque_blob: [u64; 4usize],
+        }
+        pub type ErrorResult_BaseErrorResult = [u64; 4usize];
+        #[test]
+        fn bindgen_test_layout_ErrorResult() {
+            assert_eq!(::std::mem::size_of::<ErrorResult>() , 32usize);
+            assert_eq!(::std::mem::align_of::<ErrorResult>() , 8usize);
+        }
+        impl Clone for ErrorResult {
+            fn clone(&self) -> Self { *self }
         }
         #[repr(C)]
         #[derive(Debug, Copy)]
@@ -3414,7 +3427,7 @@ pub mod root {
         #[derive(Debug)]
         pub struct PropertyStyleAnimationValuePair {
             pub mProperty: root::nsCSSPropertyID,
-            pub mValue: [u64; 2usize],
+            pub mValue: root::mozilla::StyleAnimationValue,
             pub mServoValue: root::RefPtr<root::RawServoAnimationValue>,
         }
         #[test]
@@ -3706,6 +3719,112 @@ pub mod root {
             root::mozilla::StyleShapeSource<root::mozilla::StyleGeometryBox>;
         pub type StyleShapeOutside =
             root::mozilla::StyleShapeSource<root::mozilla::StyleShapeOutsideShapeBox>;
+        /**
+ * Utility class to handle animated style values
+ */
+        #[repr(C)]
+        #[derive(Debug, Copy)]
+        pub struct StyleAnimationValue {
+            pub _bindgen_opaque_blob: [u64; 2usize],
+        }
+        #[repr(u32)]
+        /**
+   * The types and values for the values that we extract and animate.
+   */
+        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+        pub enum StyleAnimationValue_Unit {
+            eUnit_Null = 0,
+            eUnit_Normal = 1,
+            eUnit_Auto = 2,
+            eUnit_None = 3,
+            eUnit_Enumerated = 4,
+            eUnit_Visibility = 5,
+            eUnit_Integer = 6,
+            eUnit_Coord = 7,
+            eUnit_Percent = 8,
+            eUnit_Float = 9,
+            eUnit_Color = 10,
+            eUnit_CurrentColor = 11,
+            eUnit_ComplexColor = 12,
+            eUnit_Calc = 13,
+            eUnit_ObjectPosition = 14,
+            eUnit_URL = 15,
+            eUnit_DiscreteCSSValue = 16,
+            eUnit_CSSValuePair = 17,
+            eUnit_CSSValueTriplet = 18,
+            eUnit_CSSRect = 19,
+            eUnit_Dasharray = 20,
+            eUnit_Shadow = 21,
+            eUnit_Shape = 22,
+            eUnit_Filter = 23,
+            eUnit_Transform = 24,
+            eUnit_BackgroundPositionCoord = 25,
+            eUnit_CSSValuePairList = 26,
+            eUnit_UnparsedString = 27,
+        }
+        #[repr(C)]
+        #[derive(Debug, Copy)]
+        pub struct StyleAnimationValue__bindgen_ty_1 {
+            pub mInt: root::__BindgenUnionField<i32>,
+            pub mCoord: root::__BindgenUnionField<root::nscoord>,
+            pub mFloat: root::__BindgenUnionField<f32>,
+            pub mCSSValue: root::__BindgenUnionField<*mut root::nsCSSValue>,
+            pub mCSSValuePair: root::__BindgenUnionField<*mut root::nsCSSValuePair>,
+            pub mCSSValueTriplet: root::__BindgenUnionField<*mut root::nsCSSValueTriplet>,
+            pub mCSSRect: root::__BindgenUnionField<*mut root::nsCSSRect>,
+            pub mCSSValueArray: root::__BindgenUnionField<*mut root::nsCSSValue_Array>,
+            pub mCSSValueList: root::__BindgenUnionField<*mut root::nsCSSValueList>,
+            pub mCSSValueSharedList: root::__BindgenUnionField<*mut root::nsCSSValueSharedList>,
+            pub mCSSValuePairList: root::__BindgenUnionField<*mut root::nsCSSValuePairList>,
+            pub mString: root::__BindgenUnionField<*mut root::nsStringBuffer>,
+            pub mComplexColor: root::__BindgenUnionField<*mut root::mozilla::css::ComplexColorValue>,
+            pub bindgen_union_field: u64,
+        }
+        #[test]
+        fn bindgen_test_layout_StyleAnimationValue__bindgen_ty_1() {
+            assert_eq!(::std::mem::size_of::<StyleAnimationValue__bindgen_ty_1>()
+                       , 8usize);
+            assert_eq!(::std::mem::align_of::<StyleAnimationValue__bindgen_ty_1>()
+                       , 8usize);
+        }
+        impl Clone for StyleAnimationValue__bindgen_ty_1 {
+            fn clone(&self) -> Self { *self }
+        }
+        #[repr(u32)]
+        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+        pub enum StyleAnimationValue_IntegerConstructorType {
+            IntegerConstructor = 0,
+        }
+        #[repr(u32)]
+        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+        pub enum StyleAnimationValue_CoordConstructorType {
+            CoordConstructor = 0,
+        }
+        #[repr(u32)]
+        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+        pub enum StyleAnimationValue_PercentConstructorType {
+            PercentConstructor = 0,
+        }
+        #[repr(u32)]
+        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+        pub enum StyleAnimationValue_FloatConstructorType {
+            FloatConstructor = 0,
+        }
+        #[repr(u32)]
+        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+        pub enum StyleAnimationValue_ColorConstructorType {
+            ColorConstructor = 0,
+        }
+        #[test]
+        fn bindgen_test_layout_StyleAnimationValue() {
+            assert_eq!(::std::mem::size_of::<StyleAnimationValue>() ,
+                       16usize);
+            assert_eq!(::std::mem::align_of::<StyleAnimationValue>() ,
+                       8usize);
+        }
+        impl Clone for StyleAnimationValue {
+            fn clone(&self) -> Self { *self }
+        }
         #[test]
         fn __bindgen_test_layout_template_2() {
             assert_eq!(::std::mem::size_of::<root::mozilla::StyleShapeSource<root::mozilla::StyleGeometryBox>>()
@@ -3744,10 +3863,6 @@ pub mod root {
         }
         pub type pair_first_type<_T1> = _T1;
         pub type pair_second_type<_T2> = _T2;
-        pub mod namespace {
-            #[allow(unused_imports)]
-            use self::super::super::super::root;
-        }
         #[repr(C)]
         #[derive(Debug)]
         pub struct atomic<_Tp> {
@@ -4443,6 +4558,11 @@ pub mod root {
         pub enum TenuredHeap__bindgen_ty_1 { maskBits = 0, }
         #[test]
         fn __bindgen_test_layout_template_4() {
+            assert_eq!(::std::mem::size_of::<[u64; 3usize]>() , 24usize);
+            assert_eq!(::std::mem::align_of::<[u64; 3usize]>() , 8usize);
+        }
+        #[test]
+        fn __bindgen_test_layout_template_5() {
             assert_eq!(::std::mem::size_of::<root::mozilla::UniquePtr<*mut ::std::os::raw::c_char,
                                                root::JS::FreePolicy>>()
                        , 8usize);
@@ -4848,13 +4968,13 @@ pub mod root {
         pub _phantom_0: ::std::marker::PhantomData<CharT>,
     }
     #[test]
-    fn __bindgen_test_layout_template_5() {
+    fn __bindgen_test_layout_template_6() {
         assert_eq!(::std::mem::size_of::<root::nsCharTraits<u16>>() , 1usize);
         assert_eq!(::std::mem::align_of::<root::nsCharTraits<u16>>() ,
                    1usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_6() {
+    fn __bindgen_test_layout_template_7() {
         assert_eq!(::std::mem::size_of::<root::nsCharTraits<::std::os::raw::c_char>>()
                    , 1usize);
         assert_eq!(::std::mem::align_of::<root::nsCharTraits<::std::os::raw::c_char>>()
@@ -5071,7 +5191,7 @@ pub mod root {
         pub mRawPtr: *mut root::nsISupports,
     }
     #[test]
-    fn __bindgen_test_layout_template_7() {
+    fn __bindgen_test_layout_template_8() {
         assert_eq!(::std::mem::size_of::<root::nsCOMPtr<root::nsISupports>>()
                    , 8usize);
         assert_eq!(::std::mem::align_of::<root::nsCOMPtr<root::nsISupports>>()
@@ -5500,7 +5620,7 @@ pub mod root {
         pub _base_1: root::mozilla::dom::DispatcherTrait,
         pub mDeprecationWarnedAbout: u64,
         pub mDocWarningWarnedAbout: u64,
-        pub mSelectorCache: [u64; 16usize],
+        pub mSelectorCache: root::nsIDocument_SelectorCache,
         pub mReferrer: root::nsCString,
         pub mLastModified: ::nsstring::nsStringRepr,
         pub mDocumentURI: root::nsCOMPtr<root::nsIURI>,
@@ -5662,7 +5782,7 @@ pub mod root {
         fn clone(&self) -> Self { *self }
     }
     #[repr(C)]
-    #[derive(Debug)]
+    #[derive(Debug, Copy)]
     pub struct nsIDocument_SelectorCache {
         pub _bindgen_opaque_blob: [u64; 16usize],
     }
@@ -5672,6 +5792,9 @@ pub mod root {
                    128usize);
         assert_eq!(::std::mem::align_of::<nsIDocument_SelectorCache>() ,
                    8usize);
+    }
+    impl Clone for nsIDocument_SelectorCache {
+        fn clone(&self) -> Self { *self }
     }
     #[repr(u32)]
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -6910,6 +7033,20 @@ pub mod root {
         eCompatibility_AlmostStandards = 2,
         eCompatibility_NavQuirks = 3,
     }
+    #[repr(C)]
+    #[derive(Debug, Copy)]
+    pub struct gfxSize {
+        pub _bindgen_opaque_blob: [u64; 2usize],
+    }
+    pub type gfxSize_Super = [u64; 2usize];
+    #[test]
+    fn bindgen_test_layout_gfxSize() {
+        assert_eq!(::std::mem::size_of::<gfxSize>() , 16usize);
+        assert_eq!(::std::mem::align_of::<gfxSize>() , 8usize);
+    }
+    impl Clone for gfxSize {
+        fn clone(&self) -> Self { *self }
+    }
     pub type nscolor = u32;
     #[repr(C)]
     #[derive(Debug)]
@@ -6939,7 +7076,7 @@ pub mod root {
         pub mTextZoom: f32,
         pub mFullZoom: f32,
         pub mOverrideDPPX: f32,
-        pub mLastFontInflationScreenSize: [u64; 2usize],
+        pub mLastFontInflationScreenSize: root::gfxSize,
         pub mCurAppUnitsPerDevPixel: i32,
         pub mAutoQualityMinFontSizePixelsPref: i32,
         pub mTheme: root::nsCOMPtr<root::nsITheme>,
@@ -8197,7 +8334,7 @@ pub mod root {
         root::mozilla::dom::OwningNodeOrString;
     pub type nsINode_TextOrElementOrDocument =
         root::mozilla::dom::TextOrElementOrDocument;
-    pub type nsINode_ErrorResult = [u64; 4usize];
+    pub type nsINode_ErrorResult = root::mozilla::ErrorResult;
     #[repr(C)]
     #[derive(Debug, Copy, Clone)]
     pub struct nsINode_COMTypeInfo<T, U> {
@@ -8631,7 +8768,7 @@ pub mod root {
     }
     pub type nsDOMAttributeMap_Attr = root::mozilla::dom::Attr;
     pub type nsDOMAttributeMap_Element = root::mozilla::dom::Element;
-    pub type nsDOMAttributeMap_ErrorResult = [u64; 4usize];
+    pub type nsDOMAttributeMap_ErrorResult = root::mozilla::ErrorResult;
     pub type nsDOMAttributeMap_HasThreadSafeRefCnt = root::mozilla::FalseType;
     #[repr(C)]
     #[derive(Debug, Copy)]
@@ -12033,7 +12170,7 @@ pub mod root {
         assert_eq!(::std::mem::align_of::<nsCSSValueFloatColor>() , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_8() {
+    fn __bindgen_test_layout_template_9() {
         assert_eq!(::std::mem::size_of::<root::mozilla::UniquePtr<root::nsCSSValueList,
                                                root::mozilla::DefaultDelete<root::nsCSSValueList>>>()
                    , 8usize);
@@ -12042,7 +12179,7 @@ pub mod root {
                    , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_9() {
+    fn __bindgen_test_layout_template_10() {
         assert_eq!(::std::mem::size_of::<root::mozilla::UniquePtr<root::nsCSSValuePairList,
                                                root::mozilla::DefaultDelete<root::nsCSSValuePairList>>>()
                    , 8usize);
@@ -12149,7 +12286,7 @@ pub mod root {
     pub type RawGeckoElementBorrowedOrNull = *const root::RawGeckoElement;
     pub type RawGeckoDocumentBorrowed = *const root::RawGeckoDocument;
     pub type RawGeckoDocumentBorrowedOrNull = *const root::RawGeckoDocument;
-    pub type RawGeckoPresContextBorrowed = *const [u64; 162usize];
+    pub type RawGeckoPresContextBorrowed = *const root::RawGeckoPresContext;
     pub type RawGeckoAnimationValueListBorrowedMut =
         *mut root::RawGeckoAnimationValueList;
     #[repr(u32)]
@@ -12422,7 +12559,7 @@ pub mod root {
         assert_eq!(::std::mem::align_of::<CachedBorderImageData>() , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_10() {
+    fn __bindgen_test_layout_template_11() {
         assert_eq!(::std::mem::size_of::<root::mozilla::UniquePtr<root::nsStyleSides,
                                                root::mozilla::DefaultDelete<root::nsStyleSides>>>()
                    , 8usize);
@@ -13601,187 +13738,212 @@ pub mod root {
         root::nsMainThreadPtrHolder<root::nsIPrincipal>;
     pub type ThreadSafeURIHolder = root::nsMainThreadPtrHolder<root::nsIURI>;
     #[test]
-    fn __bindgen_test_layout_template_11() {
+    fn __bindgen_test_layout_template_12() {
         assert_eq!(::std::mem::size_of::<root::JS::TenuredHeap<*mut root::JSObject>>()
                    , 8usize);
         assert_eq!(::std::mem::align_of::<root::JS::TenuredHeap<*mut root::JSObject>>()
                    , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_12() {
+    fn __bindgen_test_layout_template_13() {
         assert_eq!(::std::mem::size_of::<root::JS::Heap<*mut root::JSObject>>()
                    , 8usize);
         assert_eq!(::std::mem::align_of::<root::JS::Heap<*mut root::JSObject>>()
                    , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_13() {
+    fn __bindgen_test_layout_template_14() {
         assert_eq!(::std::mem::size_of::<root::nsTArray<root::nsCString>>() ,
                    8usize);
         assert_eq!(::std::mem::align_of::<root::nsTArray<root::nsCString>>() ,
                    8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_14() {
+    fn __bindgen_test_layout_template_15() {
         assert_eq!(::std::mem::size_of::<root::nsCOMPtr<root::nsIPrincipal>>()
                    , 8usize);
         assert_eq!(::std::mem::align_of::<root::nsCOMPtr<root::nsIPrincipal>>()
                    , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_15() {
+    fn __bindgen_test_layout_template_16() {
+        assert_eq!(::std::mem::size_of::<[u64; 29usize]>() , 232usize);
+        assert_eq!(::std::mem::align_of::<[u64; 29usize]>() , 8usize);
+    }
+    #[test]
+    fn __bindgen_test_layout_template_17() {
         assert_eq!(::std::mem::size_of::<root::RefPtr<root::mozilla::dom::Element>>()
                    , 8usize);
         assert_eq!(::std::mem::align_of::<root::RefPtr<root::mozilla::dom::Element>>()
                    , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_16() {
+    fn __bindgen_test_layout_template_18() {
         assert_eq!(::std::mem::size_of::<root::nsTArray<root::RefPtr<root::mozilla::dom::Element>>>()
                    , 8usize);
         assert_eq!(::std::mem::align_of::<root::nsTArray<root::RefPtr<root::mozilla::dom::Element>>>()
                    , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_17() {
+    fn __bindgen_test_layout_template_19() {
         assert_eq!(::std::mem::size_of::<root::nsCOMPtr<root::nsIObserver>>()
                    , 8usize);
         assert_eq!(::std::mem::align_of::<root::nsCOMPtr<root::nsIObserver>>()
                    , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_18() {
+    fn __bindgen_test_layout_template_20() {
         assert_eq!(::std::mem::size_of::<root::nsCOMPtr<root::nsIWeakReference>>()
                    , 8usize);
         assert_eq!(::std::mem::align_of::<root::nsCOMPtr<root::nsIWeakReference>>()
                    , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_19() {
+    fn __bindgen_test_layout_template_21() {
+        assert_eq!(::std::mem::size_of::<u64>() , 8usize);
+        assert_eq!(::std::mem::align_of::<u64>() , 8usize);
+    }
+    #[test]
+    fn __bindgen_test_layout_template_22() {
         assert_eq!(::std::mem::size_of::<root::nsTArray<*mut root::nsIContent>>()
                    , 8usize);
         assert_eq!(::std::mem::align_of::<root::nsTArray<*mut root::nsIContent>>()
                    , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_20() {
+    fn __bindgen_test_layout_template_23() {
         assert_eq!(::std::mem::size_of::<root::nsTArray<::nsstring::nsStringRepr>>() ,
                    8usize);
         assert_eq!(::std::mem::align_of::<root::nsTArray<::nsstring::nsStringRepr>>() ,
                    8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_21() {
+    fn __bindgen_test_layout_template_24() {
+        assert_eq!(::std::mem::size_of::<[u64; 6usize]>() , 48usize);
+        assert_eq!(::std::mem::align_of::<[u64; 6usize]>() , 8usize);
+    }
+    #[test]
+    fn __bindgen_test_layout_template_25() {
         assert_eq!(::std::mem::size_of::<root::mozilla::DefaultDelete<root::mozilla::dom::TimeoutManager>>()
                    , 1usize);
         assert_eq!(::std::mem::align_of::<root::mozilla::DefaultDelete<root::mozilla::dom::TimeoutManager>>()
                    , 1usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_22() {
+    fn __bindgen_test_layout_template_26() {
         assert_eq!(::std::mem::size_of::<root::nsCOMPtr<root::nsIRunnable>>()
                    , 8usize);
         assert_eq!(::std::mem::align_of::<root::nsCOMPtr<root::nsIRunnable>>()
                    , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_23() {
+    fn __bindgen_test_layout_template_27() {
         assert_eq!(::std::mem::size_of::<root::mozilla::OwningNonNull<root::nsINode>>()
                    , 16usize);
         assert_eq!(::std::mem::align_of::<root::mozilla::OwningNonNull<root::nsINode>>()
                    , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_24() {
+    fn __bindgen_test_layout_template_28() {
         assert_eq!(::std::mem::size_of::<root::nsTArray<f64>>() , 8usize);
         assert_eq!(::std::mem::align_of::<root::nsTArray<f64>>() , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_25() {
+    fn __bindgen_test_layout_template_29() {
         assert_eq!(::std::mem::size_of::<root::RefPtr<root::mozilla::dom::DOMIntersectionObserverEntry>>()
                    , 8usize);
         assert_eq!(::std::mem::align_of::<root::RefPtr<root::mozilla::dom::DOMIntersectionObserverEntry>>()
                    , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_26() {
+    fn __bindgen_test_layout_template_30() {
         assert_eq!(::std::mem::size_of::<root::nsTArray<root::RefPtr<root::mozilla::dom::DOMIntersectionObserverEntry>>>()
                    , 8usize);
         assert_eq!(::std::mem::align_of::<root::nsTArray<root::RefPtr<root::mozilla::dom::DOMIntersectionObserverEntry>>>()
                    , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_27() {
+    fn __bindgen_test_layout_template_31() {
         assert_eq!(::std::mem::size_of::<root::nsMainThreadPtrHolder<root::nsIURI>>()
                    , 24usize);
         assert_eq!(::std::mem::align_of::<root::nsMainThreadPtrHolder<root::nsIURI>>()
                    , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_28() {
+    fn __bindgen_test_layout_template_32() {
         assert_eq!(::std::mem::size_of::<root::nsMainThreadPtrHolder<root::nsIPrincipal>>()
                    , 24usize);
         assert_eq!(::std::mem::align_of::<root::nsMainThreadPtrHolder<root::nsIPrincipal>>()
                    , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_29() {
+    fn __bindgen_test_layout_template_33() {
         assert_eq!(::std::mem::size_of::<root::nsPtrHashKey<root::nsIFrame>>()
                    , 16usize);
         assert_eq!(::std::mem::align_of::<root::nsPtrHashKey<root::nsIFrame>>()
                    , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_30() {
+    fn __bindgen_test_layout_template_34() {
         assert_eq!(::std::mem::size_of::<root::nsTArray<root::mozilla::DisplayItemClip_RoundedRect>>()
                    , 8usize);
         assert_eq!(::std::mem::align_of::<root::nsTArray<root::mozilla::DisplayItemClip_RoundedRect>>()
                    , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_31() {
+    fn __bindgen_test_layout_template_35() {
         assert_eq!(::std::mem::size_of::<root::RefPtr<root::mozilla::dom::DOMRect>>()
                    , 8usize);
         assert_eq!(::std::mem::align_of::<root::RefPtr<root::mozilla::dom::DOMRect>>()
                    , 8usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_32() {
+    fn __bindgen_test_layout_template_36() {
         assert_eq!(::std::mem::size_of::<root::mozilla::DefaultDelete<root::ProxyBehaviour>>()
                    , 1usize);
         assert_eq!(::std::mem::align_of::<root::mozilla::DefaultDelete<root::ProxyBehaviour>>()
                    , 1usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_33() {
+    fn __bindgen_test_layout_template_37() {
         assert_eq!(::std::mem::size_of::<root::mozilla::DefaultDelete<root::nsCSSValueList>>()
                    , 1usize);
         assert_eq!(::std::mem::align_of::<root::mozilla::DefaultDelete<root::nsCSSValueList>>()
                    , 1usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_34() {
+    fn __bindgen_test_layout_template_38() {
         assert_eq!(::std::mem::size_of::<root::mozilla::DefaultDelete<root::nsCSSValuePairList>>()
                    , 1usize);
         assert_eq!(::std::mem::align_of::<root::mozilla::DefaultDelete<root::nsCSSValuePairList>>()
                    , 1usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_35() {
+    fn __bindgen_test_layout_template_39() {
+        assert_eq!(::std::mem::size_of::<u64>() , 8usize);
+        assert_eq!(::std::mem::align_of::<u64>() , 8usize);
+    }
+    #[test]
+    fn __bindgen_test_layout_template_40() {
+        assert_eq!(::std::mem::size_of::<[u64; 2usize]>() , 16usize);
+        assert_eq!(::std::mem::align_of::<[u64; 2usize]>() , 8usize);
+    }
+    #[test]
+    fn __bindgen_test_layout_template_41() {
         assert_eq!(::std::mem::size_of::<root::mozilla::DefaultDelete<root::nsStyleSides>>()
                    , 1usize);
         assert_eq!(::std::mem::align_of::<root::mozilla::DefaultDelete<root::nsStyleSides>>()
                    , 1usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_36() {
+    fn __bindgen_test_layout_template_42() {
         assert_eq!(::std::mem::size_of::<root::mozilla::DefaultDelete<root::CachedBorderImageData>>()
                    , 1usize);
         assert_eq!(::std::mem::align_of::<root::mozilla::DefaultDelete<root::CachedBorderImageData>>()
                    , 1usize);
     }
     #[test]
-    fn __bindgen_test_layout_template_37() {
+    fn __bindgen_test_layout_template_43() {
         assert_eq!(::std::mem::size_of::<root::std::pair<::nsstring::nsStringRepr, ::nsstring::nsStringRepr>>()
                    , 32usize);
         assert_eq!(::std::mem::align_of::<root::std::pair<::nsstring::nsStringRepr, ::nsstring::nsStringRepr>>()
