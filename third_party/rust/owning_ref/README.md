@@ -10,17 +10,17 @@ For more details, see the [docs](http://kimundi.github.io/owning-ref-rs/owning_r
 # Getting Started
 
 [owning-ref-rs is available on crates.io](https://crates.io/crates/owning_ref).
-Add the following dependency to your Cargo manifest to get the latest version of the 0.1 branch:
-```
-[dependencies]
+Add the following dependency to your Cargo manifest to get the latest version of the 0.2 branch:
 
-owning_ref = "0.1.*"
+```toml
+[dependencies]
+owning_ref = "0.2"
 ```
 
 To always get the latest version, add this git repository to your
 Cargo manifest:
 
-```
+```toml
 [dependencies.owning_ref]
 git = "https://github.com/Kimundi/owning-ref-rs"
 ```
