@@ -12,8 +12,10 @@
 #include "nsMappedAttributes.h"
 #include "nsHTMLStyleSheet.h"
 #include "nsRuleWalker.h"
+#include "nsRuleData.h"
 #include "mozilla/HashFunctions.h"
 #include "mozilla/MemoryReporting.h"
+#include "mozilla/ServoDeclarationBlock.h"
 
 using namespace mozilla;
 
@@ -21,14 +23,16 @@ nsMappedAttributes::nsMappedAttributes(nsHTMLStyleSheet* aSheet,
                                        nsMapRuleToAttributesFunc aMapRuleFunc)
   : mAttrCount(0),
     mSheet(aSheet),
-    mRuleMapper(aMapRuleFunc)
+    mRuleMapper(aMapRuleFunc),
+    mServoStyle(nullptr)
 {
 }
 
 nsMappedAttributes::nsMappedAttributes(const nsMappedAttributes& aCopy)
   : mAttrCount(aCopy.mAttrCount),
     mSheet(aCopy.mSheet),
-    mRuleMapper(aCopy.mRuleMapper)
+    mRuleMapper(aCopy.mRuleMapper),
+    mServoStyle(aCopy.mServoStyle)
 {
   NS_ASSERTION(mBufferSize >= aCopy.mAttrCount, "can't fit attributes");
 
@@ -57,7 +61,13 @@ nsMappedAttributes::Clone(bool aWillAddAttr)
   uint32_t extra = aWillAddAttr ? 1 : 0;
 
   // This will call the overridden operator new
-  return new (mAttrCount + extra) nsMappedAttributes(*this);
+  nsMappedAttributes* ret = new (mAttrCount + extra) nsMappedAttributes(*this);
+  // nsMappedAttributes is shared between elements, so we should be running
+  // the regular refptr copy constructor when copy constructing, but when
+  // cloning we intend to mutate it and thus should create a fresh ServoDeclarationBlock
+  // to be lazily resolved (a null ptr)
+  ret->mServoStyle = nullptr;
+  return ret;
 }
 
 void* nsMappedAttributes::operator new(size_t aSize, uint32_t aAttrCount) CPP_THROW_NEW
@@ -281,3 +291,18 @@ nsMappedAttributes::SizeOfIncludingThis(MallocSizeOf aMallocSizeOf) const
   return n;
 }
 
+void
+nsMappedAttributes::LazilyResolveServoDeclaration(nsRuleData* aRuleData,
+                                                  nsCSSPropertyID* aTndexToIdMapping,
+                                                  size_t aRuleDataSize)
+{
+  MapRuleInfoInto(aRuleData);
+
+  mServoStyle = Servo_DeclarationBlock_CreateEmpty().Consume();
+  for (size_t i = 0; i < aRuleDataSize; i++) {
+    nsCSSValue& val = aRuleData->mValueStorage[i];
+    if (val.GetUnit() != eCSSUnit_Null) {
+      Servo_DeclarationBlock_AddPresValue(mServoStyle.get(), aTndexToIdMapping[i], &val);
+    }
+  }
+}

@@ -289,6 +289,7 @@ nsHTMLStyleSheet::nsHTMLStyleSheet(nsIDocument* aDocument)
   , mTableQuirkColorRule(new TableQuirkColorRule())
   , mTableTHRule(new TableTHRule())
   , mMappedAttrTable(&MappedAttrTable_Ops, sizeof(MappedAttrTableEntry))
+  , mMappedAttrsDirty(false)
   , mLangRuleTable(&LangRuleTable_Ops, sizeof(LangRuleTableEntry))
 {
   MOZ_ASSERT(aDocument);
@@ -478,6 +479,7 @@ nsHTMLStyleSheet::Reset()
 
   mLangRuleTable.Clear();
   mMappedAttrTable.Clear();
+  mMappedAttrsDirty = false;
 }
 
 nsresult
@@ -526,6 +528,7 @@ nsHTMLStyleSheet::SetVisitedLinkColor(nscolor aColor)
 already_AddRefed<nsMappedAttributes>
 nsHTMLStyleSheet::UniqueMappedAttributes(nsMappedAttributes* aMapped)
 {
+  mMappedAttrsDirty = true;
   auto entry = static_cast<MappedAttrTableEntry*>
                           (mMappedAttrTable.Add(aMapped, fallible));
   if (!entry)
@@ -542,7 +545,7 @@ void
 nsHTMLStyleSheet::DropMappedAttributes(nsMappedAttributes* aMapped)
 {
   NS_ENSURE_TRUE_VOID(aMapped);
-
+  mMappedAttrsDirty = true;
 #ifdef DEBUG
   uint32_t entryCount = mMappedAttrTable.EntryCount() - 1;
 #endif
@@ -550,6 +553,95 @@ nsHTMLStyleSheet::DropMappedAttributes(nsMappedAttributes* aMapped)
   mMappedAttrTable.Remove(aMapped);
 
   NS_ASSERTION(entryCount == mMappedAttrTable.EntryCount(), "not removed");
+}
+
+// Struct containing once-initialized information about
+// our synthesized rule data
+struct StaticRuleDataInfo
+{
+  // the bitmask used.
+  uint64_t mMask;
+  // the number of properties contained
+  size_t mPropCount;
+  // offset of given style struct in array
+  size_t mOffsets[nsStyleStructID_Length];
+  // location of property in given array
+  nsCSSPropertyID* mIndexToPropertyMapping;
+  // shared backing data store, used instead
+  // of alloca
+  nsCSSValue* mDataStorage;
+};
+
+static void
+CalculateIndexArray(StaticRuleDataInfo* aInfo)
+{
+  aInfo->mIndexToPropertyMapping = new nsCSSPropertyID[aInfo->mPropCount];
+  size_t structOffset;
+  size_t propertyIndex;
+  #define CSS_PROP_LOGICAL(name_, id_, method_, flags_, pref_, parsevariant_, \
+                           kwtable_, group_, stylestruct_,                    \
+                           stylestructoffset_, animtype_) /* nothing */
+  #define CSS_PROP(name_, id_, method_, flags_, pref_, parsevariant_,     \
+                   kwtable_, stylestruct_, stylestructoffset_, animtype_) \
+    structOffset = aInfo->mOffsets[eStyleStruct_##stylestruct_]; \
+    propertyIndex = nsCSSProps::PropertyIndexInStruct(eCSSProperty_##id_); \
+    aInfo->mIndexToPropertyMapping[structOffset + propertyIndex] = eCSSProperty_##id_;
+  #include "nsCSSPropList.h"
+  #undef CSS_PROP
+  #undef CSS_PROP_LOGICAL
+}
+
+static StaticRuleDataInfo
+CalculateRuleDataInfo()
+{
+  StaticRuleDataInfo sizes;
+#define STYLE_STRUCT_INHERITED(name, checkdata_cb) \
+  sizes.mMask |= NS_STYLE_INHERIT_BIT(name); \
+  sizes.mOffsets[eStyleStruct_##name] = sizes.mPropCount; \
+  sizes.mPropCount += nsCSSProps::PropertyCountInStruct(eStyleStruct_##name);
+#define STYLE_STRUCT_RESET(name, checkdata_cb) STYLE_STRUCT_INHERITED(name, checkdata_cb)
+#include "nsStyleStructList.h"
+#undef STYLE_STRUCT_RESET
+#undef STYLE_STRUCT_INHERITED
+
+  sizes.mDataStorage = new nsCSSValue[sizes.mPropCount];
+  CalculateIndexArray(&sizes);
+
+  return sizes;
+}
+
+
+
+void
+nsHTMLStyleSheet::CalculateMappedServoDeclarations()
+{
+  // avoid recalculating or reallocating
+  static StaticRuleDataInfo sizes = CalculateRuleDataInfo();
+
+  if (!mMappedAttrsDirty) {
+    return;
+  }
+  mMappedAttrsDirty = false;
+  for (PLDHashTable::Iterator iter(&mMappedAttrTable); !iter.Done(); iter.Next()) {
+    MappedAttrTableEntry* attr = static_cast<MappedAttrTableEntry*>(iter.Get());
+    if (attr->mAttributes->GetServoStyle().get()) {
+      // Only handle cases which haven't been filled in already
+      continue;
+    }
+    // Construction cleans up any values we may have set
+    AutoCSSValueArray dataArray(sizes.mDataStorage, sizes.mPropCount);
+
+    // synthesized ruleData
+    nsRuleData ruleData(sizes.mMask, dataArray.get(),
+                        mDocument->GetShell()->GetPresContext(), nullptr);
+    // Copy the offsets; ruleData won't know where to find properties otherwise
+    std::copy(std::begin(sizes.mOffsets),
+              std::end(sizes.mOffsets),
+              std::begin(ruleData.mValueOffsets));
+    attr->mAttributes->LazilyResolveServoDeclaration(&ruleData,
+                                                     sizes.mIndexToPropertyMapping,
+                                                     sizes.mPropCount);
+  }
 }
 
 nsIStyleRule*

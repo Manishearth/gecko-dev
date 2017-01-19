@@ -16,6 +16,7 @@
 #include "nsMappedAttributeElement.h"
 #include "nsIStyleRule.h"
 #include "mozilla/Attributes.h"
+#include "mozilla/ServoBindings.h"
 #include "mozilla/MemoryReporting.h"
 
 class nsIAtom;
@@ -70,9 +71,17 @@ public:
   void RemoveAttrAt(uint32_t aPos, nsAttrValue& aValue);
   const nsAttrName* GetExistingAttrNameFromQName(const nsAString& aName) const;
   int32_t IndexOfAttr(nsIAtom* aLocalName) const;
-  
 
-  // nsIStyleRule 
+  void LazilyResolveServoDeclaration(nsRuleData* aRuleData,
+                                     nsCSSPropertyID* aIndexToIdMapping,
+                                     size_t aRuleDataSize);
+
+  const RefPtr<RawServoDeclarationBlock>& GetServoStyle() const
+  {
+    return mServoStyle;
+  }
+
+  // nsIStyleRule
   virtual void MapRuleInfoInto(nsRuleData* aRuleData) override;
   virtual bool MightMapInheritedStyleData() override;
   virtual bool GetDiscretelyAnimatedCSSValue(nsCSSPropertyID aProperty,
@@ -115,6 +124,7 @@ private:
 #endif
   nsHTMLStyleSheet* mSheet; //weak
   nsMapRuleToAttributesFunc mRuleMapper;
+  RefPtr<RawServoDeclarationBlock> mServoStyle;
   void* mAttrs[1];
 };
 

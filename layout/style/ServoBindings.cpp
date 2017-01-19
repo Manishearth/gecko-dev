@@ -20,6 +20,7 @@
 #include "nsIFrame.h"
 #include "nsINode.h"
 #include "nsIPrincipal.h"
+#include "nsMappedAttributes.h"
 #include "nsMediaFeatures.h"
 #include "nsNameSpaceManager.h"
 #include "nsNetUtil.h"
@@ -322,6 +323,17 @@ Gecko_GetServoDeclarationBlock(RawGeckoElementBorrowed aElement)
   }
   return reinterpret_cast<const RawServoDeclarationBlockStrong*>
     (decl->AsServo()->RefRaw());
+}
+
+RawServoDeclarationBlockStrongBorrowedOrNull
+Gecko_GetServoPresentationAttrDeclarationBlock(RawGeckoElementBorrowed aElement)
+{
+  const nsMappedAttributes* attrs = aElement->GetMappedAttributes();
+  if (!attrs) {
+    return nullptr;
+  }
+  const RefPtr<RawServoDeclarationBlock>* servo = &attrs->GetServoStyle();
+  return (const RawServoDeclarationBlockStrong*) servo;
 }
 
 void

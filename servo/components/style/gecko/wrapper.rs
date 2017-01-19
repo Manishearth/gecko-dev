@@ -25,12 +25,14 @@ use gecko::snapshot_helpers;
 use gecko_bindings::bindings;
 use gecko_bindings::bindings::{Gecko_DropStyleChildrenIterator, Gecko_MaybeCreateStyleChildrenIterator};
 use gecko_bindings::bindings::{Gecko_ElementState, Gecko_GetLastChild, Gecko_GetNextStyleChild};
-use gecko_bindings::bindings::{Gecko_GetServoDeclarationBlock, Gecko_IsHTMLElementInHTMLDocument};
+use gecko_bindings::bindings::Gecko_GetServoDeclarationBlock;
+use gecko_bindings::bindings::Gecko_GetServoPresentationAttrDeclarationBlock;
 use gecko_bindings::bindings::{Gecko_IsLink, Gecko_IsRootElement, Gecko_MatchesElement};
 use gecko_bindings::bindings::{Gecko_IsUnvisitedLink, Gecko_IsVisitedLink, Gecko_Namespace};
 use gecko_bindings::bindings::{Gecko_SetNodeFlags, Gecko_UnsetNodeFlags};
 use gecko_bindings::bindings::Gecko_ClassOrClassList;
 use gecko_bindings::bindings::Gecko_GetStyleContext;
+use gecko_bindings::bindings::Gecko_IsHTMLElementInHTMLDocument;
 use gecko_bindings::structs;
 use gecko_bindings::structs::{RawGeckoElement, RawGeckoNode};
 use gecko_bindings::structs::{nsIAtom, nsIContent, nsStyleContext};
@@ -38,7 +40,7 @@ use gecko_bindings::structs::NODE_HAS_DIRTY_DESCENDANTS_FOR_SERVO;
 use gecko_bindings::structs::NODE_IS_IN_NATIVE_ANONYMOUS_SUBTREE;
 use parking_lot::RwLock;
 use parser::ParserContextExtraData;
-use properties::{ComputedValues, parse_style_attribute};
+use properties::{ComputedValues, Importance, parse_style_attribute};
 use properties::PropertyDeclarationBlock;
 use selector_parser::{ElementExt, Snapshot};
 use selectors::Element;
@@ -420,10 +422,16 @@ impl<'le> PartialEq for GeckoElement<'le> {
 }
 
 impl<'le> PresentationalHintsSynthetizer for GeckoElement<'le> {
-    fn synthesize_presentational_hints_for_legacy_attributes<V>(&self, _hints: &mut V)
+    fn synthesize_presentational_hints_for_legacy_attributes<V>(&self, hints: &mut V)
         where V: Push<ApplicableDeclarationBlock>,
     {
-        // FIXME(bholley) - Need to implement this.
+        let declarations = unsafe { Gecko_GetServoPresentationAttrDeclarationBlock(self.0) };
+        let declarations = declarations.and_then(|s| s.as_arc_opt());
+        if let Some(decl) = declarations {
+            hints.push(
+                ApplicableDeclarationBlock::from_declarations(Clone::clone(decl), Importance::Normal)
+            );
+        }
     }
 }
 

@@ -5,7 +5,7 @@
 //! Little helpers for `nsCSSValue`.
 
 use gecko_bindings::bindings::Gecko_CSSValue_Drop;
-use gecko_bindings::structs::{nsCSSValue, nsCSSUnit, nsCSSValue_Array};
+use gecko_bindings::structs::{nsCSSValue, nsCSSUnit, nsCSSValue_Array, nscolor};
 use std::mem;
 use std::ops::Index;
 use std::slice;
@@ -24,6 +24,28 @@ impl nsCSSValue {
                       self.mUnit == nsCSSUnit::eCSSUnit_Enumerated ||
                       self.mUnit == nsCSSUnit::eCSSUnit_EnumColor);
         unsafe { *self.mValue.mInt.as_ref() }
+    }
+
+    /// Checks if it is an integer and returns it if so
+    pub fn integer(&self) -> Option<i32> {
+        if self.mUnit == nsCSSUnit::eCSSUnit_Integer ||
+           self.mUnit == nsCSSUnit::eCSSUnit_Enumerated ||
+           self.mUnit == nsCSSUnit::eCSSUnit_EnumColor {
+            Some(unsafe { *self.mValue.mInt.as_ref() })
+        } else {
+            None
+        }
+    }
+
+    /// Checks if it is an RGBA color, returning it if so
+    /// Only use it with colors set by SetColorValue(),
+    /// which always sets RGBA colors
+    pub fn color_value(&self) -> Option<nscolor> {
+        if self.mUnit == nsCSSUnit::eCSSUnit_RGBAColor {
+            Some(unsafe { *self.mValue.mColor.as_ref() })
+        } else {
+            None
+        }
     }
 
     /// Returns this nsCSSValue value as a floating point value, unchecked in

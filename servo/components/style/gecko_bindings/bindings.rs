@@ -499,6 +499,10 @@ extern "C" {
      -> RawServoDeclarationBlockStrongBorrowedOrNull;
 }
 extern "C" {
+    pub fn Gecko_GetServoPresentationAttrDeclarationBlock(element: RawGeckoElementBorrowed)
+     -> RawServoDeclarationBlockStrongBorrowedOrNull;
+}
+extern "C" {
     pub fn Gecko_Atomize(aString: *const ::std::os::raw::c_char, aLength: u32)
      -> *mut nsIAtom;
 }
@@ -1320,6 +1324,13 @@ extern "C" {
                                                          RawServoDeclarationBlockBorrowed,
                                                      property:
                                                          nsCSSPropertyID);
+}
+extern "C" {
+    pub fn Servo_DeclarationBlock_AddPresValue(declarations:
+                                                   RawServoDeclarationBlockBorrowed,
+                                               property: nsCSSPropertyID,
+                                               css_value:
+                                                   nsCSSValueBorrowedMut);
 }
 extern "C" {
     pub fn Servo_CSSSupports2(name: *const nsACString_internal,

@@ -165,16 +165,7 @@ pub fn parse_legacy_font_size(mut input: &str) -> Option<&'static str> {
     }
 
     // Steps 10, 11, 12
-    Some(match value {
-        n if n >= 7 => "xxx-large",
-        6 => "xx-large",
-        5 => "x-large",
-        4 => "large",
-        3 => "medium",
-        2 => "small",
-        n if n <= 1 => "x-small",
-        _ => unreachable!(),
-    })
+    Some(specified::Length::from_font_size_int(value))
 }
 
 fn parse_length(value: &str) -> Option<specified::Length> {

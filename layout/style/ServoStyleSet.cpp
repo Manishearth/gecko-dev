@@ -13,6 +13,7 @@
 #include "mozilla/dom/ElementInlines.h"
 #include "nsCSSAnonBoxes.h"
 #include "nsCSSPseudoElements.h"
+#include "nsHTMLStyleSheet.h"
 #include "nsIDocumentInlines.h"
 #include "nsPrintfCString.h"
 #include "nsStyleContext.h"
@@ -126,6 +127,8 @@ ServoStyleSet::GetContext(nsIContent* aContent,
   MOZ_ASSERT(aContent->IsElement());
   Element* element = aContent->AsElement();
 
+
+  ResolveMappedAttrsLazily();
   RefPtr<ServoComputedValues> computedValues;
   if (aMayCompute == LazyComputeBehavior::Allow) {
     computedValues =
@@ -152,6 +155,13 @@ ServoStyleSet::GetContext(already_AddRefed<ServoComputedValues> aComputedValues,
 
   return NS_NewStyleContext(aParentContext, mPresContext, aPseudoTag,
                             aPseudoType, Move(aComputedValues), skipFixup);
+}
+
+void
+ServoStyleSet::ResolveMappedAttrsLazily() {
+  if (nsHTMLStyleSheet* sheet = mPresContext->Document()->GetAttributeStyleSheet()) {
+    sheet->CalculateMappedServoDeclarations();
+  }
 }
 
 already_AddRefed<nsStyleContext>
@@ -512,6 +522,7 @@ ServoStyleSet::StyleDocument()
   DocumentStyleRootIterator iter(mPresContext->Document());
   while (Element* root = iter.GetNextStyleRoot()) {
     if (root->ShouldTraverseForServo()) {
+      ResolveMappedAttrsLazily();
       Servo_TraverseSubtree(root, mRawSet.get(), TraversalRootBehavior::Normal);
     }
   }
@@ -521,12 +532,14 @@ void
 ServoStyleSet::StyleNewSubtree(Element* aRoot)
 {
   MOZ_ASSERT(!aRoot->HasServoData());
+  ResolveMappedAttrsLazily();
   Servo_TraverseSubtree(aRoot, mRawSet.get(), TraversalRootBehavior::Normal);
 }
 
 void
 ServoStyleSet::StyleNewChildren(Element* aParent)
 {
+  ResolveMappedAttrsLazily();
   Servo_TraverseSubtree(aParent, mRawSet.get(),
                         TraversalRootBehavior::UnstyledChildrenOnly);
 }

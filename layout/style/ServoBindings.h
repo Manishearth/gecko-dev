@@ -157,6 +157,8 @@ SERVO_DECLARE_ELEMENT_ATTR_MATCHING_FUNCTIONS(Gecko_Snapshot,
 // Style attributes.
 RawServoDeclarationBlockStrongBorrowedOrNull
 Gecko_GetServoDeclarationBlock(RawGeckoElementBorrowed element);
+RawServoDeclarationBlockStrongBorrowedOrNull
+Gecko_GetServoPresentationAttrDeclarationBlock(RawGeckoElementBorrowed element);
 
 // Atoms.
 nsIAtom* Gecko_Atomize(const char* aString, uint32_t aLength);
