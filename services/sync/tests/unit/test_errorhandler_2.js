@@ -27,10 +27,10 @@ var fakeServerUrl = "http://localhost:" + fakeServer.port;
 const logsdir = FileUtils.getDir("ProfD", ["weave", "logs"], true);
 
 const PROLONGED_ERROR_DURATION =
-  (Svc.Prefs.get('errorhandler.networkFailureReportTimeout') * 2) * 1000;
+  (Svc.Prefs.get("errorhandler.networkFailureReportTimeout") * 2) * 1000;
 
 const NON_PROLONGED_ERROR_DURATION =
-  (Svc.Prefs.get('errorhandler.networkFailureReportTimeout') / 2) * 1000;
+  (Svc.Prefs.get("errorhandler.networkFailureReportTimeout") / 2) * 1000;
 
 Service.engineManager.clear();
 
@@ -900,7 +900,6 @@ add_task(async function test_engine_applyFailed() {
     Svc.Obs.notify("weave:engine:sync:applied", {newFailed:1}, "catapult");
   };
 
-  let log = Log.repository.getLogger("Sync.ErrorHandler");
   Svc.Prefs.set("log.appender.file.logOnError", true);
 
   let promiseObserved = promiseOneObserver("weave:service:reset-file-log");

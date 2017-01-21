@@ -90,15 +90,13 @@ add_task(async function test_locally_changed_keys() {
     _("Tabs modified: " + johndoe.modified("tabs"));
     do_check_true(johndoe.modified("tabs") > 0);
 
-    let coll_modified = Service.collectionKeys.lastModified;
-
     // Let's create some server side history records.
     let liveKeys = Service.collectionKeys.keyForCollection("history");
     _("Keys now: " + liveKeys.keyPair);
     let visitType = Ci.nsINavHistoryService.TRANSITION_LINK;
     let history   = johndoe.createCollection("history");
     for (let i = 0; i < 5; i++) {
-      let id = 'record-no--' + i;
+      let id = "record-no--" + i;
       let modified = Date.now() / 1000 - 60 * (i + 10);
 
       let w = new CryptoWrapper("history", "id");
@@ -144,7 +142,6 @@ add_task(async function test_locally_changed_keys() {
     _("Keys now: " + Service.collectionKeys.keyForCollection("history").keyPair);
 
     // And look! We downloaded history!
-    let store = Service.engineManager.get("history")._store;
     do_check_true(await promiseIsURIVisited("http://foo/bar?record-no--0"));
     do_check_true(await promiseIsURIVisited("http://foo/bar?record-no--1"));
     do_check_true(await promiseIsURIVisited("http://foo/bar?record-no--2"));
@@ -155,7 +152,7 @@ add_task(async function test_locally_changed_keys() {
     _("Busting some new server values.");
     // Now what happens if we corrupt the HMAC on the server?
     for (let i = 5; i < 10; i++) {
-      let id = 'record-no--' + i;
+      let id = "record-no--" + i;
       let modified = 1 + (Date.now() / 1000);
 
       let w = new CryptoWrapper("history", "id");
@@ -202,7 +199,6 @@ add_task(async function test_locally_changed_keys() {
 });
 
 function run_test() {
-  let logger = Log.repository.rootLogger;
   Log.repository.rootLogger.addAppender(new Log.DumpAppender());
   validate_all_future_pings();
 

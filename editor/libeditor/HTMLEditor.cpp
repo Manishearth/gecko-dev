@@ -1572,12 +1572,10 @@ HTMLEditor::InsertElementAtSelection(nsIDOMElement* aElement,
         rv = SetCaretAfterElement(aElement);
         NS_ENSURE_SUCCESS(rv, rv);
       }
-      // check for inserting a whole table at the end of a block. If so insert a br after it.
+      // check for inserting a whole table at the end of a block. If so insert
+      // a br after it.
       if (HTMLEditUtils::IsTable(node)) {
-        bool isLast;
-        rv = IsLastEditableChild(node, &isLast);
-        NS_ENSURE_SUCCESS(rv, rv);
-        if (isLast) {
+        if (IsLastEditableChild(element)) {
           nsCOMPtr<nsIDOMNode> brNode;
           rv = CreateBR(parentSelectedNode, offsetForInsert + 1,
                         address_of(brNode));
@@ -2954,7 +2952,7 @@ HTMLEditor::EnableStyleSheet(const nsAString& aURL,
 
   // Ensure the style sheet is owned by our document.
   nsCOMPtr<nsIDocument> doc = do_QueryReferent(mDocWeak);
-  sheet->SetOwningDocument(doc);
+  sheet->SetAssociatedDocument(doc, StyleSheet::NotOwnedByDocument);
 
   if (sheet->IsServo()) {
     // XXXheycam ServoStyleSheets don't support being enabled/disabled yet.
@@ -2976,7 +2974,7 @@ HTMLEditor::EnableExistingStyleSheet(const nsAString& aURL)
 
   // Ensure the style sheet is owned by our document.
   nsCOMPtr<nsIDocument> doc = do_QueryReferent(mDocWeak);
-  sheet->SetOwningDocument(doc);
+  sheet->SetAssociatedDocument(doc, StyleSheet::NotOwnedByDocument);
 
   if (sheet->IsServo()) {
     // XXXheycam ServoStyleSheets don't support being enabled/disabled yet.
@@ -4152,40 +4150,28 @@ HTMLEditor::GetNextHTMLNode(nsIDOMNode* aNode,
   return NS_OK;
 }
 
-nsresult
-HTMLEditor::IsFirstEditableChild(nsIDOMNode* aNode,
-                                 bool* aOutIsFirst)
+bool
+HTMLEditor::IsFirstEditableChild(nsINode* aNode)
 {
-  nsCOMPtr<nsINode> node = do_QueryInterface(aNode);
-  NS_ENSURE_TRUE(aOutIsFirst && node, NS_ERROR_NULL_POINTER);
-
-  // init out parms
-  *aOutIsFirst = false;
-
+  MOZ_ASSERT(aNode);
   // find first editable child and compare it to aNode
-  nsCOMPtr<nsINode> parent = node->GetParentNode();
-  NS_ENSURE_TRUE(parent, NS_ERROR_FAILURE);
-
-  *aOutIsFirst = (GetFirstEditableChild(*parent) == node);
-  return NS_OK;
+  nsCOMPtr<nsINode> parent = aNode->GetParentNode();
+  if (NS_WARN_IF(!parent)) {
+    return false;
+  }
+  return (GetFirstEditableChild(*parent) == aNode);
 }
 
-nsresult
-HTMLEditor::IsLastEditableChild(nsIDOMNode* aNode,
-                                bool* aOutIsLast)
+bool
+HTMLEditor::IsLastEditableChild(nsINode* aNode)
 {
-  nsCOMPtr<nsINode> node = do_QueryInterface(aNode);
-  NS_ENSURE_TRUE(aOutIsLast && node, NS_ERROR_NULL_POINTER);
-
-  // init out parms
-  *aOutIsLast = false;
-
+  MOZ_ASSERT(aNode);
   // find last editable child and compare it to aNode
-  nsCOMPtr<nsINode> parent = node->GetParentNode();
-  NS_ENSURE_TRUE(parent, NS_ERROR_FAILURE);
-
-  *aOutIsLast = (GetLastEditableChild(*parent) == node);
-  return NS_OK;
+  nsCOMPtr<nsINode> parent = aNode->GetParentNode();
+  if (NS_WARN_IF(!parent)) {
+    return false;
+  }
+  return (GetLastEditableChild(*parent) == aNode);
 }
 
 nsIContent*

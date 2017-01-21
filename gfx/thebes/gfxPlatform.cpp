@@ -94,6 +94,7 @@
 
 #ifdef MOZ_WIDGET_ANDROID
 #include "TexturePoolOGL.h"
+#include "mozilla/layers/UiCompositorControllerChild.h"
 #endif
 
 #ifdef USE_SKIA
@@ -962,7 +963,9 @@ gfxPlatform::ShutdownLayersIPC()
         gfx::VRManagerChild::ShutDown();
         layers::CompositorBridgeChild::ShutDown();
         layers::ImageBridgeChild::ShutDown();
-
+#if defined(MOZ_WIDGET_ANDROID)
+        layers::UiCompositorControllerChild::Shutdown();
+#endif // defined(MOZ_WIDGET_ANDROID)
         // This has to happen after shutting down the child protocols.
         layers::CompositorThreadHolder::Shutdown();
     } else {
@@ -2212,18 +2215,18 @@ gfxPlatform::InitGPUProcessPrefs()
 {
   // We want to hide this from about:support, so only set a default if the
   // pref is known to be true.
-  if (!gfxPrefs::GPUProcessDevEnabled() && !gfxPrefs::GPUProcessDevForceEnabled()) {
+  if (!gfxPrefs::GPUProcessEnabled() && !gfxPrefs::GPUProcessForceEnabled()) {
     return;
   }
 
   FeatureState& gpuProc = gfxConfig::GetFeature(Feature::GPU_PROCESS);
 
   gpuProc.SetDefaultFromPref(
-    gfxPrefs::GetGPUProcessDevEnabledPrefName(),
+    gfxPrefs::GetGPUProcessEnabledPrefName(),
     true,
-    gfxPrefs::GetGPUProcessDevEnabledPrefDefault());
+    gfxPrefs::GetGPUProcessEnabledPrefDefault());
 
-  if (gfxPrefs::GPUProcessDevForceEnabled()) {
+  if (gfxPrefs::GPUProcessForceEnabled()) {
     gpuProc.UserForceEnable("User force-enabled via pref");
   }
 

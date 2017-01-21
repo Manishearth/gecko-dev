@@ -52,6 +52,7 @@ apt_packages+=('llvm')
 apt_packages+=('llvm-dev')
 apt_packages+=('llvm-runtime')
 apt_packages+=('nano')
+apt_packages+=('net-tools')
 apt_packages+=('pulseaudio')
 apt_packages+=('pulseaudio-module-bluetooth')
 apt_packages+=('pulseaudio-module-gconf')
@@ -97,11 +98,7 @@ pip install --upgrade pip
 
 pip install virtualenv
 
-# Install node
-wget https://nodejs.org/dist/v6.9.1/node-v6.9.1-linux-x64.tar.gz
-echo 'a9d9e6308931fa2a2b0cada070516d45b76d752430c31c9198933c78f8d54b17  node-v6.9.1-linux-x64.tar.gz' | sha256sum -c
-tar -C /usr/local -xz --strip-components 1 < node-v6.9.1-linux-x64.tar.gz
-node -v  # verify
+. /setup/install-node.sh
 
 # Install custom-built Debian packages.  These come from a set of repositories
 # packaged in tarballs on tooltool to make them replicable.  Because they have

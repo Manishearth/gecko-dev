@@ -655,7 +655,8 @@ nsPIDOMWindow<T>::nsPIDOMWindow(nsPIDOMWindowOuter *aOuterWindow)
   mOuterWindow(aOuterWindow),
   // Make sure no actual window ends up with mWindowID == 0
   mWindowID(NextWindowID()), mHasNotifiedGlobalCreated(false),
-  mMarkedCCGeneration(0), mServiceWorkersTestingEnabled(false)
+  mMarkedCCGeneration(0), mServiceWorkersTestingEnabled(false),
+  mLargeAllocStatus(LargeAllocStatus::NONE)
 {
   if (aOuterWindow) {
     mTimeoutManager =
@@ -2933,6 +2934,11 @@ nsGlobalWindow::SetNewDocument(nsIDocument* aDocument,
   }
 
   PreloadLocalStorage();
+
+  // If we have a recorded interesting Large-Allocation header status, report it
+  // to the newly attached document.
+  ReportLargeAllocStatus();
+  mLargeAllocStatus = LargeAllocStatus::NONE;
 
   return NS_OK;
 }
@@ -8604,7 +8610,8 @@ public:
   static nsresult
   PostCloseEvent(nsGlobalWindow* aWindow, bool aIndirect) {
     nsCOMPtr<nsIRunnable> ev = new nsCloseEvent(aWindow, aIndirect);
-    nsresult rv = NS_DispatchToCurrentThread(ev);
+    nsresult rv =
+      aWindow->Dispatch("nsCloseEvent", TaskCategory::Other, ev.forget());
     if (NS_SUCCEEDED(rv))
       aWindow->MaybeForgiveSpamCount();
     return rv;
@@ -8923,7 +8930,7 @@ nsGlobalWindow::EnterModalState()
 
     topWin->mSuspendedDoc = topDoc;
     if (topDoc) {
-      topDoc->SuppressEventHandling(nsIDocument::eEvents);
+      topDoc->SuppressEventHandling(nsIDocument::eAnimationsOnly);
     }
 
     nsGlobalWindow* inner = topWin->GetCurrentInnerWindowInternal();
@@ -8960,7 +8967,7 @@ nsGlobalWindow::LeaveModalState()
 
     if (topWin->mSuspendedDoc) {
       nsCOMPtr<nsIDocument> currentDoc = topWin->GetExtantDoc();
-      topWin->mSuspendedDoc->UnsuppressEventHandlingAndFireEvents(nsIDocument::eEvents,
+      topWin->mSuspendedDoc->UnsuppressEventHandlingAndFireEvents(nsIDocument::eAnimationsOnly,
                                                                   currentDoc == topWin->mSuspendedDoc);
       topWin->mSuspendedDoc = nullptr;
     }
@@ -9060,13 +9067,29 @@ public:
 
       AutoSafeJSContext cx;
       JS::Rooted<JSObject*> obj(cx, currentInner->FastGetGlobalJSObject());
-      // We only want to nuke wrappers for the chrome->content case
       if (obj && !js::IsSystemCompartment(js::GetObjectCompartment(obj))) {
-        js::NukeCrossCompartmentWrappers(cx,
-                                         BrowserCompartmentMatcher(),
-                                         js::SingleCompartment(js::GetObjectCompartment(obj)),
-                                         win->IsInnerWindow() ? js::DontNukeWindowReferences
-                                                              : js::NukeWindowReferences);
+        JSCompartment* cpt = js::GetObjectCompartment(obj);
+        nsCOMPtr<nsIPrincipal> pc = nsJSPrincipals::get(JS_GetCompartmentPrincipals(cpt));
+
+        nsAutoString addonId;
+        if (NS_SUCCEEDED(pc->GetAddonId(addonId)) && !addonId.IsEmpty()) {
+          // We want to nuke all references to the add-on compartment.
+          js::NukeCrossCompartmentWrappers(cx, js::AllCompartments(),
+                                           js::SingleCompartment(cpt),
+                                           win->IsInnerWindow() ? js::DontNukeWindowReferences
+                                                                : js::NukeWindowReferences);
+
+          // Now mark the compartment as nuked and non-scriptable.
+          auto compartmentPrivate = xpc::CompartmentPrivate::Get(cpt);
+          compartmentPrivate->wasNuked = true;
+          compartmentPrivate->scriptability.Block();
+        } else {
+          // We only want to nuke wrappers for the chrome->content case
+          js::NukeCrossCompartmentWrappers(cx, BrowserCompartmentMatcher(),
+                                           js::SingleCompartment(cpt),
+                                           win->IsInnerWindow() ? js::DontNukeWindowReferences
+                                                                : js::NukeWindowReferences);
+        }
       }
     }
 
@@ -9083,7 +9106,8 @@ void
 nsGlobalWindow::NotifyWindowIDDestroyed(const char* aTopic)
 {
   nsCOMPtr<nsIRunnable> runnable = new WindowDestroyedEvent(this, mWindowID, aTopic);
-  nsresult rv = NS_DispatchToCurrentThread(runnable);
+  nsresult rv =
+    Dispatch("WindowDestroyedEvent", TaskCategory::Other, runnable.forget());
   if (NS_SUCCEEDED(rv)) {
     mNotifiedIDDestroyed = true;
   }
@@ -10346,7 +10370,7 @@ nsGlobalWindow::DispatchAsyncHashchange(nsIURI *aOldURI, nsIURI *aNewURI)
 
   nsCOMPtr<nsIRunnable> callback =
     new HashchangeCallback(oldWideSpec, newWideSpec, this);
-  return NS_DispatchToMainThread(callback);
+  return Dispatch("HashchangeCallback", TaskCategory::Other, callback.forget());
 }
 
 nsresult
@@ -10651,10 +10675,9 @@ nsGlobalWindow::GetSessionStorage(ErrorResult& aError)
       return nullptr;
     }
 
-    MOZ_ASSERT_IF(!mIsChrome, (principal->GetPrivateBrowsingId() > 0) == IsPrivateBrowsing());
-
     nsCOMPtr<nsIDOMStorage> storage;
     aError = storageManager->CreateStorage(AsInner(), principal, documentURI,
+                                           IsPrivateBrowsing(),
                                            getter_AddRefs(storage));
     if (aError.Failed()) {
       return nullptr;
@@ -10717,12 +10740,9 @@ nsGlobalWindow::GetLocalStorage(ErrorResult& aError)
       }
     }
 
-    //XXX huseby -- was causing crashes see bug 1321969. Bug 1322760 covers
-    //investigating and fixing the following assert.
-    //MOZ_DIAGNOSTIC_ASSERT((principal->GetPrivateBrowsingId() > 0) == IsPrivateBrowsing());
-
     nsCOMPtr<nsIDOMStorage> storage;
     aError = storageManager->CreateStorage(AsInner(), principal, documentURI,
+                                           IsPrivateBrowsing(),
                                            getter_AddRefs(storage));
     if (aError.Failed()) {
       return nullptr;
@@ -10950,7 +10970,8 @@ nsGlobalWindow::NotifyIdleObserver(IdleObserverHolder* aIdleObserverHolder,
     new NotifyIdleObserverRunnable(aIdleObserverHolder->mIdleObserver,
                                    aIdleObserverHolder->mTimeInS,
                                    aCallOnidle, this);
-  if (NS_FAILED(NS_DispatchToCurrentThread(caller))) {
+  if (NS_FAILED(Dispatch("NotifyIdleObserverRunnable", TaskCategory::Other,
+                         caller.forget()))) {
     NS_WARNING("Failed to dispatch thread for idle observer notification.");
   }
 }
@@ -11574,14 +11595,9 @@ nsGlobalWindow::Observe(nsISupports* aSubject, const char* aTopic,
       return NS_OK;
     }
 
-    uint32_t privateBrowsingId = 0;
-    nsIPrincipal *storagePrincipal = changingStorage->GetPrincipal();
-    rv = storagePrincipal->GetPrivateBrowsingId(&privateBrowsingId);
-    if (NS_FAILED(rv)) {
-      return rv;
+    if (changingStorage->IsPrivate() != IsPrivateBrowsing()) {
+      return NS_OK;
     }
-
-    MOZ_ASSERT((privateBrowsingId > 0) == isPrivateBrowsing);
 
     switch (changingStorage->GetType())
     {
@@ -12146,7 +12162,9 @@ public:
   ~AutoUnblockScriptClosing()
   {
     void (nsGlobalWindow::*run)() = &nsGlobalWindow::UnblockScriptedClosing;
-    NS_DispatchToCurrentThread(NewRunnableMethod(mWin, run));
+    nsCOMPtr<nsIRunnable> caller = NewRunnableMethod(mWin, run);
+    mWin->Dispatch("nsGlobalWindow::UnblockScriptedClosing",
+                   TaskCategory::Other, caller.forget());
   }
 };
 
@@ -13881,6 +13899,48 @@ nsGlobalWindow::GetIsPrerendered()
 {
   nsIDocShell* docShell = GetDocShell();
   return docShell && docShell->GetIsPrerendered();
+}
+
+void
+nsPIDOMWindowOuter::SetLargeAllocStatus(LargeAllocStatus aStatus)
+{
+  MOZ_ASSERT(mLargeAllocStatus == LargeAllocStatus::NONE);
+  mLargeAllocStatus = aStatus;
+}
+
+void
+nsGlobalWindow::ReportLargeAllocStatus()
+{
+  MOZ_RELEASE_ASSERT(IsOuterWindow());
+
+  uint32_t errorFlags = nsIScriptError::warningFlag;
+  const char* message = nullptr;
+
+  switch (mLargeAllocStatus) {
+    case LargeAllocStatus::SUCCESS:
+      // Override the error flags such that the success message isn't reported
+      // as a warning.
+      errorFlags = nsIScriptError::infoFlag;
+      message = "LargeAllocationSuccess";
+      break;
+    case LargeAllocStatus::NON_GET:
+      message = "LargeAllocationNonGetRequest";
+      break;
+    case LargeAllocStatus::NON_E10S:
+      message = "LargeAllocationNonE10S";
+      break;
+    case LargeAllocStatus::NOT_ONLY_TOPLEVEL_IN_TABGROUP:
+      message = "LargeAllocationNotOnlyToplevelInTabGroup";
+      break;
+    default: // LargeAllocStatus::NONE
+      return; // Don't report a message to the console
+  }
+
+  nsContentUtils::ReportToConsole(errorFlags,
+                                  NS_LITERAL_CSTRING("DOM"),
+                                  mDoc,
+                                  nsContentUtils::eDOM_PROPERTIES,
+                                  message);
 }
 
 #ifdef MOZ_B2G

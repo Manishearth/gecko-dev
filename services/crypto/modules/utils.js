@@ -134,7 +134,6 @@ this.CryptoUtils = {
    * HMAC-based Key Derivation (RFC 5869).
    */
   hkdf: function hkdf(ikm, xts, info, len) {
-    const BLOCKSIZE = 256 / 8;
     if (typeof xts === undefined)
       xts = String.fromCharCode(0, 0, 0, 0, 0, 0, 0, 0,
                                 0, 0, 0, 0, 0, 0, 0, 0,
@@ -221,7 +220,7 @@ this.CryptoUtils = {
       I[2] = String.fromCharCode((i >> 8) & 0xff);
       I[3] = String.fromCharCode(i & 0xff);
 
-      U[0] = CryptoUtils.digestBytes(S + I.join(''), h);
+      U[0] = CryptoUtils.digestBytes(S + I.join(""), h);
       for (let j = 1; j < c; j++) {
         U[j] = CryptoUtils.digestBytes(U[j - 1], h);
       }
@@ -261,12 +260,11 @@ this.CryptoUtils = {
                                                             forceJS) {
     if (Svc.Crypto.deriveKeyFromPassphrase && !forceJS) {
       return Svc.Crypto.deriveKeyFromPassphrase(passphrase, salt, keyLength);
-    } else {
-      // Fall back to JS implementation.
-      // 4096 is hardcoded in WeaveCrypto, so do so here.
-      return CryptoUtils.pbkdf2Generate(passphrase, atob(salt), 4096,
-                                        keyLength);
     }
+    // Fall back to JS implementation.
+    // 4096 is hardcoded in WeaveCrypto, so do so here.
+    return CryptoUtils.pbkdf2Generate(passphrase, atob(salt), 4096,
+                                      keyLength);
   },
 
   /**

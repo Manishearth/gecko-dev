@@ -168,6 +168,7 @@
 #include "LayerTreeInvalidation.h"
 #include "mozilla/css/ImageLoader.h"
 #include "mozilla/dom/DocumentTimeline.h"
+#include "mozilla/dom/ScriptSettings.h"
 #include "mozilla/Preferences.h"
 #include "mozilla/Telemetry.h"
 #include "nsCanvasFrame.h"
@@ -6239,6 +6240,13 @@ PresShell::Paint(nsView*        aViewToPaint,
   PROFILER_LABEL("PresShell", "Paint",
     js::ProfileEntry::Category::GRAPHICS);
 
+  Maybe<js::AutoAssertNoContentJS> nojs;
+  if (!(aFlags & nsIPresShell::PAINT_COMPOSITE)) {
+    // We need to allow content JS when the flag is set since we may trigger
+    // MozAfterPaint events in content in those cases.
+    nojs.emplace(dom::danger::GetJSContext());
+  }
+
   NS_ASSERTION(!mIsDestroying, "painting a destroyed PresShell");
   NS_ASSERTION(aViewToPaint, "null view");
 
@@ -6912,7 +6920,7 @@ DispatchPointerFromMouseOrTouch(PresShell* aShell,
     int16_t button = mouseEvent->button;
     switch (mouseEvent->mMessage) {
     case eMouseMove:
-      button = -1;
+      button = WidgetMouseEvent::eNoButton;
       pointerMessage = ePointerMove;
       break;
     case eMouseUp:
@@ -6943,14 +6951,18 @@ DispatchPointerFromMouseOrTouch(PresShell* aShell,
     PostHandlePointerEventsPreventDefault(&event, aEvent);
   } else if (aEvent->mClass == eTouchEventClass) {
     WidgetTouchEvent* touchEvent = aEvent->AsTouchEvent();
+    int16_t button = WidgetMouseEvent::eLeftButton;
+    int16_t buttons = WidgetMouseEvent::eLeftButtonFlag;
     // loop over all touches and dispatch pointer events on each touch
     // copy the event
     switch (touchEvent->mMessage) {
     case eTouchMove:
       pointerMessage = ePointerMove;
+      button = WidgetMouseEvent::eNoButton;
       break;
     case eTouchEnd:
       pointerMessage = ePointerUp;
+      buttons = WidgetMouseEvent::eNoButtonFlag;
       break;
     case eTouchStart:
       pointerMessage = ePointerDown;
@@ -6981,9 +6993,8 @@ DispatchPointerFromMouseOrTouch(PresShell* aShell,
       event.mTime = touchEvent->mTime;
       event.mTimeStamp = touchEvent->mTimeStamp;
       event.mFlags = touchEvent->mFlags;
-      event.button = WidgetMouseEvent::eLeftButton;
-      event.buttons = pointerMessage == ePointerUp ?
-                        0 : WidgetMouseEvent::eLeftButtonFlag;
+      event.button = button;
+      event.buttons = buttons;
       event.inputSource = nsIDOMMouseEvent::MOZ_SOURCE_TOUCH;
       event.convertToPointer = touch->convertToPointer = false;
       PreHandlePointerEventsPreventDefault(&event, aEvent);
@@ -7246,25 +7257,31 @@ PresShell::HandleEvent(nsIFrame* aFrame,
     nsPresContext* rootPresContext = framePresContext->GetRootPresContext();
     NS_ASSERTION(rootPresContext == mPresContext->GetRootPresContext(),
                  "How did we end up outside the connected prescontext/viewmanager hierarchy?");
-    // If we aren't starting our event dispatch from the root frame of the root prescontext,
-    // then someone must be capturing the mouse. In that case we don't want to search the popup
-    // list.
-    if (framePresContext == rootPresContext &&
-        frame == mFrameConstructor->GetRootFrame()) {
-      nsIFrame* popupFrame =
-        nsLayoutUtils::GetPopupFrameForEventCoordinates(rootPresContext, aEvent);
-      // If a remote browser is currently capturing input break out if we
-      // detect a chrome generated popup.
-      if (popupFrame && capturingContent &&
-          EventStateManager::IsRemoteTarget(capturingContent)) {
-        capturingContent = nullptr;
-      }
-      // If the popupFrame is an ancestor of the 'frame', the frame should
-      // handle the event, otherwise, the popup should handle it.
-      if (popupFrame &&
-          !nsContentUtils::ContentIsCrossDocDescendantOf(
-             framePresContext->GetPresShell()->GetDocument(),
-             popupFrame->GetContent())) {
+    nsIFrame* popupFrame =
+      nsLayoutUtils::GetPopupFrameForEventCoordinates(rootPresContext, aEvent);
+    // If a remote browser is currently capturing input break out if we
+    // detect a chrome generated popup.
+    if (popupFrame && capturingContent &&
+        EventStateManager::IsRemoteTarget(capturingContent)) {
+      capturingContent = nullptr;
+    }
+    // If the popupFrame is an ancestor of the 'frame', the frame should
+    // handle the event, otherwise, the popup should handle it.
+    if (popupFrame &&
+        !nsContentUtils::ContentIsCrossDocDescendantOf(
+           framePresContext->GetPresShell()->GetDocument(),
+           popupFrame->GetContent())) {
+
+      // If we aren't starting our event dispatch from the root frame of the
+      // root prescontext, then someone must be capturing the mouse. In that
+      // case we only want to use the popup list if the capture is
+      // inside the popup.
+      if (framePresContext == rootPresContext &&
+          frame == mFrameConstructor->GetRootFrame()) {
+        frame = popupFrame;
+      } else if (capturingContent &&
+                 nsContentUtils::ContentIsDescendantOf(
+                   capturingContent, popupFrame->GetContent())) {
         frame = popupFrame;
       }
     }
@@ -8043,9 +8060,6 @@ PresShell::HandleEventInternal(WidgetEvent* aEvent,
             mIsLastChromeOnlyEscapeKeyConsumed = true;
           }
         }
-      }
-      if (aEvent->mMessage == eKeyDown) {
-        mIsLastKeyDownCanceled = aEvent->mFlags.mDefaultPrevented;
       }
       break;
     }
@@ -8836,9 +8850,6 @@ PresShell::FireOrClearDelayedEvents(bool aFireEvents)
            !doc->EventHandlingSuppressed()) {
       nsAutoPtr<DelayedEvent> ev(mDelayedEvents[0].forget());
       mDelayedEvents.RemoveElementAt(0);
-      if (ev->IsKeyPressEvent() && mIsLastKeyDownCanceled) {
-        continue;
-      }
       ev->Dispatch();
     }
     if (!doc->EventHandlingSuppressed()) {
@@ -9027,10 +9038,12 @@ PresShell::DoReflow(nsIFrame* target, bool aInterruptible)
     parent = nsLayoutUtils::GetCrossDocParentFrame(parent);
   }
 
+#ifdef MOZ_ENABLE_PROFILER_SPS
   nsIURI *uri = mDocument->GetDocumentURI();
   PROFILER_LABEL_PRINTF("PresShell", "DoReflow",
     js::ProfileEntry::Category::GRAPHICS, "(%s)",
     uri ? uri->GetSpecOrDefault().get() : "N/A");
+#endif
 
   nsDocShell* docShell = static_cast<nsDocShell*>(GetPresContext()->GetDocShell());
   RefPtr<TimelineConsumers> timelines = TimelineConsumers::Get();
@@ -9642,12 +9655,6 @@ PresShell::DelayedKeyEvent::DelayedKeyEvent(WidgetKeyboardEvent* aEvent) :
   keyEvent->mFlags.mIsSynthesizedForTests = aEvent->mFlags.mIsSynthesizedForTests;
   keyEvent->mFlags.mIsSuppressedOrDelayed = true;
   mEvent = keyEvent;
-}
-
-bool
-PresShell::DelayedKeyEvent::IsKeyPressEvent()
-{
-  return mEvent->mMessage == eKeyPress;
 }
 
 // Start of DEBUG only code

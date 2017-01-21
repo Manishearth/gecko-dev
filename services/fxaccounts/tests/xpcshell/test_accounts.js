@@ -22,7 +22,7 @@ const TWO_MINUTES_MS = 1000 * 60 * 2;
 initTestLogging("Trace");
 
 // XXX until bug 937114 is fixed
-Cu.importGlobalProperties(['atob']);
+Cu.importGlobalProperties(["atob"]);
 
 var log = Log.repository.getLogger("Services.FxAccounts.test");
 log.level = Log.Level.Debug;
@@ -1004,7 +1004,7 @@ add_task(function* test_sign_out_without_device() {
   delete credentials.deviceId;
   yield fxa.internal.setSignedInUser(credentials);
 
-  const user = yield fxa.internal.getUserAccountData();
+  yield fxa.internal.getUserAccountData();
 
   const spy = {
     signOut: { count: 0, args: [] },

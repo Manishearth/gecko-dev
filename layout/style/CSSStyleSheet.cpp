@@ -61,7 +61,7 @@ public:
 
   virtual CSSStyleSheet* GetParentObject() override;
 
-  virtual nsIDOMCSSRule*
+  virtual css::Rule*
   IndexedGetter(uint32_t aIndex, bool& aFound) override;
   virtual uint32_t
   Length() override;
@@ -101,7 +101,7 @@ CSSRuleListImpl::Length()
   return AssertedCast<uint32_t>(mStyleSheet->StyleRuleCount());
 }
 
-nsIDOMCSSRule*    
+css::Rule*
 CSSRuleListImpl::IndexedGetter(uint32_t aIndex, bool& aFound)
 {
   aFound = false;
@@ -112,7 +112,7 @@ CSSRuleListImpl::IndexedGetter(uint32_t aIndex, bool& aFound)
     css::Rule* rule = mStyleSheet->GetStyleRuleAt(aIndex);
     if (rule) {
       aFound = true;
-      return rule->GetDOMRule();
+      return rule;
     }
   }
 
@@ -151,7 +151,8 @@ struct ChildSheetListBuilder {
 
   void SetParentLinks(CSSStyleSheet* aSheet) {
     aSheet->mParent = parent;
-    aSheet->SetOwningDocument(parent->mDocument);
+    aSheet->SetAssociatedDocument(parent->mDocument,
+                                  parent->mDocumentAssociationMode);
   }
 
   static void ReparentChildList(CSSStyleSheet* aPrimarySheet,
@@ -159,7 +160,8 @@ struct ChildSheetListBuilder {
   {
     for (CSSStyleSheet *child = aFirstChild; child; child = child->mNext) {
       child->mParent = aPrimarySheet;
-      child->SetOwningDocument(aPrimarySheet->mDocument);
+      child->SetAssociatedDocument(aPrimarySheet->mDocument,
+                                   aPrimarySheet->mDocumentAssociationMode);
     }
   }
 };
@@ -507,8 +509,10 @@ CSSStyleSheet::TraverseInner(nsCycleCollectionTraversalCallback &cb)
 
   const nsCOMArray<css::Rule>& rules = mInner->mOrderedRules;
   for (int32_t i = 0, count = rules.Count(); i < count; ++i) {
-    NS_CYCLE_COLLECTION_NOTE_EDGE_NAME(cb, "mOrderedRules[i]");
-    cb.NoteXPCOMChild(rules[i]->GetExistingDOMRule());
+    if (!rules[i]->IsCCLeaf()) {
+      NS_CYCLE_COLLECTION_NOTE_EDGE_NAME(cb, "mOrderedRules[i]");
+      cb.NoteXPCOMChild(rules[i]);
+    }
   }
 }
 
@@ -612,16 +616,22 @@ CSSStyleSheet::GetParentSheet() const
 }
 
 void
-CSSStyleSheet::SetOwningDocument(nsIDocument* aDocument)
-{ // not ref counted
+CSSStyleSheet::SetAssociatedDocument(nsIDocument* aDocument,
+                                     DocumentAssociationMode aAssociationMode)
+{
+  MOZ_ASSERT_IF(!aDocument, aAssociationMode == NotOwnedByDocument);
+
+  // not ref counted
   mDocument = aDocument;
+  mDocumentAssociationMode = aAssociationMode;
+
   // Now set the same document on all our child sheets....
   // XXXbz this is a little bogus; see the XXX comment where we
   // declare mFirstChild.
   for (CSSStyleSheet* child = mInner->mFirstChild;
        child; child = child->mNext) {
     if (child->mParent == this) {
-      child->SetOwningDocument(aDocument);
+      child->SetAssociatedDocument(aDocument, aAssociationMode);
     }
   }
 }
@@ -865,10 +875,10 @@ CSSStyleSheet::RegisterNamespaceRule(css::Rule* aRule)
   return NS_OK;
 }
 
-nsIDOMCSSRule*
+css::Rule*
 CSSStyleSheet::GetDOMOwnerRule() const
 {
-  return mOwnerRule ? mOwnerRule->GetDOMRule() : nullptr;
+  return mOwnerRule;
 }
 
 CSSRuleList*
@@ -1031,11 +1041,6 @@ CSSStyleSheet::DeleteRuleInternal(uint32_t aIndex, ErrorResult& aRv)
   RefPtr<css::Rule> rule = mInner->mOrderedRules.ObjectAt(aIndex);
   if (rule) {
     mInner->mOrderedRules.RemoveObjectAt(aIndex);
-    if (mDocument && mDocument->StyleSheetChangeEventsEnabled()) {
-      // Force creation of the DOM rule, so that it can be put on the
-      // StyleRuleRemoved event object.
-      rule->GetDOMRule();
-    }
     rule->SetStyleSheet(nullptr);
     DidDirty();
 

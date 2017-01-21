@@ -37,6 +37,7 @@ import org.mozilla.gecko.distribution.PartnerBrowserCustomizationsClient;
 import org.mozilla.gecko.dlc.DownloadContentService;
 import org.mozilla.gecko.icons.IconsHelper;
 import org.mozilla.gecko.icons.decoders.IconDirectoryEntry;
+import org.mozilla.gecko.icons.decoders.FaviconDecoder;
 import org.mozilla.gecko.feeds.ContentNotificationsDelegate;
 import org.mozilla.gecko.feeds.FeedService;
 import org.mozilla.gecko.firstrun.FirstrunAnimationContainer;
@@ -740,6 +741,7 @@ public class BrowserApp extends GeckoApp
             "CharEncoding:State",
             "Settings:Show",
             "Updater:Launch",
+            "Sanitize:OpenTabs",
             null);
 
         EventDispatcher.getInstance().registerBackgroundThreadListener(this,
@@ -752,6 +754,7 @@ public class BrowserApp extends GeckoApp
             "Sanitize:ClearSyncedTabs",
             "Telemetry:Gather",
             "Download:AndroidDownloadManager",
+            "Website:AppInstalled",
             "Website:Metadata",
             null);
 
@@ -1376,7 +1379,6 @@ public class BrowserApp extends GeckoApp
                 @Override
                 public void run() {
                     GeckoAppShell.createShortcut(title, url);
-
                 }
             });
 
@@ -1453,6 +1455,7 @@ public class BrowserApp extends GeckoApp
             "CharEncoding:State",
             "Settings:Show",
             "Updater:Launch",
+            "Sanitize:OpenTabs",
             null);
 
         EventDispatcher.getInstance().unregisterBackgroundThreadListener(this,
@@ -1465,6 +1468,7 @@ public class BrowserApp extends GeckoApp
             "Sanitize:ClearSyncedTabs",
             "Telemetry:Gather",
             "Download:AndroidDownloadManager",
+            "Website:AppInstalled",
             "Website:Metadata",
             null);
 
@@ -1912,6 +1916,11 @@ public class BrowserApp extends GeckoApp
                 settings.edit().putInt(getPackageName() + ".feedback_launch_count", 0).apply();
                 break;
 
+            case "Sanitize:OpenTabs":
+                Tabs.getInstance().closeAll();
+                callback.sendSuccess(null);
+                break;
+
             case "Sanitize:ClearHistory":
                 BrowserDB.from(getProfile()).clearHistory(
                         getContentResolver(), message.getBoolean("clearSearchHistory", false));
@@ -1966,6 +1975,15 @@ public class BrowserApp extends GeckoApp
 
                 Telemetry.addToHistogram("FENNEC_ORBOT_INSTALLED",
                     ContextUtils.isPackageInstalled(getContext(), "org.torproject.android") ? 1 : 0);
+                break;
+
+            case "Website:AppInstalled":
+                final String name = message.getString("name");
+                final String startUrl = message.getString("start_url");
+                final Bitmap icon = FaviconDecoder
+                    .decodeDataURI(getContext(), message.getString("icon"))
+                    .getBestBitmap(GeckoAppShell.getPreferredIconSize());
+                createShortcut(name, startUrl, icon);
                 break;
 
             case "Updater:Launch":

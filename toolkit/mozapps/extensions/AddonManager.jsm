@@ -23,7 +23,7 @@ if ("@mozilla.org/xre/app-info;1" in Cc) {
 
 Cu.import("resource://gre/modules/AppConstants.jsm");
 
-const MOZ_COMPATIBILITY_NIGHTLY = !['aurora', 'beta', 'release', 'esr'].includes(AppConstants.MOZ_UPDATE_CHANNEL);
+const MOZ_COMPATIBILITY_NIGHTLY = !["aurora", "beta", "release", "esr"].includes(AppConstants.MOZ_UPDATE_CHANNEL);
 
 const PREF_BLOCKLIST_PINGCOUNTVERSION = "extensions.blocklist.pingCountVersion";
 const PREF_DEFAULT_PROVIDERS_ENABLED  = "extensions.defaultProviders.enabled";
@@ -754,7 +754,7 @@ var AddonManagerInternal = {
 
     logger.debug(`Starting provider: ${providerName(aProvider)}`);
     callProvider(aProvider, "startup", null, aAppChanged, aOldAppVersion, aOldPlatformVersion);
-    if ('shutdown' in aProvider) {
+    if ("shutdown" in aProvider) {
       let name = providerName(aProvider);
       let AMProviderShutdown = () => {
         // If the provider has been unregistered, it will have been removed from
@@ -1376,6 +1376,35 @@ var AddonManagerInternal = {
     return uri.replace(/\+/g, "%2B");
   },
 
+  _updatePromptHandler(info) {
+    let oldPerms = info.existingAddon.userPermissions || {hosts: [], permissions: []};
+    let newPerms = info.addon.userPermissions;
+
+    // See bug 1331769: should we do something more complicated to
+    // compare host permissions?
+    // e.g., if we go from <all_urls> to a specific host or from
+    // a *.domain.com to specific-host.domain.com that's actually a
+    // drop in permissions but the simple test below will cause a prompt.
+    let difference = {
+      hosts: newPerms.hosts.filter(perm => !oldPerms.hosts.includes(perm)),
+      permissions: newPerms.permissions.filter(perm => !oldPerms.permissions.includes(perm)),
+    };
+
+    // If there are no new permissions, just go ahead with the update
+    if (difference.hosts.length == 0 && difference.permissions.length == 0) {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve, reject) => {
+      let subject = {wrappedJSObject: {
+        addon: info.addon,
+        permissions: difference,
+        resolve, reject
+      }};
+      Services.obs.notifyObservers(subject, "webextension-update-permissions", null);
+    });
+  },
+
   /**
    * Performs a background update check by starting an update for all add-ons
    * that can be updated.
@@ -1430,6 +1459,9 @@ var AddonManagerInternal = {
                   // XXX we really should resolve when this install is done,
                   // not when update-available check completes, no?
                   logger.debug(`Starting upgrade install of ${aAddon.id}`);
+                  if (WEBEXT_PERMISSION_PROMPTS) {
+                    aInstall.promptHandler = (...args) => AddonManagerInternal._updatePromptHandler(...args);
+                  }
                   aInstall.install();
                 }
               },

@@ -168,6 +168,10 @@ version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "geckoservo"
+version = "0.0.0"
+
+[[package]]
 name = "gkrust-shared"
 version = "0.1.0"
 dependencies = [

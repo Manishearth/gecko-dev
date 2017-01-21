@@ -1485,7 +1485,7 @@ nsDocument::~nsDocument()
 
   // Let the stylesheets know we're going away
   for (StyleSheet* sheet : mStyleSheets) {
-    sheet->SetOwningDocument(nullptr);
+    sheet->ClearAssociatedDocument();
   }
   if (mAttrStyleSheet) {
     mAttrStyleSheet->SetOwningDocument(nullptr);
@@ -2126,7 +2126,7 @@ nsDocument::RemoveDocStyleSheetsFromStyleSets()
 {
   // The stylesheets should forget us
   for (StyleSheet* sheet : Reversed(mStyleSheets)) {
-    sheet->SetOwningDocument(nullptr);
+    sheet->ClearAssociatedDocument();
 
     if (sheet->IsApplicable()) {
       nsCOMPtr<nsIPresShell> shell = GetShell();
@@ -2145,7 +2145,7 @@ nsDocument::RemoveStyleSheetsFromStyleSets(
 {
   // The stylesheets should forget us
   for (StyleSheet* sheet : Reversed(aSheets)) {
-    sheet->SetOwningDocument(nullptr);
+    sheet->ClearAssociatedDocument();
 
     if (sheet->IsApplicable()) {
       nsCOMPtr<nsIPresShell> shell = GetShell();
@@ -2867,8 +2867,12 @@ nsIDocument::GetDocGroup() const
   // Sanity check that we have an up-to-date and accurate docgroup
   if (mDocGroup) {
     nsAutoCString docGroupKey;
-    mozilla::dom::DocGroup::GetKey(NodePrincipal(), docGroupKey);
-    MOZ_ASSERT(mDocGroup->MatchesKey(docGroupKey));
+
+    // GetKey() can fail, e.g. after the TLD service has shut down.
+    nsresult rv = mozilla::dom::DocGroup::GetKey(NodePrincipal(), docGroupKey);
+    if (NS_SUCCEEDED(rv)) {
+      MOZ_ASSERT(mDocGroup->MatchesKey(docGroupKey));
+    }
     // XXX: Check that the TabGroup is correct as well!
   }
 #endif
@@ -4078,7 +4082,7 @@ nsDocument::AddStyleSheet(StyleSheet* aSheet)
 {
   NS_PRECONDITION(aSheet, "null arg");
   mStyleSheets.AppendElement(aSheet);
-  aSheet->SetOwningDocument(this);
+  aSheet->SetAssociatedDocument(this, StyleSheet::OwnedByDocument);
 
   if (aSheet->IsApplicable()) {
     AddStyleSheetToStyleSets(aSheet);
@@ -4115,7 +4119,7 @@ nsDocument::RemoveStyleSheet(StyleSheet* aSheet)
     NotifyStyleSheetRemoved(aSheet, true);
   }
 
-  aSheet->SetOwningDocument(nullptr);
+  aSheet->ClearAssociatedDocument();
 }
 
 void
@@ -4143,7 +4147,7 @@ nsDocument::UpdateStyleSheets(nsTArray<RefPtr<StyleSheet>>& aOldSheets,
     StyleSheet* newSheet = aNewSheets[i];
     if (newSheet) {
       mStyleSheets.InsertElementAt(oldIndex, newSheet);
-      newSheet->SetOwningDocument(this);
+      newSheet->SetAssociatedDocument(this, StyleSheet::OwnedByDocument);
       if (newSheet->IsApplicable()) {
         AddStyleSheetToStyleSets(newSheet);
       }
@@ -4162,7 +4166,7 @@ nsDocument::InsertStyleSheetAt(StyleSheet* aSheet, int32_t aIndex)
 
   mStyleSheets.InsertElementAt(aIndex, aSheet);
 
-  aSheet->SetOwningDocument(this);
+  aSheet->SetAssociatedDocument(this, StyleSheet::OwnedByDocument);
 
   if (aSheet->IsApplicable()) {
     AddStyleSheetToStyleSets(aSheet);
@@ -4201,10 +4205,13 @@ nsDocument::SetStyleSheetApplicableState(StyleSheet* aSheet,
   }
 
   if (!mSSApplicableStateNotificationPending) {
+    MOZ_RELEASE_ASSERT(NS_IsMainThread());
     nsCOMPtr<nsIRunnable> notification = NewRunnableMethod(this,
       &nsDocument::NotifyStyleSheetApplicableStateChanged);
     mSSApplicableStateNotificationPending =
-      NS_SUCCEEDED(NS_DispatchToCurrentThread(notification));
+      NS_SUCCEEDED(
+        Dispatch("nsDocument::NotifyStyleSheetApplicableStateChanged",
+                 TaskCategory::Other, notification.forget()));
   }
 }
 
@@ -4287,7 +4294,7 @@ nsDocument::LoadAdditionalStyleSheet(additionalSheetType aType,
   nsresult rv = loader->LoadSheetSync(aSheetURI, parsingMode, true, &sheet);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  sheet->SetOwningDocument(this);
+  sheet->SetAssociatedDocument(this, StyleSheet::OwnedByDocument);
   MOZ_ASSERT(sheet->IsApplicable());
 
   return AddAdditionalStyleSheet(aType, sheet);
@@ -4345,7 +4352,7 @@ nsDocument::RemoveAdditionalStyleSheet(additionalSheetType aType, nsIURI* aSheet
     NotifyStyleSheetRemoved(sheetRef, false);
     EndUpdate(UPDATE_STYLE);
 
-    sheetRef->SetOwningDocument(nullptr);
+    sheetRef->ClearAssociatedDocument();
   }
 }
 
@@ -4377,9 +4384,12 @@ nsDocument::SetScopeObject(nsIGlobalObject* aGlobal)
       // We should already have the principal, and now that we have been added to a
       // window, we should be able to join a DocGroup!
       nsAutoCString docGroupKey;
-      mozilla::dom::DocGroup::GetKey(NodePrincipal(), docGroupKey);
+      nsresult rv =
+        mozilla::dom::DocGroup::GetKey(NodePrincipal(), docGroupKey);
       if (mDocGroup) {
-        MOZ_RELEASE_ASSERT(mDocGroup->MatchesKey(docGroupKey));
+        if (NS_SUCCEEDED(rv)) {
+          MOZ_RELEASE_ASSERT(mDocGroup->MatchesKey(docGroupKey));
+        }
       } else {
         mDocGroup = tabgroup->AddDocument(docGroupKey, this);
         MOZ_ASSERT(mDocGroup);
@@ -4570,7 +4580,15 @@ nsDocument::SetScriptGlobalObject(nsIScriptGlobalObject *aScriptGlobalObject)
     }
   }
 
+  // BlockOnload() might be called before mScriptGlobalObject is set.
+  // We may need to add the blocker once mScriptGlobalObject is set.
+  bool needOnloadBlocker = !mScriptGlobalObject && aScriptGlobalObject;
+
   mScriptGlobalObject = aScriptGlobalObject;
+
+  if (needOnloadBlocker) {
+    EnsureOnloadBlocker();
+  }
 
   if (aScriptGlobalObject) {
     // Go back to using the docshell for the layout history state
@@ -5180,7 +5198,7 @@ nsDocument::StyleRuleChanged(StyleSheet* aSheet,
     DO_STYLESHEET_NOTIFICATION(StyleRuleChangeEvent,
                                "StyleRuleChanged",
                                mRule,
-                               aStyleRule ? aStyleRule->GetDOMRule() : nullptr);
+                               aStyleRule);
   }
 }
 
@@ -5194,8 +5212,7 @@ nsDocument::StyleRuleAdded(StyleSheet* aSheet,
     DO_STYLESHEET_NOTIFICATION(StyleRuleChangeEvent,
                                "StyleRuleAdded",
                                mRule,
-                               aStyleRule ? aStyleRule->GetDOMRule()
-                                          : nullptr);
+                               aStyleRule);
   }
 }
 
@@ -5209,8 +5226,7 @@ nsDocument::StyleRuleRemoved(StyleSheet* aSheet,
     DO_STYLESHEET_NOTIFICATION(StyleRuleChangeEvent,
                                "StyleRuleRemoved",
                                mRule,
-                               aStyleRule ? aStyleRule->GetDOMRule()
-                                          : nullptr);
+                               aStyleRule);
   }
 }
 
@@ -6752,10 +6768,11 @@ nsDocument::NotifyPossibleTitleChange(bool aBoundTitleElement)
   if (mPendingTitleChangeEvent.IsPending())
     return;
 
-  RefPtr<nsRunnableMethod<nsDocument, void, false> > event =
-    NewNonOwningRunnableMethod(this,
-      &nsDocument::DoNotifyPossibleTitleChange);
-  nsresult rv = NS_DispatchToCurrentThread(event);
+  MOZ_RELEASE_ASSERT(NS_IsMainThread());
+  RefPtr<nsRunnableMethod<nsDocument, void, false>> event =
+    NewNonOwningRunnableMethod(this, &nsDocument::DoNotifyPossibleTitleChange);
+  nsresult rv = Dispatch("nsDocument::DoNotifyPossibleTitleChange",
+                         TaskCategory::Other, do_AddRef(event));
   if (NS_SUCCEEDED(rv)) {
     mPendingTitleChangeEvent = event;
   }
@@ -8625,8 +8642,10 @@ private:
 void
 nsDocument::PostUnblockOnloadEvent()
 {
+  MOZ_RELEASE_ASSERT(NS_IsMainThread());
   nsCOMPtr<nsIRunnable> evt = new nsUnblockOnloadEvent(this);
-  nsresult rv = NS_DispatchToCurrentThread(evt);
+  nsresult rv =
+    Dispatch("nsUnblockOnloadEvent", TaskCategory::Other, evt.forget());
   if (NS_SUCCEEDED(rv)) {
     // Stabilize block count so we don't post more events while this one is up
     ++mOnloadBlockCount;
@@ -9556,7 +9575,9 @@ nsDocument::UnsuppressEventHandlingAndFireEvents(nsIDocument::SuppressionType aW
   }
 
   if (aFireEvents) {
-    NS_DispatchToCurrentThread(new nsDelayedEventDispatcher(args.mDocs));
+    MOZ_RELEASE_ASSERT(NS_IsMainThread());
+    nsCOMPtr<nsIRunnable> ded = new nsDelayedEventDispatcher(args.mDocs);
+    Dispatch("nsDelayedEventDispatcher", TaskCategory::Other, ded.forget());
   } else {
     FireOrClearDelayedEvents(args.mDocs, false);
   }
@@ -10580,7 +10601,13 @@ private:
 /* static */ void
 nsIDocument::AsyncExitFullscreen(nsIDocument* aDoc)
 {
-  NS_DispatchToCurrentThread(new nsCallExitFullscreen(aDoc));
+  MOZ_RELEASE_ASSERT(NS_IsMainThread());
+  nsCOMPtr<nsIRunnable> exit = new nsCallExitFullscreen(aDoc);
+  if (aDoc) {
+    aDoc->Dispatch("nsCallExitFullscreen", TaskCategory::Other, exit.forget());
+  } else {
+    NS_DispatchToCurrentThread(exit.forget());
+  }
 }
 
 static bool
@@ -10850,8 +10877,9 @@ nsDocument::AsyncRequestFullScreen(UniquePtr<FullscreenRequest>&& aRequest)
   }
 
   // Request full-screen asynchronously.
-  nsCOMPtr<nsIRunnable> event(new nsCallRequestFullScreen(Move(aRequest)));
-  NS_DispatchToCurrentThread(event);
+  MOZ_RELEASE_ASSERT(NS_IsMainThread());
+  nsCOMPtr<nsIRunnable> event = new nsCallRequestFullScreen(Move(aRequest));
+  Dispatch("nsCallRequestFullScreen", TaskCategory::Other, event.forget());
 }
 
 void
@@ -11725,8 +11753,9 @@ nsDocument::RequestPointerLock(Element* aElement, CallerType aCallerType)
 
   bool userInputOrSystemCaller = EventStateManager::IsHandlingUserInput() ||
                                  aCallerType == CallerType::System;
-  NS_DispatchToMainThread(new PointerLockRequest(aElement,
-                                                 userInputOrSystemCaller));
+  nsCOMPtr<nsIRunnable> request =
+    new PointerLockRequest(aElement, userInputOrSystemCaller);
+  Dispatch("PointerLockRequest", TaskCategory::Other, request.forget());
 }
 
 bool
@@ -11991,7 +12020,7 @@ SizeOfOwnedSheetArrayExcludingThis(const nsTArray<RefPtr<StyleSheet>>& aSheets,
   size_t n = 0;
   n += aSheets.ShallowSizeOfExcludingThis(aMallocSizeOf);
   for (StyleSheet* sheet : aSheets) {
-    if (!sheet->GetOwningDocument()) {
+    if (!sheet->GetAssociatedDocument()) {
       // Avoid over-reporting shared sheets.
       continue;
     }
@@ -12450,9 +12479,11 @@ nsDocument::UpdateIntersectionObservations()
 void
 nsDocument::ScheduleIntersectionObserverNotification()
 {
-  nsCOMPtr<nsIRunnable> notification = NewRunnableMethod(this,
-    &nsDocument::NotifyIntersectionObservers);
-  NS_DispatchToCurrentThread(notification);
+  MOZ_RELEASE_ASSERT(NS_IsMainThread());
+  nsCOMPtr<nsIRunnable> notification =
+    NewRunnableMethod(this, &nsDocument::NotifyIntersectionObservers);
+  Dispatch("nsDocument::IntersectionObserverNotification", TaskCategory::Other,
+           notification.forget());
 }
 
 void
@@ -12734,9 +12765,11 @@ nsIDocument::RebuildUserFontSet()
   // which starts font loads, whose completion causes another style
   // change reflow).
   if (!mPostedFlushUserFontSet) {
+    MOZ_RELEASE_ASSERT(NS_IsMainThread());
     nsCOMPtr<nsIRunnable> ev =
       NewRunnableMethod(this, &nsIDocument::HandleRebuildUserFontSet);
-    if (NS_SUCCEEDED(NS_DispatchToCurrentThread(ev))) {
+    if (NS_SUCCEEDED(Dispatch("nsIDocument::HandleRebuildUserFontSet",
+                              TaskCategory::Other, ev.forget()))) {
       mPostedFlushUserFontSet = true;
     }
   }

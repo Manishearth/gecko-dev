@@ -189,6 +189,7 @@
 #include "nsReferencedElement.h"
 #include "nsSandboxFlags.h"
 #include "nsScriptSecurityManager.h"
+#include "nsSerializationHelper.h"
 #include "nsStreamUtils.h"
 #include "nsTextEditorState.h"
 #include "nsTextFragment.h"
@@ -9699,28 +9700,14 @@ nsContentUtils::AttemptLargeAllocationLoad(nsIHttpChannel* aChannel)
     return false;
   }
 
-  nsIDocument* doc = outer->GetExtantDoc();
-
   if (!XRE_IsContentProcess()) {
-    if (doc) {
-      nsContentUtils::ReportToConsole(nsIScriptError::warningFlag,
-                                      NS_LITERAL_CSTRING("DOM"),
-                                      doc,
-                                      nsContentUtils::eDOM_PROPERTIES,
-                                      "LargeAllocationNonE10S");
-    }
+    outer->SetLargeAllocStatus(LargeAllocStatus::NON_E10S);
     return false;
   }
 
   nsIDocShell* docShell = outer->GetDocShell();
   if (!docShell->GetIsOnlyToplevelInTabGroup()) {
-    if (doc) {
-      nsContentUtils::ReportToConsole(nsIScriptError::warningFlag,
-                                      NS_LITERAL_CSTRING("DOM"),
-                                      doc,
-                                      nsContentUtils::eDOM_PROPERTIES,
-                                      "LargeAllocationNotOnlyToplevelInTabGroup");
-    }
+    outer->SetLargeAllocStatus(LargeAllocStatus::NOT_ONLY_TOPLEVEL_IN_TABGROUP);
     return false;
   }
 
@@ -9731,28 +9718,16 @@ nsContentUtils::AttemptLargeAllocationLoad(nsIHttpChannel* aChannel)
   NS_ENSURE_SUCCESS(rv, false);
 
   if (NS_WARN_IF(!requestMethod.LowerCaseEqualsLiteral("get"))) {
-    if (doc) {
-      nsContentUtils::ReportToConsole(nsIScriptError::warningFlag,
-                                      NS_LITERAL_CSTRING("DOM"),
-                                      doc,
-                                      nsContentUtils::eDOM_PROPERTIES,
-                                      "LargeAllocationNonGetRequest");
-    }
+    outer->SetLargeAllocStatus(LargeAllocStatus::NON_GET);
     return false;
   }
 
-  TabChild* tabChild = TabChild::GetFrom(outer);
+  TabChild* tabChild = TabChild::GetFrom(outer->AsOuter());
   NS_ENSURE_TRUE(tabChild, false);
 
   if (tabChild->TakeIsFreshProcess())  {
     NS_WARNING("Already in a fresh process, ignoring Large-Allocation header!");
-    if (doc) {
-      nsContentUtils::ReportToConsole(nsIScriptError::infoFlag,
-                                      NS_LITERAL_CSTRING("DOM"),
-                                      doc,
-                                      nsContentUtils::eDOM_PROPERTIES,
-                                      "LargeAllocationSuccess");
-    }
+    outer->SetLargeAllocStatus(LargeAllocStatus::SUCCESS);
     return false;
   }
 
@@ -9776,9 +9751,13 @@ nsContentUtils::AttemptLargeAllocationLoad(nsIHttpChannel* aChannel)
   rv = aChannel->GetReferrer(getter_AddRefs(referrer));
   NS_ENSURE_SUCCESS(rv, false);
 
+  nsCOMPtr<nsILoadInfo> loadInfo = aChannel->GetLoadInfo();
+  nsCOMPtr<nsIPrincipal> triggeringPrincipal = loadInfo->TriggeringPrincipal();
+
   // Actually perform the cross process load
   bool reloadSucceeded = false;
-  rv = wbc3->ReloadInFreshProcess(docShell, uri, referrer, &reloadSucceeded);
+  rv = wbc3->ReloadInFreshProcess(docShell, uri, referrer,
+                                  triggeringPrincipal, &reloadSucceeded);
   NS_ENSURE_SUCCESS(rv, false);
 
   return reloadSucceeded;
@@ -9800,4 +9779,34 @@ nsContentUtils::AppendDocumentLevelNativeAnonymousContentTo(
       creator->AppendAnonymousContentTo(aElements, 0);
     }
   }
+}
+
+/* static */ void
+nsContentUtils::GetContentPolicyTypeForUIImageLoading(nsIContent* aLoadingNode,
+                                                      nsIPrincipal** aLoadingPrincipal,
+                                                      nsContentPolicyType& aContentPolicyType)
+{
+  // Use the serialized loadingPrincipal from the image element. Fall back
+  // to mContent's principal (SystemPrincipal) if not available.
+  aContentPolicyType = nsIContentPolicy::TYPE_INTERNAL_IMAGE;
+  nsCOMPtr<nsIPrincipal> loadingPrincipal = aLoadingNode->NodePrincipal();
+  nsAutoString imageLoadingPrincipal;
+  aLoadingNode->GetAttr(kNameSpaceID_None, nsGkAtoms::loadingprincipal,
+                        imageLoadingPrincipal);
+  if (!imageLoadingPrincipal.IsEmpty()) {
+    nsCOMPtr<nsISupports> serializedPrincipal;
+    NS_DeserializeObject(NS_ConvertUTF16toUTF8(imageLoadingPrincipal),
+                         getter_AddRefs(serializedPrincipal));
+    loadingPrincipal = do_QueryInterface(serializedPrincipal);
+
+    if (loadingPrincipal) {
+      // Set the content policy type to TYPE_INTERNAL_IMAGE_FAVICON for
+      // indicating it's a favicon loading.
+      aContentPolicyType = nsIContentPolicy::TYPE_INTERNAL_IMAGE_FAVICON;
+    } else {
+      // Fallback if the deserialization is failed.
+      loadingPrincipal = aLoadingNode->NodePrincipal();
+    }
+  }
+  loadingPrincipal.forget(aLoadingPrincipal);
 }

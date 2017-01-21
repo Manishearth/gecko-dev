@@ -50,7 +50,7 @@ add_task(function* test_something() {
                              sample.status.statusText);
       // send the headers
       for (let headerLine of sample.sampleHeaders) {
-        let headerElements = headerLine.split(':');
+        let headerElements = headerLine.split(":");
         response.setHeader(headerElements[0], headerElements[1].trimLeft());
       }
       response.setHeader("Date", (new Date()).toUTCString());
@@ -64,7 +64,7 @@ add_task(function* test_something() {
   server.registerPathHandler(recordsPath, handleResponse);
 
   // Test an empty db populates
-  let result = yield OneCRLBlocklistClient.maybeSync(2000, Date.now());
+  yield OneCRLBlocklistClient.maybeSync(2000, Date.now());
 
   // Open the collection, verify it's been populated:
   // Our test data has a single record; it should be in the local collection

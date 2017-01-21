@@ -18,9 +18,11 @@ const TRANSITION_DOWNLOAD = PlacesUtils.history.TRANSITION_DOWNLOAD;
 /**
  * Returns a moz_places field value for a url.
  *
- * @param aURI
+ * @param {nsIURI|String} aURI
  *        The URI or spec to get field for.
- * param aCallback
+ * @param {String} aFieldName
+ *        The field name to get the value of.
+ * @param {Function} aCallback
  *        Callback function that will get the property value.
  */
 function fieldForUrl(aURI, aFieldName, aCallback) {
@@ -46,6 +48,25 @@ function fieldForUrl(aURI, aFieldName, aCallback) {
     }
   });
   stmt.finalize();
+}
+
+/**
+ * Promise wrapper for fieldForUrl.
+ *
+ * @param {nsIURI|String} aURI
+ *        The URI or spec to get field for.
+ * @param {String} aFieldName
+ *        The field name to get the value of.
+ * @return {Promise}
+ *        A promise that is resolved with the value of the field.
+ */
+function promiseFieldForUrl(aURI, aFieldName) {
+  return new Promise(resolve => {
+    function callback(result) {
+      resolve(result);
+    }
+    fieldForUrl(aURI, aFieldName, callback);
+  });
 }
 
 /**
@@ -255,7 +276,7 @@ function DBConn(aForceNewConnection) {
 
   // If the Places database connection has been closed, create a new connection.
   if (!gDBConn || aForceNewConnection) {
-    let file = Services.dirsvc.get('ProfD', Ci.nsIFile);
+    let file = Services.dirsvc.get("ProfD", Ci.nsIFile);
     file.append("places.sqlite");
     let dbConn = gDBConn = Services.storage.openDatabase(file);
 

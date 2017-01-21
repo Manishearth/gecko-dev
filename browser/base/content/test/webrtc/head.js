@@ -8,7 +8,7 @@ const PREF_PERMISSION_FAKE = "media.navigator.permission.fake";
 const CONTENT_SCRIPT_HELPER = getRootDirectory(gTestPath) + "get_user_media_content_script.js";
 
 function waitForCondition(condition, nextTest, errorMsg, retryTimes) {
-  retryTimes = typeof retryTimes !== 'undefined' ? retryTimes : 30;
+  retryTimes = typeof retryTimes !== "undefined" ? retryTimes : 30;
   var tries = 0;
   var interval = setInterval(function() {
     if (tries >= retryTimes) {
@@ -126,7 +126,7 @@ function* assertWebRTCIndicatorStatus(expected) {
               win.removeEventListener("unload", listener);
               resolve();
             }
-          }, false);
+          });
         });
       }
     }
@@ -371,9 +371,10 @@ function* stopSharing(aType = "camera", aShouldKeepSharing = false,
     yield* checkNotSharing();
 }
 
-function promiseRequestDevice(aRequestAudio, aRequestVideo, aFrameId, aType) {
+function promiseRequestDevice(aRequestAudio, aRequestVideo, aFrameId, aType,
+                              aBrowser = gBrowser.selectedBrowser) {
   info("requesting devices");
-  return ContentTask.spawn(gBrowser.selectedBrowser,
+  return ContentTask.spawn(aBrowser,
                            {aRequestAudio, aRequestVideo, aFrameId, aType},
                            function*(args) {
     let global = content.wrappedJSObject;
@@ -383,13 +384,16 @@ function promiseRequestDevice(aRequestAudio, aRequestVideo, aFrameId, aType) {
   });
 }
 
-function* closeStream(aAlreadyClosed, aFrameId) {
+function* closeStream(aAlreadyClosed, aFrameId, aStreamCount = 1) {
   yield expectNoObserverCalled();
 
   let promises;
   if (!aAlreadyClosed) {
-    promises = [promiseObserverCalled("recording-device-events"),
-                promiseObserverCalled("recording-window-ended")];
+    promises = [];
+    for (let i = 0; i < aStreamCount; i++) {
+      promises.push(promiseObserverCalled("recording-device-events"));
+    }
+    promises.push(promiseObserverCalled("recording-window-ended"));
   }
 
   info("closing the stream");
@@ -493,4 +497,15 @@ function* checkNotSharing() {
      "no sharing indicator on the control center icon");
 
   yield* assertWebRTCIndicatorStatus(null);
+}
+
+function promiseReloadFrame(aFrameId) {
+  return ContentTask.spawn(gBrowser.selectedBrowser, aFrameId, function*(contentFrameId) {
+    content.wrappedJSObject
+           .document
+           .getElementById(contentFrameId)
+           .contentWindow
+           .location
+           .reload();
+  });
 }

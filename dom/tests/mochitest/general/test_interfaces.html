@@ -47,6 +47,7 @@ var ecmaGlobals =
   [
     "Array",
     "ArrayBuffer",
+    "Atomics",
     "Boolean",
     "DataView",
     "Date",
@@ -78,9 +79,8 @@ var ecmaGlobals =
     "Reflect",
     "RegExp",
     "Set",
-    {name: "SharedArrayBuffer", release: false},
+    "SharedArrayBuffer",
     {name: "SIMD", nightly: true},
-    {name: "Atomics", release: false},
     "StopIteration",
     "String",
     "Symbol",
@@ -249,7 +249,7 @@ var interfaceNamesInGlobalScope =
 // IMPORTANT: Do not change this list without review from a DOM peer!
     "CSSMozDocumentRule",
 // IMPORTANT: Do not change this list without review from a DOM peer!
-    "CSSNameSpaceRule",
+    "CSSNamespaceRule",
 // IMPORTANT: Do not change this list without review from a DOM peer!
     "CSSPageRule",
 // IMPORTANT: Do not change this list without review from a DOM peer!
@@ -867,8 +867,6 @@ var interfaceNamesInGlobalScope =
     "ServiceWorkerMessageEvent",
 // IMPORTANT: Do not change this list without review from a DOM peer!
     "ServiceWorkerRegistration",
-// IMPORTANT: Do not change this list without review from a DOM peer!
-    "SettingsLock",
 // IMPORTANT: Do not change this list without review from a DOM peer!
     "ShadowRoot", // Bogus, but the test harness forces it on.  See bug 1159768.
 // IMPORTANT: Do not change this list without review from a DOM peer!

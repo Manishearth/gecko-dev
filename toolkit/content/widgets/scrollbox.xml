@@ -21,6 +21,15 @@
         <children/>
       </xul:box>
     </content>
+
+    <implementation>
+      <method name="scrollByIndex">
+        <parameter name="index"/>
+        <body>
+          this.boxObject.scrollByIndex(index);
+        </body>
+      </method>
+    </implementation>
   </binding>
 
   <binding id="arrowscrollbox" extends="chrome://global/content/bindings/scrollbox.xml#scrollbox-base">
@@ -69,7 +78,7 @@
       <property name="_prefBranch" readonly="true">
         <getter><![CDATA[
           if (this.__prefBranch === null) {
-            this.__prefBranch = Components.classes['@mozilla.org/preferences-service;1']
+            this.__prefBranch = Components.classes["@mozilla.org/preferences-service;1"]
                                           .getService(Components.interfaces.nsIPrefBranch);
           }
           return this.__prefBranch;
@@ -922,7 +931,7 @@
           if (this._mousedown) {
             this._stopScroll();
             this._mousedown = true;
-            document.addEventListener("mouseup", this, false);
+            document.addEventListener("mouseup", this);
             document.addEventListener("blur", this, true);
           }
         ]]></body>
@@ -942,7 +951,7 @@
           if (aEvent.type == "mouseup" ||
               aEvent.type == "blur" && aEvent.target == document) {
             this._mousedown = false;
-            document.removeEventListener("mouseup", this, false);
+            document.removeEventListener("mouseup", this);
             document.removeEventListener("blur", this, true);
           }
         ]]></body>

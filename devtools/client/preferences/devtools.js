@@ -64,6 +64,8 @@ pref("devtools.inspector.showUserAgentStyles", false);
 pref("devtools.inspector.showAllAnonymousContent", false);
 // Enable the MDN docs tooltip
 pref("devtools.inspector.mdnDocsTooltip.enabled", true);
+// Enable the new color widget
+pref("devtools.inspector.colorWidget.enabled", false);
 
 // Enable the Font Inspector
 pref("devtools.fontinspector.enabled", true);
@@ -176,7 +178,7 @@ pref("devtools.netmonitor.filters", "[\"all\"]");
 
 // The default Network monitor HAR export setting
 pref("devtools.netmonitor.har.defaultLogDir", "");
-pref("devtools.netmonitor.har.defaultFileName", "Archive %y-%m-%d %H-%M-%S");
+pref("devtools.netmonitor.har.defaultFileName", "Archive %date");
 pref("devtools.netmonitor.har.jsonp", false);
 pref("devtools.netmonitor.har.jsonpCallback", "");
 pref("devtools.netmonitor.har.includeResponseBodies", true);

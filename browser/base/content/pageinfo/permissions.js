@@ -135,7 +135,7 @@ function createRow(aPartId) {
   for (let state of SitePermissions.getAvailableStates(aPartId)) {
     let radio = document.createElement("radio");
     radio.setAttribute("id", aPartId + "#" + state);
-    radio.setAttribute("label", SitePermissions.getStateLabel(state));
+    radio.setAttribute("label", SitePermissions.getMultichoiceStateLabel(state));
     radio.setAttribute("command", commandId);
     radiogroup.appendChild(radio);
   }
@@ -161,13 +161,13 @@ function onCheckboxClick(aPartId) {
 }
 
 function onPluginRadioClick(aEvent) {
-  onRadioClick(aEvent.originalTarget.getAttribute("id").split('#')[0]);
+  onRadioClick(aEvent.originalTarget.getAttribute("id").split("#")[0]);
 }
 
 function onRadioClick(aPartId) {
   var radioGroup = document.getElementById(aPartId + "RadioGroup");
   var id = radioGroup.selectedItem.id;
-  var permission = id.split('#')[1];
+  var permission = id.split("#")[1];
   SitePermissions.set(gPermURI, aPartId, permission);
 }
 

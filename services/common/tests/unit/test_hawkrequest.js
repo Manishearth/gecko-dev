@@ -57,7 +57,6 @@ add_test(function test_intl_accept_language() {
   setLanguagePref(languages[testCount]);
 
   function checkLanguagePref() {
-    var _done = false;
     CommonUtils.nextTick(function() {
       // Ensure we're only called for the number of entries in languages[].
       do_check_true(testCount < languages.length);
@@ -93,9 +92,9 @@ add_test(function test_hawk_authenticated_request() {
   let localTime = then + clockSkew;
 
   // Set the accept-languages pref to the Nepalese dialect of Zulu.
-  let acceptLanguage = Cc['@mozilla.org/supports-string;1'].createInstance(Ci.nsISupportsString);
-  acceptLanguage.data = 'zu-NP'; // omit trailing ';', which our HTTP libs snip
-  Services.prefs.setComplexValue('intl.accept_languages', Ci.nsISupportsString, acceptLanguage);
+  let acceptLanguage = Cc["@mozilla.org/supports-string;1"].createInstance(Ci.nsISupportsString);
+  acceptLanguage.data = "zu-NP"; // omit trailing ';', which our HTTP libs snip
+  Services.prefs.setComplexValue("intl.accept_languages", Ci.nsISupportsString, acceptLanguage);
 
   let credentials = {
     id: "eyJleHBpcmVzIjogMTM2NTAxMDg5OC4x",
@@ -186,7 +185,6 @@ add_test(function test_hawk_language_pref_changed() {
   });
 
   let url = server.baseURI + "/foo";
-  let postData = {};
   let request;
 
   setLanguage(languages[0]);

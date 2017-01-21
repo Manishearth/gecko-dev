@@ -148,6 +148,7 @@ SessionStore.prototype = {
 
   _clearDisk: function ss_clearDisk() {
     this._sessionDataIsGood = false;
+    this._lastBackupTime = 0;
 
     if (this._loadState > STATE_QUITTING) {
       OS.File.remove(this._sessionFile.path);
@@ -179,6 +180,7 @@ SessionStore.prototype = {
         observerService.addObserver(this, "domwindowopened", true);
         observerService.addObserver(this, "domwindowclosed", true);
         observerService.addObserver(this, "browser:purge-session-history", true);
+        observerService.addObserver(this, "browser:purge-session-tabs", true);
         observerService.addObserver(this, "quit-application-requested", true);
         observerService.addObserver(this, "quit-application-proceeding", true);
         observerService.addObserver(this, "quit-application", true);
@@ -201,8 +203,8 @@ SessionStore.prototype = {
         let window = aSubject;
         window.addEventListener("load", function() {
           self.onWindowOpen(window);
-          window.removeEventListener("load", arguments.callee, false);
-        }, false);
+          window.removeEventListener("load", arguments.callee);
+        });
         break;
       }
       case "domwindowclosed": // catch closed windows
@@ -235,8 +237,9 @@ SessionStore.prototype = {
         this._loadState = STATE_QUITTING_FLUSHED;
 
         break;
+      case "browser:purge-session-tabs":
       case "browser:purge-session-history": // catch sanitization
-        log("browser:purge-session-history");
+        log(aTopic);
         this._clearDisk();
 
         // Clear all data about closed tabs
@@ -597,6 +600,13 @@ SessionStore.prototype = {
     log("onTabAdd() ran for tab " + aWindow.BrowserApp.getTabForBrowser(aBrowser).id +
         ", aNoNotification = " + aNoNotification);
     if (!aNoNotification) {
+      if (this._loadState == STATE_QUITTING) {
+        // A tab arrived just as were starting to shut down. Since we haven't yet received
+        // application-quit, we refresh the window data one more time before the window closes.
+        this._forEachBrowserWindow((aWindow) => {
+          this._collectWindowData(aWindow);
+        });
+      }
       this.saveStateDelayed();
     }
     this._updateCrashReportURL(aWindow);
@@ -1772,6 +1782,12 @@ SessionStore.prototype = {
   },
 
   _sendClosedTabsToJava: function ss_sendClosedTabsToJava(aWindow) {
+
+    // If the app is shutting down, we don't need to do anything.
+    if (this._loadState <= STATE_QUITTING) {
+      return;
+    }
+
     if (!aWindow.__SSID) {
       throw (Components.returnCode = Cr.NS_ERROR_INVALID_ARG);
     }

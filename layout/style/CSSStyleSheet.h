@@ -117,7 +117,8 @@ public:
 
   // style sheet owner info
   CSSStyleSheet* GetParentSheet() const;  // may be null
-  void SetOwningDocument(nsIDocument* aDocument);
+  void SetAssociatedDocument(nsIDocument* aDocument,
+                             DocumentAssociationMode aAssociationMode);
 
   // Find the ID of the owner inner window.
   uint64_t FindOwningWindowInnerID() const;
@@ -194,7 +195,7 @@ public:
   // Can't be inline because we can't include ImportRule here.  And can't be
   // called GetOwnerRule because that would be ambiguous with the ImportRule
   // version.
-  nsIDOMCSSRule* GetDOMOwnerRule() const final;
+  css::Rule* GetDOMOwnerRule() const final;
 
   void WillDirty();
   void DidDirty();

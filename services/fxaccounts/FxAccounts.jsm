@@ -46,6 +46,7 @@ var publicProperties = [
   "getDeviceId",
   "getKeys",
   "getOAuthToken",
+  "getProfileCache",
   "getSignedInUser",
   "getSignedInUserProfile",
   "handleDeviceDisconnection",
@@ -64,6 +65,7 @@ var publicProperties = [
   "resendVerificationEmail",
   "resetCredentials",
   "sessionStatus",
+  "setProfileCache",
   "setSignedInUser",
   "signOut",
   "updateDeviceRegistration",
@@ -715,7 +717,7 @@ FxAccountsInternal.prototype = {
   },
 
   checkVerificationStatus() {
-    log.trace('checkVerificationStatus');
+    log.trace("checkVerificationStatus");
     let currentState = this.currentAccountState;
     return currentState.getUserAccountData().then(data => {
       if (!data) {
@@ -742,7 +744,7 @@ FxAccountsInternal.prototype = {
   _destroyAllOAuthTokens(tokenInfos) {
     // let's just destroy them all in parallel...
     let promises = [];
-    for (let [key, tokenInfo] of Object.entries(tokenInfos || {})) {
+    for (let tokenInfo of Object.values(tokenInfos || {})) {
       promises.push(this._destroyOAuthToken(tokenInfo));
     }
     return Promise.all(promises);
@@ -891,7 +893,7 @@ FxAccountsInternal.prototype = {
             }
           );
         } else {
-          currentState.whenKeysReadyDeferred.reject('No keyFetchToken');
+          currentState.whenKeysReadyDeferred.reject("No keyFetchToken");
         }
       }
       return currentState.whenKeysReadyDeferred.promise;
@@ -953,7 +955,6 @@ FxAccountsInternal.prototype = {
 
   getAssertionFromCert(data, keyPair, cert, audience) {
     log.debug("getAssertionFromCert");
-    let payload = {};
     let d = Promise.defer();
     let options = {
       duration: ASSERTION_LIFETIME,
@@ -1577,6 +1578,17 @@ FxAccountsInternal.prototype = {
     return currentState.updateUserAccountData(updateData);
   },
 
+  getProfileCache() {
+    return this.currentAccountState.getUserAccountData(["profileCache"])
+      .then(data => data ? data.profileCache : null);
+  },
+
+  setProfileCache(profileCache) {
+    return this.currentAccountState.updateUserAccountData({
+      profileCache
+    });
+  },
+
   // If you change what we send to the FxA servers during device registration,
   // you'll have to bump the DEVICE_REGISTRATION_VERSION number to force older
   // devices to re-register when Firefox updates
@@ -1603,8 +1615,8 @@ FxAccountsInternal.prototype = {
       // if we were able to obtain a subscription
       if (subscription && subscription.endpoint) {
         deviceOptions.pushCallback = subscription.endpoint;
-        let publicKey = subscription.getKey('p256dh');
-        let authKey = subscription.getKey('auth');
+        let publicKey = subscription.getKey("p256dh");
+        let authKey = subscription.getKey("auth");
         if (publicKey && authKey) {
           deviceOptions.pushPublicKey = urlsafeBase64Encode(publicKey);
           deviceOptions.pushAuthKey = urlsafeBase64Encode(authKey);

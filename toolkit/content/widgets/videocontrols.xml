@@ -686,8 +686,8 @@
       },
 
       hasSources() {
-        if (this.video.hasAttribute('src') &&
-            this.video.getAttribute('src') !== "") {
+        if (this.video.hasAttribute("src") &&
+            this.video.getAttribute("src") !== "") {
           return true;
         }
         for (var child = this.video.firstChild;
@@ -1316,7 +1316,7 @@
             break;
         }
 
-        if (String.fromCharCode(event.charCode) == ' ') {
+        if (String.fromCharCode(event.charCode) == " ") {
           keystroke += "space";
         }
 
@@ -1745,6 +1745,9 @@
         if (!this.videocontrols.isTouchControls) {
           addListener(this.scrubber, "input", this.onScrubberInput);
           addListener(this.scrubber, "change", this.onScrubberChange);
+          // add mouseup listener additionally to handle the case that `change` event
+          // isn't fired when the input value before/after dragging are the same. (bug 1328061)
+          addListener(this.scrubber, "mouseup", this.onScrubberChange);
           addListener(this.volumeControl, "input", this.updateVolume);
           addListener(this.video.textTracks, "addtrack", this.onTextTrackAdd);
           addListener(this.video.textTracks, "removetrack", this.onTextTrackRemove);
@@ -1910,14 +1913,14 @@
         }
         this.Utils.startFadeOut(this.Utils.controlBar);
         if (this.firstShow) {
-          this.videocontrols.addEventListener("transitionend", this, false);
+          this.videocontrols.addEventListener("transitionend", this);
         }
       },
 
       handleEvent(aEvent) {
         if (aEvent.type == "transitionend") {
           this.firstShow = false;
-          this.videocontrols.removeEventListener("transitionend", this, false);
+          this.videocontrols.removeEventListener("transitionend", this);
           return;
         }
 
@@ -1928,7 +1931,7 @@
 
       terminateEventListeners() {
         for (var event of this.videoEvents) {
-          this.Utils.video.removeEventListener(event, this, false);
+          this.Utils.video.removeEventListener(event, this);
         }
       },
 
@@ -1978,19 +1981,19 @@
           } else {
             self.showControls();
           }
-        }, false);
+        });
         this.Utils.scrubber.addEventListener("touchstart", function() {
           self.clearTimer();
-        }, false);
+        });
         this.Utils.scrubber.addEventListener("touchend", function() {
           self.delayHideControls(self.controlsTimeout);
-        }, false);
-        this.Utils.muteButton.addEventListener("click", function() { self.delayHideControls(self.controlsTimeout); }, false);
+        });
+        this.Utils.muteButton.addEventListener("click", function() { self.delayHideControls(self.controlsTimeout); });
 
         this.castingButton = document.getAnonymousElementByAttribute(binding, "anonid", "castingButton");
         this.castingButton.addEventListener("command", function() {
           self.startCasting();
-        }, false);
+        });
 
         this.video.addEventListener("media-videoCasting", function(e) {
           if (!e.isTrusted) {

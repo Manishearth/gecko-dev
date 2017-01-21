@@ -174,9 +174,9 @@ pref("extensions.{972ce4c6-7e08-4474-a285-3208198ce6fd}.description", "chrome://
 
 pref("lightweightThemes.update.enabled", true);
 pref("lightweightThemes.getMoreURL", "https://addons.mozilla.org/%LOCALE%/firefox/themes");
-pref("lightweightThemes.recommendedThemes", "[{\"id\":\"recommended-1\",\"homepageURL\":\"https://addons.mozilla.org/firefox/addon/a-web-browser-renaissance/\",\"headerURL\":\"resource:///chrome/browser/content/browser/defaultthemes/1.header.jpg\",\"footerURL\":\"resource:///chrome/browser/content/browser/defaultthemes/1.footer.jpg\",\"textcolor\":\"#000000\",\"accentcolor\":\"#f2d9b1\",\"iconURL\":\"resource:///chrome/browser/content/browser/defaultthemes/1.icon.jpg\",\"previewURL\":\"resource:///chrome/browser/content/browser/defaultthemes/1.preview.jpg\",\"author\":\"Sean.Martell\",\"version\":\"0\"},{\"id\":\"recommended-2\",\"homepageURL\":\"https://addons.mozilla.org/firefox/addon/space-fantasy/\",\"headerURL\":\"resource:///chrome/browser/content/browser/defaultthemes/2.header.jpg\",\"footerURL\":\"resource:///chrome/browser/content/browser/defaultthemes/2.footer.jpg\",\"textcolor\":\"#ffffff\",\"accentcolor\":\"#d9d9d9\",\"iconURL\":\"resource:///chrome/browser/content/browser/defaultthemes/2.icon.jpg\",\"previewURL\":\"resource:///chrome/browser/content/browser/defaultthemes/2.preview.jpg\",\"author\":\"fx5800p\",\"version\":\"1.0\"},{\"id\":\"recommended-3\",\"homepageURL\":\"https://addons.mozilla.org/firefox/addon/linen-light/\",\"headerURL\":\"resource:///chrome/browser/content/browser/defaultthemes/3.header.png\",\"footerURL\":\"resource:///chrome/browser/content/browser/defaultthemes/3.footer.png\",\"accentcolor\":\"#ada8a8\",\"iconURL\":\"resource:///chrome/browser/content/browser/defaultthemes/3.icon.png\",\"previewURL\":\"resource:///chrome/browser/content/browser/defaultthemes/3.preview.png\",\"author\":\"DVemer\",\"version\":\"1.0\"},{\"id\":\"recommended-4\",\"homepageURL\":\"https://addons.mozilla.org/firefox/addon/pastel-gradient/\",\"headerURL\":\"resource:///chrome/browser/content/browser/defaultthemes/4.header.png\",\"footerURL\":\"resource:///chrome/browser/content/browser/defaultthemes/4.footer.png\",\"textcolor\":\"#000000\",\"accentcolor\":\"#000000\",\"iconURL\":\"resource:///chrome/browser/content/browser/defaultthemes/4.icon.png\",\"previewURL\":\"resource:///chrome/browser/content/browser/defaultthemes/4.preview.png\",\"author\":\"darrinhenein\",\"version\":\"1.0\"},{\"id\":\"recommended-5\",\"homepageURL\":\"https://addons.mozilla.org/firefox/addon/carbon-light/\",\"headerURL\":\"resource:///chrome/browser/content/browser/defaultthemes/5.header.png\",\"footerURL\":\"resource:///chrome/browser/content/browser/defaultthemes/5.footer.png\",\"textcolor\":\"#3b3b3b\",\"accentcolor\":\"#2e2e2e\",\"iconURL\":\"resource:///chrome/browser/content/browser/defaultthemes/5.icon.jpg\",\"previewURL\":\"resource:///chrome/browser/content/browser/defaultthemes/5.preview.jpg\",\"author\":\"Jaxivo\",\"version\":\"1.0\"}]");
+pref("lightweightThemes.recommendedThemes", "[{\"id\":\"recommended-1\",\"homepageURL\":\"https://addons.mozilla.org/firefox/addon/a-web-browser-renaissance/\",\"headerURL\":\"resource:///chrome/browser/content/browser/defaultthemes/1.header.jpg\",\"footerURL\":\"resource:///chrome/browser/content/browser/defaultthemes/1.footer.jpg\",\"textcolor\":\"#000000\",\"accentcolor\":\"#f2d9b1\",\"iconURL\":\"resource:///chrome/browser/content/browser/defaultthemes/1.icon.jpg\",\"previewURL\":\"resource:///chrome/browser/content/browser/defaultthemes/1.preview.jpg\",\"author\":\"Sean.Martell\",\"version\":\"0\"},{\"id\":\"recommended-2\",\"homepageURL\":\"https://addons.mozilla.org/firefox/addon/space-fantasy/\",\"headerURL\":\"resource:///chrome/browser/content/browser/defaultthemes/2.header.jpg\",\"footerURL\":\"resource:///chrome/browser/content/browser/defaultthemes/2.footer.jpg\",\"textcolor\":\"#ffffff\",\"accentcolor\":\"#d9d9d9\",\"iconURL\":\"resource:///chrome/browser/content/browser/defaultthemes/2.icon.jpg\",\"previewURL\":\"resource:///chrome/browser/content/browser/defaultthemes/2.preview.jpg\",\"author\":\"fx5800p\",\"version\":\"1.0\"},{\"id\":\"recommended-4\",\"homepageURL\":\"https://addons.mozilla.org/firefox/addon/pastel-gradient/\",\"headerURL\":\"resource:///chrome/browser/content/browser/defaultthemes/4.header.png\",\"footerURL\":\"resource:///chrome/browser/content/browser/defaultthemes/4.footer.png\",\"textcolor\":\"#000000\",\"accentcolor\":\"#000000\",\"iconURL\":\"resource:///chrome/browser/content/browser/defaultthemes/4.icon.png\",\"previewURL\":\"resource:///chrome/browser/content/browser/defaultthemes/4.preview.png\",\"author\":\"darrinhenein\",\"version\":\"1.0\"}]");
 
-#if defined(MOZ_ADOBE_EME) || defined(MOZ_WIDEVINE_EME)
+#if defined(MOZ_WIDEVINE_EME)
 pref("browser.eme.ui.enabled", true);
 #else
 pref("browser.eme.ui.enabled", false);
@@ -855,10 +855,18 @@ pref("places.frecency.embedVisitBonus", 0);
 pref("places.frecency.framedLinkVisitBonus", 0);
 pref("places.frecency.linkVisitBonus", 100);
 pref("places.frecency.typedVisitBonus", 2000);
+// The bookmarks bonus is always added on top of any other bonus, including
+// the redirect source and the typed ones.
 pref("places.frecency.bookmarkVisitBonus", 75);
+// The redirect source bonus overwrites any transition bonus.
+// 0 would hide these pages, instead we want them low ranked.  Thus we use
+// linkVisitBonus - bookmarkVisitBonus, so that a bookmarked source is in par
+// with a common link.
+pref("places.frecency.redirectSourceVisitBonus", 25);
 pref("places.frecency.downloadVisitBonus", 0);
-pref("places.frecency.permRedirectVisitBonus", 0);
-pref("places.frecency.tempRedirectVisitBonus", 0);
+// The perm/temp redirects here relate to redirect targets, not sources.
+pref("places.frecency.permRedirectVisitBonus", 50);
+pref("places.frecency.tempRedirectVisitBonus", 40);
 pref("places.frecency.reloadVisitBonus", 0);
 pref("places.frecency.defaultVisitBonus", 0);
 
@@ -1021,6 +1029,17 @@ pref("security.sandbox.content.level", 2);
 // sandbox-writable temporary directory to be used by content processes
 // when a temporary writable file is required in a level 1 sandbox.
 pref("security.sandbox.content.tempDirSuffix", "");
+#endif
+#endif
+
+#if defined(MOZ_SANDBOX)
+#if defined(XP_MACOSX)
+// This pref determines if messages relevant to sandbox violations are
+// logged.
+// At present, this setting refers only to mac sandbox messages sent to
+// the system console but the setting will be used on other platforms
+// in the future.
+pref("security.sandbox.logging.enabled", true);
 #endif
 #endif
 
@@ -1356,16 +1375,6 @@ pref("media.eme.enabled", true);
 #endif
 pref("media.eme.apiVisible", true);
 
-// Decode using Gecko Media Plugins in <video>, if a system decoder is not
-// availble and the preferred GMP is available.
-pref("media.gmp.decoder.enabled", false);
-
-// If decoding-via-GMP is turned on for <video>, use Adobe's GMP for decoding,
-// if it's available. Note: We won't fallback to another GMP if Adobe's is not
-// installed.
-pref("media.gmp.decoder.aac", 2);
-pref("media.gmp.decoder.h264", 2);
-
 // Whether we should run a test-pattern through EME GMPs before assuming they'll
 // decode H.264.
 pref("media.gmp.trial-create.enabled", true);
@@ -1377,15 +1386,6 @@ pref("media.gmp.trial-create.enabled", true);
 // and script requests EME. If *.visible is false, we won't show the UI
 // to enable the CDM if its disabled; it's as if the keysystem is completely
 // unsupported.
-
-#ifdef MOZ_ADOBE_EME
-pref("media.gmp-eme-adobe.visible", true);
-// When Adobe EME is enabled in the build system, we don't actually enable
-// the plugin by default, so that it doesn't download and install by default.
-// When Adobe EME is first used, Firefox will prompt the user to enable it,
-// and then download the CDM.
-pref("media.gmp-eme-adobe.enabled", false);
-#endif
 
 #ifdef MOZ_WIDEVINE_EME
 pref("media.gmp-widevinecdm.visible", true);

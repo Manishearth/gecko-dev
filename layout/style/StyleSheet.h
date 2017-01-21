@@ -33,6 +33,10 @@ class CSSRuleList;
 class SRIMetadata;
 } // namespace dom
 
+namespace css {
+class Rule;
+}
+
 /**
  * Superclass for data common to CSSStyleSheet and ServoStyleSheet.
  */
@@ -106,8 +110,22 @@ public:
   inline bool HasRules() const;
 
   // style sheet owner info
-  nsIDocument* GetOwningDocument() const { return mDocument; }
-  inline void SetOwningDocument(nsIDocument* aDocument);
+  enum DocumentAssociationMode {
+    // OwnedByDocument means mDocument owns us (possibly via a chain of other
+    // stylesheets).
+    OwnedByDocument,
+    // NotOwnedByDocument means we're owned by something that might have a
+    // different lifetime than mDocument.
+    NotOwnedByDocument
+  };
+  nsIDocument* GetAssociatedDocument() const { return mDocument; }
+  bool IsOwnedByDocument() const {
+    return mDocumentAssociationMode == OwnedByDocument;
+  }
+  // aDocument must not be null.
+  inline void SetAssociatedDocument(nsIDocument* aDocument,
+                                    DocumentAssociationMode aMode);
+  inline void ClearAssociatedDocument();
   nsINode* GetOwnerNode() const { return mOwningNode; }
   inline StyleSheet* GetParentSheet() const;
 
@@ -148,7 +166,7 @@ public:
   // The XPCOM SetDisabled is fine for WebIDL.
 
   // WebIDL CSSStyleSheet API
-  virtual nsIDOMCSSRule* GetDOMOwnerRule() const = 0;
+  virtual css::Rule* GetDOMOwnerRule() const = 0;
   dom::CSSRuleList* GetCssRules(nsIPrincipal& aSubjectPrincipal,
                                 ErrorResult& aRv);
   uint32_t InsertRule(const nsAString& aRule, uint32_t aIndex,
@@ -225,6 +243,11 @@ protected:
 
   const StyleBackendType mType;
   bool                  mDisabled;
+
+  // mDocumentAssociationMode determines whether mDocument directly owns us (in
+  // the sense that if it's known-live then we're known-live).  Always
+  // NotOwnedByDocument when mDocument is null.
+  DocumentAssociationMode mDocumentAssociationMode;
 };
 
 } // namespace mozilla

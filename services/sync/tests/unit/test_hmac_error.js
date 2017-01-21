@@ -28,7 +28,7 @@ function shared_setup() {
   engine.lastSync = 123; // Needs to be non-zero so that tracker is queried.
   engine._store.items = {flying: "LNER Class A3 4472",
                          scotsman: "Flying Scotsman"};
-  engine._tracker.addChangedID('scotsman', 0);
+  engine._tracker.addChangedID("scotsman", 0);
   do_check_eq(1, Service.engineManager.getEnabled().length);
 
   let engines = {rotary:  {version: engine.version,
@@ -65,7 +65,6 @@ add_task(async function hmac_error_during_404() {
 
   let collectionsHelper = track_collections_helper();
   let upd = collectionsHelper.with_updated_collection;
-  let collections = collectionsHelper.collections;
   let handlers = {
     "/1.1/foo/info/collections": collectionsHelper.handler,
     "/1.1/foo/storage/meta/global": upd("meta", global.handler()),

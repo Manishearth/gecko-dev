@@ -488,8 +488,8 @@ DeveloperToolbar.prototype.show = function (focus) {
     this.onOutput.add(this.outputPanel._outputChanged, this.outputPanel);
 
     let tabbrowser = this._chromeWindow.gBrowser;
-    tabbrowser.tabContainer.addEventListener("TabSelect", this, false);
-    tabbrowser.tabContainer.addEventListener("TabClose", this, false);
+    tabbrowser.tabContainer.addEventListener("TabSelect", this);
+    tabbrowser.tabContainer.addEventListener("TabClose", this);
     tabbrowser.addEventListener("load", this, true);
     tabbrowser.addEventListener("beforeunload", this, true);
 
@@ -628,8 +628,8 @@ DeveloperToolbar.prototype.destroy = function () {
   }
 
   let tabbrowser = this._chromeWindow.gBrowser;
-  tabbrowser.tabContainer.removeEventListener("TabSelect", this, false);
-  tabbrowser.tabContainer.removeEventListener("TabClose", this, false);
+  tabbrowser.tabContainer.removeEventListener("TabSelect", this);
+  tabbrowser.tabContainer.removeEventListener("TabClose", this);
   tabbrowser.removeEventListener("load", this, true);
   tabbrowser.removeEventListener("beforeunload", this, true);
 
@@ -933,8 +933,8 @@ OutputPanel.prototype._init = function (devtoolbar) {
    so it can be styled correctly. */
 OutputPanel.prototype._copyTheme = function () {
   if (this.document) {
-    let theme =
-      this._devtoolbar._doc.documentElement.getAttribute("devtoolstheme");
+    let theme = this._devtoolbar._doc.getElementById("browser-bottombox")
+                  .getAttribute("devtoolstheme");
     this.document.documentElement.setAttribute("devtoolstheme", theme);
   }
 };
@@ -1253,8 +1253,8 @@ TooltipPanel.prototype._init = function (devtoolbar) {
    so it can be styled correctly. */
 TooltipPanel.prototype._copyTheme = function () {
   if (this.document) {
-    let theme =
-      this._devtoolbar._doc.documentElement.getAttribute("devtoolstheme");
+    let theme = this._devtoolbar._doc.getElementById("browser-bottombox")
+                  .getAttribute("devtoolstheme");
     this.document.documentElement.setAttribute("devtoolstheme", theme);
   }
 };

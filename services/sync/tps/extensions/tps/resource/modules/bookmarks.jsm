@@ -22,7 +22,7 @@ Cu.import("resource://tps/logger.jsm");
 var DumpBookmarks = function TPS_Bookmarks__DumpBookmarks() {
   let cb = Async.makeSpinningCallback();
   PlacesBackups.getBookmarksTree().then(result => {
-    let [bookmarks, count] = result;
+    let [bookmarks, ] = result;
     Logger.logInfo("Dumping Bookmarks...\n" + JSON.stringify(bookmarks) + "\n\n");
     cb(null);
   }).then(null, error => {
@@ -94,7 +94,7 @@ PlacesItem.prototype = {
 
   toString() {
     var that = this;
-    var props = ['uri', 'title', 'location', 'folder', 'feedUri', 'siteUri', 'livemark'];
+    var props = ["uri", "title", "location", "folder", "feedUri", "siteUri", "livemark"];
     var string = (this.props.type ? this.props.type + " " : "") +
       "(" +
       (function() {
@@ -217,9 +217,8 @@ PlacesItem.prototype = {
         folder_parts[i]);
       if (subfolder_id == -1) {
         return -1;
-      } else {
-        folder_id = subfolder_id;
       }
+      folder_id = subfolder_id;
     }
     return folder_id;
   },

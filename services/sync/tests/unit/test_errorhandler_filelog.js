@@ -19,7 +19,7 @@ const CLEANUP_DELAY      = 2000;
 const DELAY_BUFFER       = 500;  // Buffer for timers on different OS platforms.
 
 const PROLONGED_ERROR_DURATION =
-  (Svc.Prefs.get('errorhandler.networkFailureReportTimeout') * 2) * 1000;
+  (Svc.Prefs.get("errorhandler.networkFailureReportTimeout") * 2) * 1000;
 
 var errorHandler = Service.errorHandler;
 
@@ -272,8 +272,6 @@ add_test(function test_login_error_logOnError_true() {
 
 add_test(function test_errorLog_dumpAddons() {
   Svc.Prefs.set("log.appender.file.logOnError", true);
-
-  let log = Log.repository.getLogger("Sync.Test.FileLog");
 
   // We need to wait until the log cleanup started by this test is complete
   // or the next test will fail as it is ongoing.

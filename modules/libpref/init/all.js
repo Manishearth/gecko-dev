@@ -598,6 +598,10 @@ pref("media.video_stats.enabled", true);
 // Whether to check the decoder supports recycling.
 pref("media.decoder.recycle.enabled", false);
 
+// Log level for cubeb, the audio input/output system. Valid values are
+// "verbose", "normal" and "" (log disabled).
+pref("media.cubeb.log_level", "");
+
 // Weather we allow AMD switchable graphics
 pref("layers.amd-switchable-gfx.enabled", true);
 
@@ -1189,6 +1193,9 @@ pref("dom.forms.autocomplete.experimental", false);
 // Enables requestAutocomplete DOM API on forms.
 pref("dom.forms.requestAutocomplete", false);
 
+// Enable search in <select> dropdowns (more than 40 options)
+pref("dom.forms.selectSearch", false);
+
 // Enable Directory API. By default, disabled.
 pref("dom.input.dirpicker", false);
 
@@ -1293,12 +1300,7 @@ pref("javascript.options.mem.gc_max_empty_chunk_count", 30);
 
 pref("javascript.options.showInConsole", false);
 
-#ifdef RELEASE_OR_BETA
-// Disabled in Beta and Release for now, see bug 1225406
-pref("javascript.options.shared_memory", false);
-#else
 pref("javascript.options.shared_memory", true);
-#endif
 
 pref("javascript.options.throw_on_debuggee_would_run", false);
 pref("javascript.options.dump_stack_on_debuggee_would_run", false);
@@ -4510,6 +4512,9 @@ pref("webgl.disable-DOM-blit-uploads", false);
 pref("webgl.allow-fb-invalidation", false);
 pref("webgl.webgl2-compat-mode", false);
 
+pref("webgl.max-perf-warnings", 0);
+pref("webgl.max-acceptable-fb-status-invals", 0);
+
 pref("webgl.enable-webgl2", true);
 
 #ifdef RELEASE_OR_BETA
@@ -4568,8 +4573,8 @@ pref("layers.acceleration.disabled", false);
 // and output the result to stderr.
 pref("layers.bench.enabled", false);
 
-#if defined(XP_WIN) && defined(NIGHTLY_BUILD)
-pref("layers.gpu-process.dev.enabled", true);
+#if defined(XP_WIN)
+pref("layers.gpu-process.enabled", true);
 pref("media.gpu-process-decoder", true);
 #endif
 
@@ -4847,9 +4852,6 @@ pref("dom.push.requestTimeout", 10000);
 pref("dom.push.http2.reset_retry_count_after_ms", 60000);
 pref("dom.push.http2.maxRetries", 2);
 pref("dom.push.http2.retryInterval", 5000);
-
-// WebSettings
-pref("dom.mozSettings.enabled", false);
 
 // W3C touch events
 // 0 - disabled, 1 - enabled, 2 - autodetect
@@ -5289,23 +5291,6 @@ pref("intl.allow-insecure-text-input", false);
 // Enable meta-viewport support in remote APZ-enabled frames.
 pref("dom.meta-viewport.enabled", false);
 
-// MozSettings debugging prefs for each component
-pref("dom.mozSettings.SettingsDB.debug.enabled", false);
-pref("dom.mozSettings.SettingsManager.debug.enabled", false);
-pref("dom.mozSettings.SettingsRequestManager.debug.enabled", false);
-pref("dom.mozSettings.SettingsService.debug.enabled", false);
-
-// MozSettings verbose mode to track everything
-pref("dom.mozSettings.SettingsDB.verbose.enabled", false);
-pref("dom.mozSettings.SettingsManager.verbose.enabled", false);
-pref("dom.mozSettings.SettingsRequestManager.verbose.enabled", false);
-pref("dom.mozSettings.SettingsService.verbose.enabled", false);
-
-// Controlling whether we want to allow forcing some Settings
-// IndexedDB transactions to be opened as readonly or keep everything as
-// readwrite.
-pref("dom.mozSettings.allowForceReadOnly", false);
-
 // The interval at which to check for slow running addons
 #ifdef NIGHTLY_BUILD
 pref("browser.addon-watch.interval", 15000);
@@ -5497,13 +5482,6 @@ pref("dom.mozBrowserFramesEnabled", false);
 pref("layout.css.color-adjust.enabled", true);
 
 pref("dom.audiochannel.audioCompeting", false);
-
-// Disable Node.rootNode in release builds.
-#ifdef RELEASE_OR_BETA
-pref("dom.node.rootNode.enabled", false);
-#else
-pref("dom.node.rootNode.enabled", true);
-#endif
 
 // Default media volume
 pref("media.default_volume", "1.0");

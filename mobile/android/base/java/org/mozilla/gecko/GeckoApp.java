@@ -585,17 +585,20 @@ public abstract class GeckoApp
                 Log.e(LOGTAG, "Error adding sanitize object", ex);
             }
 
-            // If the user has opted out of session restore, and does want to clear history
+            // If the user wants to clear open tabs, or else has opted out of session restore and does want to clear history,
             // we also want to prevent the current session info from being saved.
-            if (clearObj.has("private.data.history")) {
-                final String sessionRestore = getSessionRestorePreference(getSharedPreferences());
-                try {
-                    res.put("dontSaveSession", "quit".equals(sessionRestore));
-                } catch (JSONException ex) {
-                    Log.e(LOGTAG, "Error adding session restore data", ex);
-                }
-            }
+            try {
+                if (clearObj.has("private.data.openTabs")) {
+                    res.put("dontSaveSession", true);
+                } else if (clearObj.has("private.data.history")) {
 
+                    final String sessionRestore = getSessionRestorePreference(getSharedPreferences());
+                    res.put("dontSaveSession", "quit".equals(sessionRestore));
+
+                }
+            } catch (JSONException ex) {
+                Log.e(LOGTAG, "Error adding session restore data", ex);
+            }
             GeckoAppShell.notifyObservers("Browser:Quit", res.toString());
             // We don't call doShutdown() here because this creates a race condition which can
             // cause the clearing of private data to fail. Instead, we shut down the UI only after
@@ -1591,10 +1594,26 @@ public abstract class GeckoApp
         return uri != null && !AboutPages.isAboutHome(uri);
     }
 
+    protected int getNewTabFlags() {
+        final boolean isFirstTab = !mWasFirstTabShownAfterActivityUnhidden;
+
+        final SafeIntent intent = new SafeIntent(getIntent());
+        final String action = intent.getAction();
+
+        int flags = Tabs.LOADURL_NEW_TAB | Tabs.LOADURL_USER_ENTERED | Tabs.LOADURL_EXTERNAL;
+        if (ACTION_HOMESCREEN_SHORTCUT.equals(action)) {
+            flags |= Tabs.LOADURL_PINNED;
+        }
+        if (isFirstTab) {
+            flags |= Tabs.LOADURL_FIRST_AFTER_ACTIVITY_UNHIDDEN;
+        }
+
+        return flags;
+    }
+
     private void initialize() {
         mInitialized = true;
 
-        final boolean isFirstTab = !mWasFirstTabShownAfterActivityUnhidden;
         mWasFirstTabShownAfterActivityUnhidden = true; // Reset since we'll be loading a tab.
 
         final SafeIntent intent = new SafeIntent(getIntent());
@@ -1634,13 +1653,7 @@ public abstract class GeckoApp
             processActionViewIntent(new Runnable() {
                 @Override
                 public void run() {
-                    int flags = Tabs.LOADURL_NEW_TAB | Tabs.LOADURL_USER_ENTERED | Tabs.LOADURL_EXTERNAL;
-                    if (ACTION_HOMESCREEN_SHORTCUT.equals(action)) {
-                        flags |= Tabs.LOADURL_PINNED;
-                    }
-                    if (isFirstTab) {
-                        flags |= Tabs.LOADURL_FIRST_AFTER_ACTIVITY_UNHIDDEN;
-                    }
+                    final int flags = getNewTabFlags();
                     loadStartupTab(passedUri, intent, flags);
                 }
             });
@@ -1947,6 +1960,18 @@ public abstract class GeckoApp
 
     @Override
     public void createShortcut(final String title, final String url) {
+
+        final Tab selectedTab = Tabs.getInstance().getSelectedTab();
+
+        if (selectedTab.hasManifest()) {
+            // If a page has associated manifest, lets install it
+            final GeckoBundle message = new GeckoBundle();
+            message.putInt("iconSize", GeckoAppShell.getPreferredIconSize());
+            EventDispatcher.getInstance().dispatch("Browser:LoadManifest", message);
+            return;
+        }
+
+        // Otherwise we try to pick best icon from favicons etc
         Icons.with(this)
                 .pageUrl(url)
                 .skipNetwork()
@@ -1956,12 +1981,12 @@ public abstract class GeckoApp
                 .execute(new IconCallback() {
                     @Override
                     public void onIconResponse(IconResponse response) {
-                        doCreateShortcut(title, url, response.getBitmap());
+                        createShortcut(title, url, response.getBitmap());
                     }
                 });
     }
 
-    private void doCreateShortcut(final String aTitle, final String aURI, final Bitmap aIcon) {
+    public void createShortcut(final String aTitle, final String aURI, final Bitmap aIcon) {
         // The intent to be launched by the shortcut.
         Intent shortcutIntent = new Intent();
         shortcutIntent.setAction(GeckoApp.ACTION_HOMESCREEN_SHORTCUT);

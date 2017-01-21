@@ -13,7 +13,6 @@ import java.util.concurrent.Future;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.mozilla.gecko.annotation.RobocopTarget;
 import org.mozilla.gecko.db.BrowserDB;
@@ -27,6 +26,7 @@ import org.mozilla.gecko.icons.Icons;
 import org.mozilla.gecko.reader.ReaderModeUtils;
 import org.mozilla.gecko.reader.ReadingListHelper;
 import org.mozilla.gecko.toolbar.BrowserToolbar.TabEditingState;
+import org.mozilla.gecko.util.GeckoBundle;
 import org.mozilla.gecko.util.ThreadUtils;
 import org.mozilla.gecko.widget.SiteLogins;
 
@@ -37,6 +37,7 @@ import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
@@ -60,6 +61,7 @@ public class Tab {
     private Future<IconResponse> mRunningIconRequest;
 
     private boolean mHasFeeds;
+    private boolean mHasManifest;
     private boolean mHasOpenSearch;
     private final SiteIdentity mSiteIdentity;
     private SiteLogins mSiteLogins;
@@ -300,6 +302,10 @@ public class Tab {
         return mHasFeeds;
     }
 
+    public boolean hasManifest() {
+        return mHasManifest;
+    }
+
     public boolean hasOpenSearch() {
         return mHasOpenSearch;
     }
@@ -428,13 +434,13 @@ public class Tab {
         return mHasTouchListeners;
     }
 
-    public synchronized void addFavicon(String faviconURL, int faviconSize, String mimeType) {
+    public synchronized void addFavicon(@NonNull String faviconURL, int faviconSize, String mimeType) {
         mIconRequestBuilder
                 .icon(IconDescriptor.createFavicon(faviconURL, faviconSize, mimeType))
                 .deferBuild();
     }
 
-    public synchronized void addTouchicon(String iconUrl, int faviconSize, String mimeType) {
+    public synchronized void addTouchicon(@NonNull String iconUrl, int faviconSize, String mimeType) {
         mIconRequestBuilder
                 .icon(IconDescriptor.createTouchicon(iconUrl, faviconSize, mimeType))
                 .deferBuild();
@@ -477,6 +483,10 @@ public class Tab {
         mHasFeeds = hasFeeds;
     }
 
+    public void setHasManifest(boolean hasManifest) {
+        mHasManifest = hasManifest;
+    }
+
     public void setHasOpenSearch(boolean hasOpenSearch) {
         mHasOpenSearch = hasOpenSearch;
     }
@@ -485,7 +495,7 @@ public class Tab {
         mLoadedFromCache = loadedFromCache;
     }
 
-    public void updateIdentityData(JSONObject identityData) {
+    public void updateIdentityData(final GeckoBundle identityData) {
         mSiteIdentity.update(identityData);
     }
 
@@ -593,7 +603,7 @@ public class Tab {
         return true;
     }
 
-    void handleLocationChange(JSONObject message) throws JSONException {
+    void handleLocationChange(final GeckoBundle message) {
         final String uri = message.getString("uri");
         final String oldUrl = getURL();
         final boolean sameDocument = message.getBoolean("sameDocument");
@@ -635,9 +645,10 @@ public class Tab {
 
         setContentType(message.getString("contentType"));
         updateUserRequested(message.getString("userRequested"));
-        mBaseDomain = message.optString("baseDomain");
+        mBaseDomain = message.getString("baseDomain");
 
         setHasFeeds(false);
+        setHasManifest(false);
         setHasOpenSearch(false);
         mSiteIdentity.reset();
         setSiteLogins(null);
