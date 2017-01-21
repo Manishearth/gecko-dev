@@ -480,7 +480,7 @@ impl LayoutElementHelpers for LayoutJS<Element> {
             hints.push(from_declaration(
                 PropertyDeclaration::BorderSpacing(DeclaredValue::Value(
                     border_spacing::SpecifiedValue {
-                        horizontal: width_value,
+                        horizontal: width_value.clone(),
                         vertical: width_value,
                     }))));
         }
@@ -625,11 +625,11 @@ impl LayoutElementHelpers for LayoutJS<Element> {
             let width_value = specified::BorderWidth::from_length(
                 specified::Length::Absolute(Au::from_px(border as i32)));
             hints.push(from_declaration(
-                PropertyDeclaration::BorderTopWidth(DeclaredValue::Value(width_value))));
+                PropertyDeclaration::BorderTopWidth(DeclaredValue::Value(width_value.clone()))));
             hints.push(from_declaration(
-                PropertyDeclaration::BorderLeftWidth(DeclaredValue::Value(width_value))));
+                PropertyDeclaration::BorderLeftWidth(DeclaredValue::Value(width_value.clone()))));
             hints.push(from_declaration(
-                PropertyDeclaration::BorderBottomWidth(DeclaredValue::Value(width_value))));
+                PropertyDeclaration::BorderBottomWidth(DeclaredValue::Value(width_value.clone()))));
             hints.push(from_declaration(
                 PropertyDeclaration::BorderRightWidth(DeclaredValue::Value(width_value))));
         }
@@ -1604,7 +1604,7 @@ impl ElementMethods for Element {
     // https://drafts.csswg.org/cssom-view/#dom-element-getboundingclientrect
     fn GetBoundingClientRect(&self) -> Root<DOMRect> {
         let win = window_from_node(self);
-        let rect = self.upcast::<Node>().bounding_content_box();
+        let rect = self.upcast::<Node>().bounding_content_box_or_zero();
         DOMRect::new(win.upcast(),
                      rect.origin.x.to_f64_px(),
                      rect.origin.y.to_f64_px(),

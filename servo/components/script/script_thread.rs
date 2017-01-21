@@ -41,7 +41,7 @@ use dom::bindings::str::DOMString;
 use dom::bindings::trace::JSTraceable;
 use dom::bindings::utils::WRAP_CALLBACKS;
 use dom::browsingcontext::BrowsingContext;
-use dom::document::{Document, DocumentProgressHandler, DocumentSource, FocusType, IsHTMLDocument, TouchEventResult};
+use dom::document::{Document, DocumentSource, FocusType, IsHTMLDocument, TouchEventResult};
 use dom::element::Element;
 use dom::event::{Event, EventBubbles, EventCancelable};
 use dom::globalscope::GlobalScope;
@@ -239,8 +239,6 @@ enum MixedMessage {
 pub enum MainThreadScriptMsg {
     /// Common variants associated with the script messages
     Common(CommonScriptMsg),
-    /// Notify a document that all pending loads are complete.
-    DocumentLoadsComplete(PipelineId),
     /// Notifies the script that a window associated with a particular pipeline
     /// should be closed (only dispatched to ScriptThread).
     ExitWindow(PipelineId),
@@ -580,13 +578,6 @@ impl ScriptThread {
             let script_thread = unsafe { &*root.get().unwrap() };
             let job_queue = &*script_thread.job_queue_map;
             job_queue.schedule_job(job, global, &script_thread);
-        });
-    }
-
-    pub fn parsing_complete(id: PipelineId) {
-        SCRIPT_THREAD_ROOT.with(|root| {
-            let script_thread = unsafe { &*root.get().unwrap() };
-            script_thread.handle_parsing_complete(id);
         });
     }
 
@@ -1034,8 +1025,6 @@ impl ScriptThread {
                 self.handle_navigate(parent_pipeline_id, None, load_data, replace),
             MainThreadScriptMsg::ExitWindow(id) =>
                 self.handle_exit_window_msg(id),
-            MainThreadScriptMsg::DocumentLoadsComplete(id) =>
-                self.handle_loads_complete(id),
             MainThreadScriptMsg::Common(CommonScriptMsg::RunnableMsg(_, runnable)) => {
                 // The category of the runnable is ignored by the pattern, however
                 // it is still respected by profiling (see categorize_msg).
@@ -1253,29 +1242,6 @@ impl ScriptThread {
         } else {
             self.start_page_load(new_load, load_data);
         }
-    }
-
-    fn handle_loads_complete(&self, pipeline: PipelineId) {
-        let doc = match { self.documents.borrow().find_document(pipeline) } {
-            Some(doc) => doc,
-            None => return warn!("Message sent to closed pipeline {}.", pipeline),
-        };
-        if doc.loader().is_blocked() {
-            debug!("Script thread got loads complete while loader is blocked.");
-            return;
-        }
-
-        doc.mut_loader().inhibit_events();
-
-        // https://html.spec.whatwg.org/multipage/#the-end step 7
-        // Schedule a task to fire a "load" event (if no blocking loads have arrived in the mean time)
-        // NOTE: we can end up executing this code more than once, in case more blocking loads arrive.
-        let handler = box DocumentProgressHandler::new(Trusted::new(&doc));
-        self.dom_manipulation_task_source.queue(handler, doc.window().upcast()).unwrap();
-
-        if let Some(fragment) = doc.url().fragment() {
-            doc.check_and_scroll_fragment(fragment);
-        };
     }
 
     fn collect_reports(&self, reports_chan: ReportsChan) {
@@ -1658,7 +1624,7 @@ impl ScriptThread {
             // FIXME: Handle pseudo-elements properly
             pseudoElement: DOMString::new()
         };
-        let transition_event = TransitionEvent::new(window.upcast(),
+        let transition_event = TransitionEvent::new(&window,
                                                     atom!("transitionend"),
                                                     &init);
         transition_event.upcast::<Event>().fire(node.upcast());
@@ -1778,7 +1744,7 @@ impl ScriptThread {
         });
 
         let loader = DocumentLoader::new_with_threads(self.resource_threads.clone(),
-                                                      Some(incomplete.url.clone()));
+                                                      Some(final_url.clone()));
 
         let is_html_document = match metadata.content_type {
             Some(Serde(ContentType(Mime(TopLevel::Application, SubLevel::Ext(ref sub_level), _))))
@@ -2161,30 +2127,6 @@ impl ScriptThread {
         context.process_response(Ok(FetchMetadata::Unfiltered(meta)));
         context.process_response_chunk(vec![]);
         context.process_response_eof(Ok(()));
-    }
-
-    fn handle_parsing_complete(&self, id: PipelineId) {
-        let document = match { self.documents.borrow().find_document(id) } {
-            Some(document) => document,
-            None => return,
-        };
-
-        let final_url = document.url();
-
-        // https://html.spec.whatwg.org/multipage/#the-end step 1
-        document.set_ready_state(DocumentReadyState::Interactive);
-
-        // TODO: Execute step 2 here.
-
-        // Kick off the initial reflow of the page.
-        debug!("kicking off initial reflow of {:?}", final_url);
-        document.disarm_reflow_timeout();
-        document.upcast::<Node>().dirty(NodeDamage::OtherNodeDamage);
-        let window = window_from_node(&*document);
-        window.reflow(ReflowGoal::ForDisplay, ReflowQueryType::NoQuery, ReflowReason::FirstLoad);
-
-        // https://html.spec.whatwg.org/multipage/#the-end steps 3-4.
-        document.process_deferred_scripts();
     }
 
     fn handle_css_error_reporting(&self, pipeline_id: PipelineId, filename: String,

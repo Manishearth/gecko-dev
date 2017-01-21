@@ -5232,6 +5232,18 @@
             "url": "/_mozilla/css/table_margin_auto_a.html"
           }
         ],
+        "css/table_overflow.html": [
+          {
+            "path": "css/table_overflow.html",
+            "references": [
+              [
+                "/_mozilla/css/table_overflow_ref.html",
+                "=="
+              ]
+            ],
+            "url": "/_mozilla/css/table_overflow.html"
+          }
+        ],
         "css/table_padding_a.html": [
           {
             "path": "css/table_padding_a.html",
@@ -6720,6 +6732,12 @@
           {
             "path": "css/meta_viewport_resize.html",
             "url": "/_mozilla/css/meta_viewport_resize.html"
+          }
+        ],
+        "css/offset_properties_inline.html": [
+          {
+            "path": "css/offset_properties_inline.html",
+            "url": "/_mozilla/css/offset_properties_inline.html"
           }
         ],
         "css/test_variable_legal_values.html": [
@@ -8574,6 +8592,12 @@
           {
             "path": "mozilla/localeCompare.html",
             "url": "/_mozilla/mozilla/localeCompare.html"
+          }
+        ],
+        "mozilla/media_query_list_gc.html": [
+          {
+            "path": "mozilla/media_query_list_gc.html",
+            "url": "/_mozilla/mozilla/media_query_list_gc.html"
           }
         ],
         "mozilla/mime_sniffing_font_context.html": [
@@ -20572,6 +20596,18 @@
             ]
           ],
           "url": "/_mozilla/css/table_margin_auto_a.html"
+        }
+      ],
+      "css/table_overflow.html": [
+        {
+          "path": "css/table_overflow.html",
+          "references": [
+            [
+              "/_mozilla/css/table_overflow_ref.html",
+              "=="
+            ]
+          ],
+          "url": "/_mozilla/css/table_overflow.html"
         }
       ],
       "css/table_padding_a.html": [

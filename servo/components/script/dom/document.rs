@@ -7,6 +7,7 @@ use devtools_traits::ScriptToDevtoolsControlMsg;
 use document_loader::{DocumentLoader, LoadType};
 use dom::activation::{ActivationSource, synthetic_click_activation};
 use dom::attr::Attr;
+use dom::beforeunloadevent::BeforeUnloadEvent;
 use dom::bindings::callback::ExceptionHandling;
 use dom::bindings::cell::DOMRefCell;
 use dom::bindings::codegen::Bindings::DOMRectBinding::DOMRectMethods;
@@ -132,6 +133,7 @@ use style::restyle_hints::RestyleHint;
 use style::selector_parser::{RestyleDamage, Snapshot};
 use style::str::{split_html_space_chars, str_join};
 use style::stylesheets::Stylesheet;
+use task_source::TaskSource;
 use time;
 use url::percent_encoding::percent_decode;
 
@@ -228,7 +230,7 @@ pub struct Document {
     /// https://html.spec.whatwg.org/multipage/#list-of-scripts-that-will-execute-in-order-as-soon-as-possible
     asap_in_order_scripts_list: PendingInOrderScriptVec,
     /// https://html.spec.whatwg.org/multipage/#set-of-scripts-that-will-execute-as-soon-as-possible
-    asap_scripts_set: DOMRefCell<VecDeque<PendingScript>>,
+    asap_scripts_set: DOMRefCell<Vec<JS<HTMLScriptElement>>>,
     /// https://html.spec.whatwg.org/multipage/#concept-n-noscript
     /// True if scripting is enabled for all scripts in this document
     scripting_enabled: Cell<bool>,
@@ -625,7 +627,7 @@ impl Document {
             // Really what needs to happen is that this needs to go through layout to ask which
             // layer the element belongs to, and have it send the scroll message to the
             // compositor.
-            let rect = element.upcast::<Node>().bounding_content_box();
+            let rect = element.upcast::<Node>().bounding_content_box_or_zero();
 
             // In order to align with element edges, we snap to unscaled pixel boundaries, since
             // the paint thread currently does the same for drawing elements. This is important
@@ -1450,29 +1452,6 @@ impl Document {
         changed
     }
 
-    pub fn set_pending_parsing_blocking_script(&self,
-                                               script: &HTMLScriptElement,
-                                               load: Option<ScriptResult>) {
-        assert!(!self.has_pending_parsing_blocking_script());
-        *self.pending_parsing_blocking_script.borrow_mut() = Some(PendingScript::new_with_load(script, load));
-    }
-
-    pub fn has_pending_parsing_blocking_script(&self) -> bool {
-        self.pending_parsing_blocking_script.borrow().is_some()
-    }
-
-    pub fn add_deferred_script(&self, script: &HTMLScriptElement) {
-        self.deferred_scripts.push(script);
-    }
-
-    pub fn add_asap_script(&self, script: &HTMLScriptElement) {
-        self.asap_scripts_set.borrow_mut().push_back(PendingScript::new(script));
-    }
-
-    pub fn push_asap_in_order_script(&self, script: &HTMLScriptElement) {
-        self.asap_in_order_scripts_list.push(script);
-    }
-
     pub fn trigger_mozbrowser_event(&self, event: MozBrowserEvent) {
         if PREFS.is_mozbrowser_enabled() {
             if let Some((parent_pipeline_id, _)) = self.window.parent_info() {
@@ -1561,73 +1540,154 @@ impl Document {
         loader.fetch_async(load, request, fetch_target);
     }
 
+    // https://html.spec.whatwg.org/multipage/#the-end
+    // https://html.spec.whatwg.org/multipage/#delay-the-load-event
     pub fn finish_load(&self, load: LoadType) {
+        // This does not delay the load event anymore.
         debug!("Document got finish_load: {:?}", load);
-        // The parser might need the loader, so restrict the lifetime of the borrow.
-        {
-            let mut loader = self.loader.borrow_mut();
-            loader.finish_load(&load);
+        self.loader.borrow_mut().finish_load(&load);
+
+        match load {
+            LoadType::Stylesheet(_) => {
+                // A stylesheet finishing to load may unblock any pending
+                // parsing-blocking script or deferred script.
+                self.process_pending_parsing_blocking_script();
+
+                // Step 3.
+                self.process_deferred_scripts();
+            },
+            LoadType::PageSource(_) => {
+                // Deferred scripts have to wait for page to finish loading,
+                // this is the first opportunity to process them.
+
+                // Step 3.
+                self.process_deferred_scripts();
+            },
+            _ => {},
         }
 
-        if let LoadType::Script(_) = load {
-            self.process_deferred_scripts();
-            self.process_asap_scripts();
+        // Step 4 is in another castle, namely at the end of
+        // process_deferred_scripts.
+
+        // Step 5 can be found in asap_script_loaded and
+        // asap_in_order_script_loaded.
+
+        if self.loader.borrow().is_blocked() {
+            // Step 6.
+            return;
         }
 
-        if let Some(parser) = self.get_current_parser() {
-            let ready_to_be_executed = match self.pending_parsing_blocking_script.borrow_mut().as_mut() {
-                Some(pending) => {
-                    if self.script_blocking_stylesheets_count.get() > 0 {
-                        return;
-                    }
-                    if let Some(pair) = pending.take_result() {
-                        Some(pair)
-                    } else {
-                        return;
-                    }
-                },
-                None => None,
-            };
-            if let Some((element, result)) = ready_to_be_executed {
-                *self.pending_parsing_blocking_script.borrow_mut() = None;
-                parser.resume_with_pending_parsing_blocking_script(&element, result);
-            }
-        } else if self.reflow_timeout.get().is_none() {
-            // If we don't have a parser, and the reflow timer has been reset, explicitly
-            // trigger a reflow.
-            if let LoadType::Stylesheet(_) = load {
-                self.window.reflow(ReflowGoal::ForDisplay,
-                                   ReflowQueryType::NoQuery,
-                                   ReflowReason::StylesheetLoaded);
-            }
+        // The rest will ever run only once per document.
+        if self.loader.borrow().events_inhibited() {
+            return;
         }
+        self.loader.borrow_mut().inhibit_events();
 
-        if !self.loader.borrow().is_blocked() && !self.loader.borrow().events_inhibited() {
-            // Schedule a task to fire a "load" event (if no blocking loads have arrived in the mean time)
-            // NOTE: we can end up executing this code more than once, in case more blocking loads arrive.
-            debug!("Document loads are complete.");
-            let win = self.window();
-            let msg = MainThreadScriptMsg::DocumentLoadsComplete(
-                win.upcast::<GlobalScope>().pipeline_id());
-            win.main_thread_script_chan().send(msg).unwrap();
-        }
+        // Step 7.
+        debug!("Document loads are complete.");
+        let handler = box DocumentProgressHandler::new(Trusted::new(self));
+        self.window.dom_manipulation_task_source().queue(handler, self.window.upcast()).unwrap();
+
+        // Step 8.
+        // TODO: pageshow event.
+
+        // Step 9.
+        // TODO: pending application cache download process tasks.
+
+        // Step 10.
+        // TODO: printing steps.
+
+        // Step 11.
+        // TODO: ready for post-load tasks.
+
+        // Step 12.
+        // TODO: completely loaded.
+    }
+
+    // https://html.spec.whatwg.org/multipage/#pending-parsing-blocking-script
+    pub fn set_pending_parsing_blocking_script(&self,
+                                               script: &HTMLScriptElement,
+                                               load: Option<ScriptResult>) {
+        assert!(!self.has_pending_parsing_blocking_script());
+        *self.pending_parsing_blocking_script.borrow_mut() = Some(PendingScript::new_with_load(script, load));
+    }
+
+    // https://html.spec.whatwg.org/multipage/#pending-parsing-blocking-script
+    pub fn has_pending_parsing_blocking_script(&self) -> bool {
+        self.pending_parsing_blocking_script.borrow().is_some()
     }
 
     /// https://html.spec.whatwg.org/multipage/#prepare-a-script step 22.d.
     pub fn pending_parsing_blocking_script_loaded(&self, element: &HTMLScriptElement, result: ScriptResult) {
-        let mut blocking_script = self.pending_parsing_blocking_script.borrow_mut();
-        let entry = blocking_script.as_mut().unwrap();
-        assert!(&*entry.element == element);
-        entry.loaded(result);
+        {
+            let mut blocking_script = self.pending_parsing_blocking_script.borrow_mut();
+            let entry = blocking_script.as_mut().unwrap();
+            assert!(&*entry.element == element);
+            entry.loaded(result);
+        }
+        self.process_pending_parsing_blocking_script();
     }
 
+    fn process_pending_parsing_blocking_script(&self) {
+        if self.script_blocking_stylesheets_count.get() > 0 {
+            return;
+        }
+        let pair = self.pending_parsing_blocking_script
+            .borrow_mut()
+            .as_mut()
+            .and_then(PendingScript::take_result);
+        if let Some((element, result)) = pair {
+            *self.pending_parsing_blocking_script.borrow_mut() = None;
+            self.get_current_parser().unwrap().resume_with_pending_parsing_blocking_script(&element, result);
+        }
+    }
+
+    // https://html.spec.whatwg.org/multipage/#set-of-scripts-that-will-execute-as-soon-as-possible
+    pub fn add_asap_script(&self, script: &HTMLScriptElement) {
+        self.asap_scripts_set.borrow_mut().push(JS::from_ref(script));
+    }
+
+    /// https://html.spec.whatwg.org/multipage/#the-end step 5.
     /// https://html.spec.whatwg.org/multipage/#prepare-a-script step 22.d.
-    pub fn deferred_script_loaded(&self, element: &HTMLScriptElement, result: ScriptResult) {
-        self.deferred_scripts.loaded(element, result);
+    pub fn asap_script_loaded(&self, element: &HTMLScriptElement, result: ScriptResult) {
+        {
+            let mut scripts = self.asap_scripts_set.borrow_mut();
+            let idx = scripts.iter().position(|entry| &**entry == element).unwrap();
+            scripts.swap_remove(idx);
+        }
+        element.execute(result);
+    }
+
+    // https://html.spec.whatwg.org/multipage/#list-of-scripts-that-will-execute-in-order-as-soon-as-possible
+    pub fn push_asap_in_order_script(&self, script: &HTMLScriptElement) {
+        self.asap_in_order_scripts_list.push(script);
+    }
+
+    /// https://html.spec.whatwg.org/multipage/#the-end step 5.
+    /// https://html.spec.whatwg.org/multipage/#prepare-a-script step 22.c.
+    pub fn asap_in_order_script_loaded(&self,
+                                       element: &HTMLScriptElement,
+                                       result: ScriptResult) {
+        self.asap_in_order_scripts_list.loaded(element, result);
+        while let Some((element, result)) = self.asap_in_order_scripts_list.take_next_ready_to_be_executed() {
+            element.execute(result);
+        }
+    }
+
+    // https://html.spec.whatwg.org/multipage/#list-of-scripts-that-will-execute-when-the-document-has-finished-parsing
+    pub fn add_deferred_script(&self, script: &HTMLScriptElement) {
+        self.deferred_scripts.push(script);
     }
 
     /// https://html.spec.whatwg.org/multipage/#the-end step 3.
-    pub fn process_deferred_scripts(&self) {
+    /// https://html.spec.whatwg.org/multipage/#prepare-a-script step 22.d.
+    pub fn deferred_script_loaded(&self, element: &HTMLScriptElement, result: ScriptResult) {
+        self.deferred_scripts.loaded(element, result);
+        self.process_deferred_scripts();
+    }
+
+    /// https://html.spec.whatwg.org/multipage/#the-end step 3.
+    fn process_deferred_scripts(&self) {
         if self.ready_state.get() != DocumentReadyState::Interactive {
             return;
         }
@@ -1648,34 +1708,7 @@ impl Document {
         }
     }
 
-    /// https://html.spec.whatwg.org/multipage/#the-end step 3.
-    /// https://html.spec.whatwg.org/multipage/#prepare-a-script step 22.d.
-    pub fn asap_script_loaded(&self, element: &HTMLScriptElement, result: ScriptResult) {
-        let mut scripts = self.asap_scripts_set.borrow_mut();
-        let idx = scripts.iter().position(|entry| &*entry.element == element).unwrap();
-        scripts.swap(0, idx);
-        scripts[0].loaded(result);
-    }
-
-    /// https://html.spec.whatwg.org/multipage/#the-end step 3.
-    /// https://html.spec.whatwg.org/multipage/#prepare-a-script step 22.c.
-    pub fn asap_in_order_script_loaded(&self,
-                                       element: &HTMLScriptElement,
-                                       result: ScriptResult) {
-        self.asap_in_order_scripts_list.loaded(element, result);
-    }
-
-    fn process_asap_scripts(&self) {
-        let pair = self.asap_scripts_set.borrow_mut().front_mut().and_then(PendingScript::take_result);
-        if let Some((element, result)) = pair {
-            self.asap_scripts_set.borrow_mut().pop_front();
-            element.execute(result);
-        }
-        while let Some((element, result)) = self.asap_in_order_scripts_list.take_next_ready_to_be_executed() {
-            element.execute(result);
-        }
-    }
-
+    // https://html.spec.whatwg.org/multipage/#the-end step 4.
     pub fn maybe_dispatch_dom_content_loaded(&self) {
         if self.domcontentloaded_dispatched.get() {
             return;
@@ -1686,6 +1719,7 @@ impl Document {
 
         update_with_current_time_ms(&self.dom_content_loaded_event_start);
 
+        // Step 4.1.
         let window = self.window();
         window.dom_manipulation_task_source().queue_event(self.upcast(), atom!("DOMContentLoaded"),
             EventBubbles::Bubbles, EventCancelable::NotCancelable, window);
@@ -1694,6 +1728,9 @@ impl Document {
                       ReflowQueryType::NoQuery,
                       ReflowReason::DOMContentLoaded);
         update_with_current_time_ms(&self.dom_content_loaded_event_end);
+
+        // Step 4.2.
+        // TODO: client message queue.
     }
 
     pub fn notify_constellation_load(&self) {
@@ -2567,6 +2604,8 @@ impl DocumentMethods for Document {
     fn CreateEvent(&self, mut interface: DOMString) -> Fallible<Root<Event>> {
         interface.make_ascii_lowercase();
         match &*interface {
+            "beforeunloadevent" =>
+                Ok(Root::upcast(BeforeUnloadEvent::new_uninitialized(&self.window))),
             "closeevent" =>
                 Ok(Root::upcast(CloseEvent::new_uninitialized(self.window.upcast()))),
             "customevent" =>
@@ -2576,9 +2615,9 @@ impl DocumentMethods for Document {
             "events" | "event" | "htmlevents" | "svgevents" =>
                 Ok(Event::new_uninitialized(&self.window.upcast())),
             "focusevent" =>
-                Ok(Root::upcast(FocusEvent::new_uninitialized(self.window.upcast()))),
+                Ok(Root::upcast(FocusEvent::new_uninitialized(&self.window))),
             "hashchangeevent" =>
-                Ok(Root::upcast(HashChangeEvent::new_uninitialized(&self.window.upcast()))),
+                Ok(Root::upcast(HashChangeEvent::new_uninitialized(&self.window))),
             "keyboardevent" =>
                 Ok(Root::upcast(KeyboardEvent::new_uninitialized(&self.window))),
             "messageevent" =>
@@ -2586,9 +2625,9 @@ impl DocumentMethods for Document {
             "mouseevent" | "mouseevents" =>
                 Ok(Root::upcast(MouseEvent::new_uninitialized(&self.window))),
             "pagetransitionevent" =>
-                Ok(Root::upcast(PageTransitionEvent::new_uninitialized(self.window.upcast()))),
+                Ok(Root::upcast(PageTransitionEvent::new_uninitialized(&self.window))),
             "popstateevent" =>
-                Ok(Root::upcast(PopStateEvent::new_uninitialized(self.window.upcast()))),
+                Ok(Root::upcast(PopStateEvent::new_uninitialized(&self.window))),
             "progressevent" =>
                 Ok(Root::upcast(ProgressEvent::new_uninitialized(self.window.upcast()))),
             "storageevent" => {
@@ -3322,6 +3361,9 @@ impl DocumentProgressHandler {
 
     fn dispatch_load(&self) {
         let document = self.addr.root();
+        if document.browsing_context().is_none() {
+            return;
+        }
         let window = document.window();
         let event = Event::new(window.upcast(),
                                atom!("load"),
@@ -3338,7 +3380,6 @@ impl DocumentProgressHandler {
 
         // http://w3c.github.io/navigation-timing/#widl-PerformanceNavigationTiming-loadEventEnd
         update_with_current_time_ms(&document.load_event_end);
-
 
         window.reflow(ReflowGoal::ForDisplay,
                       ReflowQueryType::NoQuery,
@@ -3357,6 +3398,9 @@ impl Runnable for DocumentProgressHandler {
         if window.is_alive() {
             self.set_ready_state_complete();
             self.dispatch_load();
+            if let Some(fragment) = document.url().fragment() {
+                document.check_and_scroll_fragment(fragment);
+            }
         }
     }
 }
