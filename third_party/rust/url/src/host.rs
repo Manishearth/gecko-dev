@@ -206,6 +206,7 @@ fn write_ipv6(addr: &Ipv6Addr, f: &mut Formatter) -> fmt::Result {
     Ok(())
 }
 
+// https://url.spec.whatwg.org/#concept-ipv6-serializer step 2 and 3
 fn longest_zero_sequence(pieces: &[u16; 8]) -> (isize, isize) {
     let mut longest = -1;
     let mut longest_length = -1;
@@ -232,10 +233,16 @@ fn longest_zero_sequence(pieces: &[u16; 8]) -> (isize, isize) {
         }
     }
     finish_sequence!(8);
-    (longest, longest + longest_length)
+    // https://url.spec.whatwg.org/#concept-ipv6-serializer
+    // step 3: ignore lone zeroes
+    if longest_length < 2 {
+        (-1, -2)
+    } else {
+        (longest, longest + longest_length)
+    }
 }
 
-
+/// https://url.spec.whatwg.org/#ipv4-number-parser
 fn parse_ipv4number(mut input: &str) -> Result<u32, ()> {
     let mut r = 10;
     if input.starts_with("0x") || input.starts_with("0X") {
@@ -257,6 +264,7 @@ fn parse_ipv4number(mut input: &str) -> Result<u32, ()> {
     }
 }
 
+/// https://url.spec.whatwg.org/#concept-ipv4-parser
 fn parse_ipv4addr(input: &str) -> ParseResult<Option<Ipv4Addr>> {
     if input.is_empty() {
         return Ok(None)
@@ -293,7 +301,7 @@ fn parse_ipv4addr(input: &str) -> ParseResult<Option<Ipv4Addr>> {
     Ok(Some(Ipv4Addr::from(ipv4)))
 }
 
-
+/// https://url.spec.whatwg.org/#concept-ipv6-parser
 fn parse_ipv6addr(input: &str) -> ParseResult<Ipv6Addr> {
     let input = input.as_bytes();
     let len = input.len();
@@ -408,14 +416,14 @@ fn parse_ipv6addr(input: &str) -> ParseResult<Ipv6Addr> {
             dots_seen += 1;
         }
     }
-
     match compress_pointer {
         Some(compress_pointer) => {
             let mut swaps = piece_pointer - compress_pointer;
             piece_pointer = 7;
             while swaps > 0 {
+                let tmp = pieces[piece_pointer];
                 pieces[piece_pointer] = pieces[compress_pointer + swaps - 1];
-                pieces[compress_pointer + swaps - 1] = 0;
+                pieces[compress_pointer + swaps - 1] = tmp;
                 swaps -= 1;
                 piece_pointer -= 1;
             }

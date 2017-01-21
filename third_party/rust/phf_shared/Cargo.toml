@@ -1,11 +1,11 @@
 [package]
 name = "phf_shared"
 authors = ["Steven Fackler <sfackler@gmail.com>"]
-version = "0.7.20"
+version = "0.7.21"
 license = "MIT"
 description = "Support code shared by PHF libraries"
 repository = "https://github.com/sfackler/rust-phf"
-documentation = "https://sfackler.github.io/rust-phf/doc/v0.7.20/phf_shared"
+documentation = "https://docs.rs/phf_shared/0.7.21/phf_shared"
 
 [lib]
 name = "phf_shared"
@@ -16,4 +16,5 @@ test = false
 core = []
 
 [dependencies]
+siphasher = "0.2"
 unicase = { version = "1.4", optional = true }

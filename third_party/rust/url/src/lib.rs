@@ -125,7 +125,9 @@ use host::HostInternal;
 use parser::{Parser, Context, SchemeType, to_u32};
 use percent_encoding::{PATH_SEGMENT_ENCODE_SET, USERINFO_ENCODE_SET,
                        percent_encode, percent_decode, utf8_percent_encode};
+use std::borrow::Borrow;
 use std::cmp;
+#[cfg(feature = "serde")] use std::error::Error;
 use std::fmt::{self, Write};
 use std::hash;
 use std::io;
@@ -239,6 +241,34 @@ impl Url {
     #[inline]
     pub fn parse(input: &str) -> Result<Url, ::ParseError> {
         Url::options().parse(input)
+    }
+
+    /// Parse an absolute URL from a string and add params to its query string.
+    ///
+    /// Existing params are not removed.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use url::Url;
+    ///
+    /// let url = Url::parse_with_params("https://example.net?dont=clobberme",
+    ///                                  &[("lang", "rust"), ("browser", "servo")]);
+    /// ```
+    #[inline]
+    pub fn parse_with_params<I, K, V>(input: &str, iter: I) -> Result<Url, ::ParseError>
+        where I: IntoIterator,
+              I::Item: Borrow<(K, V)>,
+              K: AsRef<str>,
+              V: AsRef<str>
+    {
+        let mut url = Url::options().parse(input);
+
+        if let Ok(ref mut url) = url {
+            url.query_pairs_mut().extend_pairs(iter);
+        }
+
+        url
     }
 
     /// Parse a string as an URL, with this URL as the base URL.
@@ -693,6 +723,9 @@ impl Url {
     /// let url = Url::parse("https://127.0.0.1/").unwrap();
     /// assert_eq!(url.domain(), None);
     ///
+    /// let url = Url::parse("mailto:rms@example.net").unwrap();
+    /// assert_eq!(url.domain(), None);
+    ///
     /// let url = Url::parse("https://example.com/").unwrap();
     /// assert_eq!(url.domain(), Some("example.com"));
     /// ```
@@ -812,6 +845,26 @@ impl Url {
     ///
     /// When `Some` is returned, the iterator always contains at least one string
     /// (which may be empty).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let url = Url::parse("https://example.com/foo/bar").unwrap();
+    /// let mut path_segments = url.path_segments().unwrap();
+    /// assert_eq!(path_segments.next(), Some("foo"));
+    /// assert_eq!(path_segments.next(), Some("bar"));
+    /// assert_eq!(path_segments.next(), None);
+    ///
+    /// let url = Url::parse("https://example.com").unwrap();
+    /// let mut path_segments = url.path_segments().unwrap();
+    /// assert_eq!(path_segments.next(), Some(""));
+    /// assert_eq!(path_segments.next(), None);
+    ///
+    /// let url = Url::parse("data:text/plain,HelloWorld").unwrap();
+    /// assert!(url.path_segments().is_none());
+    /// ```
     pub fn path_segments(&self) -> Option<str::Split<char>> {
         let path = self.path();
         if path.starts_with('/') {
@@ -1033,6 +1086,20 @@ impl Url {
     /// url.set_port(None).unwrap();
     /// assert_eq!(url.as_str(), "ssh://example.net/");
     /// ```
+    ///
+    /// Cannot set port for cannot-be-a-base URLs:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("mailto:rms@example.net").unwrap();
+    ///
+    /// let result = url.set_port(Some(80));
+    /// assert!(result.is_err());
+    ///
+    /// let result = url.set_port(None);
+    /// assert!(result.is_err());
+    /// ```
     pub fn set_port(&mut self, mut port: Option<u16>) -> Result<(), ()> {
         if !self.has_host() || self.scheme() == "file" {
             return Err(())
@@ -1081,6 +1148,57 @@ impl Url {
     ///
     /// Removing the host (calling this with `None`)
     /// will also remove any username, password, and port number.
+    ///
+    /// # Examples
+    ///
+    /// Change host:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("https://example.net").unwrap();
+    /// let result = url.set_host(Some("rust-lang.org"));
+    /// assert!(result.is_ok());
+    /// assert_eq!(url.as_str(), "https://rust-lang.org/");
+    /// ```
+    ///
+    /// Remove host:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("foo://example.net").unwrap();
+    /// let result = url.set_host(None);
+    /// assert!(result.is_ok());
+    /// assert_eq!(url.as_str(), "foo:/");
+    /// ```
+    ///
+    /// Cannot remove host for 'special' schemes (e.g. `http`):
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("https://example.net").unwrap();
+    /// let result = url.set_host(None);
+    /// assert!(result.is_err());
+    /// assert_eq!(url.as_str(), "https://example.net/");
+    /// ```
+    ///
+    /// Cannot change or remove host for cannot-be-a-base URLs:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("mailto:rms@example.net").unwrap();
+    ///
+    /// let result = url.set_host(Some("rust-lang.org"));
+    /// assert!(result.is_err());
+    /// assert_eq!(url.as_str(), "mailto:rms@example.net");
+    ///
+    /// let result = url.set_host(None);
+    /// assert!(result.is_err());
+    /// assert_eq!(url.as_str(), "mailto:rms@example.net");
+    /// ```
     pub fn set_host(&mut self, host: Option<&str>) -> Result<(), ParseError> {
         if self.cannot_be_a_base() {
             return Err(ParseError::SetHostOnCannotBeABaseUrl)
@@ -1267,6 +1385,42 @@ impl Url {
     /// * The new scheme is not in `[a-zA-Z][a-zA-Z0-9+.-]+`
     /// * This URL is cannot-be-a-base and the new scheme is one of
     ///   `http`, `https`, `ws`, `wss`, `ftp`, or `gopher`
+    ///
+    /// # Examples
+    ///
+    /// Change the URL’s scheme from `https` to `foo`:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("https://example.net").unwrap();
+    /// let result = url.set_scheme("foo");
+    /// assert_eq!(url.as_str(), "foo://example.net/");
+    /// assert!(result.is_ok());
+    /// ```
+    ///
+    ///
+    /// Cannot change URL’s scheme from `https` to `foõ`:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("https://example.net").unwrap();
+    /// let result = url.set_scheme("foõ");
+    /// assert_eq!(url.as_str(), "https://example.net/");
+    /// assert!(result.is_err());
+    /// ```
+    ///
+    /// Cannot change URL’s scheme from `mailto` (cannot-be-a-base) to `https`:
+    ///
+    /// ```
+    /// use url::Url;
+    ///
+    /// let mut url = Url::parse("mailto:rms@example.net").unwrap();
+    /// let result = url.set_scheme("https");
+    /// assert_eq!(url.as_str(), "mailto:rms@example.net");
+    /// assert!(result.is_err());
+    /// ```
     pub fn set_scheme(&mut self, scheme: &str) -> Result<(), ()> {
         let mut parser = Parser::for_setter(String::new());
         let remaining = try!(parser.parse_scheme(parser::Input::new(scheme)));
@@ -1298,6 +1452,25 @@ impl Url {
     ///
     /// This returns `Err` if the given path is not absolute or,
     /// on Windows, if the prefix is not a disk prefix (e.g. `C:`).
+    ///
+    /// # Examples
+    ///
+    /// On Unix-like platforms:
+    ///
+    /// ```
+    /// # if cfg!(unix) {
+    /// use url::Url;
+    ///
+    /// let url = Url::from_file_path("/tmp/foo.txt").unwrap();
+    /// assert_eq!(url.as_str(), "file:///tmp/foo.txt");
+    ///
+    /// let url = Url::from_file_path("../foo.txt");
+    /// assert!(url.is_err());
+    ///
+    /// let url = Url::from_file_path("https://google.com/");
+    /// assert!(url.is_err());
+    /// # }
+    /// ```
     pub fn from_file_path<P: AsRef<Path>>(path: P) -> Result<Url, ()> {
         let mut serialization = "file://".to_owned();
         let path_start = serialization.len() as u32;
@@ -1508,7 +1681,7 @@ impl rustc_serialize::Decodable for Url {
 #[cfg(feature="serde")]
 impl serde::Serialize for Url {
     fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
-        format!("{}", self).serialize(serializer)
+        serializer.serialize_str(self.as_str())
     }
 }
 
@@ -1519,7 +1692,9 @@ impl serde::Serialize for Url {
 impl serde::Deserialize for Url {
     fn deserialize<D>(deserializer: &mut D) -> Result<Url, D::Error> where D: serde::Deserializer {
         let string_representation: String = try!(serde::Deserialize::deserialize(deserializer));
-        Ok(Url::parse(&string_representation).unwrap())
+        Url::parse(&string_representation).map_err(|err| {
+            serde::Error::invalid_value(err.description())
+        })
     }
 }
 
