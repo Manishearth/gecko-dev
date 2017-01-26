@@ -12,6 +12,7 @@
 #include "nsMappedAttributes.h"
 #include "nsHTMLStyleSheet.h"
 #include "nsRuleWalker.h"
+#include "mozilla/GenericSpecifiedValues.h"
 #include "mozilla/HashFunctions.h"
 #include "mozilla/MemoryReporting.h"
 
@@ -180,7 +181,7 @@ nsMappedAttributes::SetStyleSheet(nsHTMLStyleSheet* aSheet)
 nsMappedAttributes::MapRuleInfoInto(nsRuleData* aRuleData)
 {
   if (mRuleMapper) {
-    (*mRuleMapper)(this, aRuleData);
+    (*mRuleMapper)(this, (GenericSpecifiedValues*)aRuleData);
   }
 }
 
