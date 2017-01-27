@@ -126,6 +126,43 @@ struct nsRuleData : GenericSpecifiedValues
     return ValueFor(aId)->GetUnit() != eCSSUnit_Null;
   }
 
+  bool CanHoldStyleStruct(uint64_t aInheritBit) override {
+    return mSIDs & aInheritBit;
+  }
+
+  nsPresContext* GetPresContext() override {
+    return mPresContext;
+  }
+
+  void SetIdentStringValue(nsCSSPropertyID aId,
+                           const nsString& aValue) override {
+    ValueFor(aId)->SetStringValue(aValue, eCSSUnit_Ident);
+  }
+
+  void SetKeywordValue(nsCSSPropertyID aId,
+                       int32_t aValue) override {
+    ValueFor(aId)->SetIntValue(aValue, eCSSUnit_Enumerated);
+  }
+
+  void SetPixelValue(nsCSSPropertyID aId,
+                     float aValue) override {
+    ValueFor(aId)->SetFloatValue(aValue, eCSSUnit_Pixel);
+  }
+
+  void SetPercentValue(nsCSSPropertyID aId,
+                       float aValue) override {
+    ValueFor(aId)->SetPercentValue(aValue);
+  }
+
+  void SetCurrentColor(nsCSSPropertyID aId) override {
+    ValueFor(aId)->SetIntValue(NS_COLOR_CURRENTCOLOR, eCSSUnit_EnumColor);
+  }
+
+  void SetColorValue(nsCSSPropertyID aId,
+                     nscolor aValue) override {
+    ValueFor(aId)->SetColorValue(aValue);
+  }
+
   nsRuleData* AsRuleData() override {
     return this;
   }
