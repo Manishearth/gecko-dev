@@ -144,6 +144,11 @@ struct nsRuleData : GenericSpecifiedValues
     ValueFor(aId)->SetIntValue(aValue, eCSSUnit_Enumerated);
   }
 
+  void SetIntValue(nsCSSPropertyID aId,
+                   int32_t aValue) override {
+    ValueFor(aId)->SetIntValue(aValue, eCSSUnit_Integer);
+  }
+
   void SetPixelValue(nsCSSPropertyID aId,
                      float aValue) override {
     ValueFor(aId)->SetFloatValue(aValue, eCSSUnit_Pixel);
@@ -152,6 +157,10 @@ struct nsRuleData : GenericSpecifiedValues
   void SetPercentValue(nsCSSPropertyID aId,
                        float aValue) override {
     ValueFor(aId)->SetPercentValue(aValue);
+  }
+
+  void SetAutoValue(nsCSSPropertyID aId) override {
+    ValueFor(aId)->SetAutoValue();
   }
 
   void SetCurrentColor(nsCSSPropertyID aId) override {

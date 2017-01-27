@@ -1375,6 +1375,19 @@ nsGenericHTMLElement::MapDivAlignAttributeInto(const nsMappedAttributes* aAttrib
   }
 }
 
+void
+nsGenericHTMLElement::MapVAlignAttributeInto(const nsMappedAttributes* aAttributes,
+                                               GenericSpecifiedValues* aData)
+{
+  if (aData->CanHoldStyleStruct(NS_STYLE_INHERIT_BIT(Display))) {
+    if (!aData->PropertyIsSet(eCSSProperty_vertical_align)) {
+      // align: enum
+      const nsAttrValue* value = aAttributes->GetAttr(nsGkAtoms::valign);
+      if (value && value->Type() == nsAttrValue::eEnum)
+        aData->SetKeywordValue(eCSSProperty_vertical_align, value->GetEnumValue());
+    }
+  }
+}
 
 void
 nsGenericHTMLElement::MapImageMarginAttributeInto(const nsMappedAttributes* aAttributes,
@@ -1435,8 +1448,8 @@ nsGenericHTMLElement::MapImageMarginAttributeInto(const nsMappedAttributes* aAtt
 }
 
 void
-nsGenericHTMLElement::MapImageSizeAttributesInto(const nsMappedAttributes* aAttributes,
-                                                 GenericSpecifiedValues* aData)
+nsGenericHTMLElement::MapWidthAttributeInto(const nsMappedAttributes* aAttributes,
+                                            GenericSpecifiedValues* aData)
 {
   if (!(aData->CanHoldStyleStruct(NS_STYLE_INHERIT_BIT(Position))))
     return;
@@ -1452,6 +1465,14 @@ nsGenericHTMLElement::MapImageSizeAttributesInto(const nsMappedAttributes* aAttr
                                     value->GetPercentValue());
     }
   }
+}
+
+void
+nsGenericHTMLElement::MapHeightAttributeInto(const nsMappedAttributes* aAttributes,
+                                             GenericSpecifiedValues* aData)
+{
+  if (!(aData->CanHoldStyleStruct(NS_STYLE_INHERIT_BIT(Position))))
+    return;
 
   // height: value
   if (!aData->PropertyIsSet(eCSSProperty_height)) {
@@ -1464,6 +1485,14 @@ nsGenericHTMLElement::MapImageSizeAttributesInto(const nsMappedAttributes* aAttr
                                     value->GetPercentValue());
     }
   }
+}
+
+void
+nsGenericHTMLElement::MapImageSizeAttributesInto(const nsMappedAttributes* aAttributes,
+                                                 GenericSpecifiedValues* aData)
+{
+  nsGenericHTMLElement::MapWidthAttributeInto(aAttributes, aData);
+  nsGenericHTMLElement::MapHeightAttributeInto(aAttributes, aData);
 }
 
 void
