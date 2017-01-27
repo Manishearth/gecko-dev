@@ -172,6 +172,9 @@ struct nsRuleData : GenericSpecifiedValues
     ValueFor(aId)->SetColorValue(aValue);
   }
 
+  void SetFontFamily(const nsString& aValue) override;
+  void SetTextDecorationUnderlineForce() override;
+
   nsRuleData* AsRuleData() override {
     return this;
   }
