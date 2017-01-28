@@ -6565,8 +6565,9 @@ nsLayoutUtils::DrawSingleImage(gfxContext&            aContext,
   nscoord appUnitsPerCSSPixel = nsDeviceContext::AppUnitsPerCSSPixel();
   CSSIntSize pixelImageSize(ComputeSizeForDrawingWithFallback(aImage, aDest.Size()));
   if (pixelImageSize.width < 1 || pixelImageSize.height < 1) {
-    NS_WARNING("Image width or height is non-positive");
-    return DrawResult::TEMPORARY_ERROR;
+    NS_ASSERTION(pixelImageSize.width >= 0 && pixelImageSize.height >= 0,
+                 "Image width or height is negative");
+    return DrawResult::SUCCESS;  // no point in drawing a zero size image
   }
 
   nsSize imageSize(CSSPixel::ToAppUnits(pixelImageSize));
@@ -6785,7 +6786,7 @@ nsLayoutUtils::HasNonZeroCorner(const nsStyleCorners& aCorners)
   return false;
 }
 
-// aCorner is a "full corner" value, i.e. NS_CORNER_TOP_LEFT etc
+// aCorner is a "full corner" value, i.e. eCornerTopLeft etc.
 static bool IsCornerAdjacentToSide(uint8_t aCorner, Side aSide)
 {
   static_assert((int)eSideTop == eCornerTopLeft, "Check for Full Corner");

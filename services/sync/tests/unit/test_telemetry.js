@@ -69,11 +69,10 @@ async function cleanAndGo(engine, server) {
 // Avoid addon manager complaining about not being initialized
 Service.engineManager.unregister("addons");
 
-add_identity_test(this, async function test_basic() {
+add_task(async function test_basic() {
   let helper = track_collections_helper();
   let upd = helper.with_updated_collection;
 
-  await configureIdentity({ username: "johndoe" });
   let handlers = {
     "/1.1/johndoe/info/collections": helper.handler,
     "/1.1/johndoe/storage/crypto/keys": upd("crypto", new ServerWBO("keys").handler()),
@@ -87,7 +86,7 @@ add_identity_test(this, async function test_basic() {
   }
 
   let server = httpd_setup(handlers);
-  Service.serverURL = server.baseURI;
+  await configureIdentity({ username: "johndoe" }, server);
 
   await sync_and_validate_telem(true);
 
@@ -192,7 +191,6 @@ add_task(async function test_uploading() {
 });
 
 add_task(async function test_upload_failed() {
-  Service.identity.username = "foo";
   let collection = new ServerCollection();
   collection._wbos.flying = new ServerWBO("flying");
 
@@ -201,6 +199,7 @@ add_task(async function test_upload_failed() {
   });
 
   await SyncTestingInfrastructure(server);
+  await configureIdentity({ username: "foo" }, server);
 
   let engine = new RotaryEngine(Service);
   engine.lastSync = 123; // needs to be non-zero so that tracker is queried
@@ -246,8 +245,6 @@ add_task(async function test_upload_failed() {
 });
 
 add_task(async function test_sync_partialUpload() {
-  Service.identity.username = "foo";
-
   let collection = new ServerCollection();
   let server = sync_httpd_setup({
       "/1.1/foo/storage/rotary": collection.handler()
@@ -352,8 +349,8 @@ add_task(async function test_generic_engine_fail() {
       error: String(e)
     });
   } finally {
-    Service.engineManager.unregister(engine);
     await cleanAndGo(engine, server);
+    Service.engineManager.unregister(engine);
   }
 });
 
@@ -389,8 +386,8 @@ add_task(async function test_engine_fail_ioerror() {
     ok(!failureReason.error.includes(OS.Constants.Path.profileDir), failureReason.error);
     ok(failureReason.error.includes("[profileDir]"), failureReason.error);
   } finally {
-    Service.engineManager.unregister(engine);
     await cleanAndGo(engine, server);
+    Service.engineManager.unregister(engine);
   }
 });
 
@@ -429,6 +426,7 @@ add_task(async function test_initial_sync_engines() {
     }
   } finally {
     await cleanAndGo(engine, server);
+    Service.engineManager.unregister(engine);
   }
 });
 
@@ -457,12 +455,12 @@ add_task(async function test_nserror() {
       code: Cr.NS_ERROR_UNKNOWN_HOST
     });
   } finally {
-    Service.engineManager.unregister(engine);
     await cleanAndGo(engine, server);
+    Service.engineManager.unregister(engine);
   }
 });
 
-add_identity_test(this, async function test_discarding() {
+add_task(async function test_discarding() {
   let helper = track_collections_helper();
   let upd = helper.with_updated_collection;
   let telem = get_sync_test_telemetry();
@@ -522,8 +520,8 @@ add_task(async function test_no_foreign_engines_in_error_ping() {
     equal(ping.status.service, SYNC_FAILED_PARTIAL);
     ok(ping.engines.every(e => e.name !== "bogus"));
   } finally {
-    Service.engineManager.unregister(engine);
     await cleanAndGo(engine, server);
+    Service.engineManager.unregister(engine);
   }
 });
 
@@ -549,8 +547,8 @@ add_task(async function test_sql_error() {
     let enginePing = ping.engines.find(e => e.name === "steam");
     deepEqual(enginePing.failureReason, { name: "sqlerror", code: 1 });
   } finally {
-    Service.engineManager.unregister(engine);
     await cleanAndGo(engine, server);
+    Service.engineManager.unregister(engine);
   }
 });
 
@@ -568,8 +566,8 @@ add_task(async function test_no_foreign_engines_in_success_ping() {
     let ping = await sync_and_validate_telem();
     ok(ping.engines.every(e => e.name !== "bogus"));
   } finally {
-    Service.engineManager.unregister(engine);
     await cleanAndGo(engine, server);
+    Service.engineManager.unregister(engine);
   }
 });
 
@@ -612,8 +610,8 @@ add_task(async function test_events() {
     [timestamp, category, method, object, value, extra] = ping.events[0];
     equal(value, null);
   } finally {
-    Service.engineManager.unregister(engine);
     await cleanAndGo(engine, server);
+    Service.engineManager.unregister(engine);
   }
 });
 
@@ -656,8 +654,8 @@ add_task(async function test_invalid_events() {
     }
     await checkNotRecorded("object", "method", "value", badextra);
   } finally {
-    Service.engineManager.unregister(engine);
     await cleanAndGo(engine, server);
+    Service.engineManager.unregister(engine);
   }
 });
 
@@ -688,7 +686,7 @@ add_task(async function test_no_ping_for_self_hosters() {
     ok(!pingSubmitted, "Should not submit ping with custom token server URL");
   } finally {
     telem.submit = oldSubmit;
-    Service.engineManager.unregister(engine);
     await cleanAndGo(engine, server);
+    Service.engineManager.unregister(engine);
   }
 });

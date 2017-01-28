@@ -309,6 +309,11 @@ ServoRestyleManager::ProcessPendingRestyles()
     return;
   }
 
+  // Create a AnimationsWithDestroyedFrame during restyling process to
+  // stop animations and transitions on elements that have no frame at the end
+  // of the restyling process.
+  AnimationsWithDestroyedFrame animationsWithDestroyedFrame(this);
+
   ServoStyleSet* styleSet = StyleSet();
   nsIDocument* doc = PresContext()->Document();
 
@@ -316,6 +321,7 @@ ServoRestyleManager::ProcessPendingRestyles()
   if (HasPendingRestyles()) {
     mInStyleRefresh = true;
     styleSet->StyleDocument();
+    PresContext()->EffectCompositor()->ClearElementsToRestyle();
 
     // First do any queued-up frame creation. (see bugs 827239 and 997506).
     //
@@ -357,6 +363,11 @@ ServoRestyleManager::ProcessPendingRestyles()
   }
 
   IncrementRestyleGeneration();
+
+  // Note: We are in the scope of |animationsWithDestroyedFrame|, so
+  //       |mAnimationsWithDestroyedFrame| is still valid.
+  MOZ_ASSERT(mAnimationsWithDestroyedFrame);
+  mAnimationsWithDestroyedFrame->StopAnimationsForElementsWithoutFrames();
 }
 
 void

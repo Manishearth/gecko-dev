@@ -39,13 +39,14 @@ var gTests = [
     info("request audio+video and check if there is no prompt");
     yield promiseRequestDevice(true, true, null, null, win.gBrowser.selectedBrowser);
     yield promiseObserverCalled("getUserMedia:request");
-    yield promiseNoPopupNotification("webRTC-shareDevices");
-    yield expectObserverCalled("getUserMedia:response:allow");
-    yield expectObserverCalled("recording-device-events");
+    let promises = [promiseNoPopupNotification("webRTC-shareDevices"),
+                    promiseObserverCalled("getUserMedia:response:allow"),
+                    promiseObserverCalled("recording-device-events")];
+    yield Promise.all(promises);
 
-    let promises = [promiseObserverCalled("recording-device-events"),
-                    promiseObserverCalled("recording-device-events"),
-                    promiseObserverCalled("recording-window-ended")];
+    promises = [promiseObserverCalled("recording-device-events"),
+                promiseObserverCalled("recording-device-events"),
+                promiseObserverCalled("recording-window-ended")];
     yield BrowserTestUtils.closeWindow(win);
     yield Promise.all(promises);
 
@@ -71,9 +72,7 @@ function runTest() {
 
   browser.messageManager.loadFrameScript(CONTENT_SCRIPT_HELPER, true);
 
-  browser.addEventListener("load", function onload() {
-    browser.removeEventListener("load", onload, true);
-
+  browser.addEventListener("load", function() {
     is(PopupNotifications._currentNotifications.length, 0,
        "should start the test without any prior popup notification");
     ok(gIdentityHandler._identityPopup.hidden,
@@ -94,7 +93,7 @@ function runTest() {
      ok(false, "Unexpected Exception: " + ex);
      finish();
     });
-  }, true);
+  }, {capture: true, once: true});
   let rootDir = getRootDirectory(gTestPath);
   rootDir = rootDir.replace("chrome://mochitests/content/",
                             "https://example.com/");

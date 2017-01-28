@@ -735,7 +735,9 @@ NS_InitXPCOM2(nsIServiceManager** aResult,
   SharedThreadPool::InitStatics();
 
   // Force layout to spin up so that nsContentUtils is available for cx stack
-  // munging.
+  // munging.  Note that layout registers a number of static atoms, and also
+  // seals the static atom table, so NS_RegisterStaticAtom may not be called
+  // beyond this point.
   nsCOMPtr<nsISupports> componentLoader =
     do_GetService("@mozilla.org/moz/jsloader;1");
 
@@ -1039,7 +1041,7 @@ ShutdownXPCOM(nsIServiceManager* aServMgr)
     NS_WARNING("Component Manager was never created ...");
   }
 
-#ifdef MOZ_ENABLE_PROFILER_SPS
+#ifdef MOZ_GECKO_PROFILER
   // In optimized builds we don't do shutdown collections by default, so
   // uncollected (garbage) objects may keep the nsXPConnect singleton alive,
   // and its XPCJSContext along with it. However, we still destroy various
@@ -1048,7 +1050,7 @@ ShutdownXPCOM(nsIServiceManager* aServMgr)
   // JS pseudo-stack's internal reference to the main thread JSContext,
   // duplicating the call in XPCJSContext::~XPCJSContext() in case that
   // never fired.
-  if (PseudoStack* stack = mozilla_get_pseudo_stack()) {
+  if (PseudoStack* stack = profiler_get_pseudo_stack()) {
     stack->sampleContext(nullptr);
   }
 #endif

@@ -2109,7 +2109,13 @@ var AddonManagerInternal = {
             install.addon.appDisabled == false) {
               install.addon.userDisabled = false;
         }
-        self.installNotifyObservers("addon-install-complete", browser, url, install);
+
+        if (WEBEXT_PERMISSION_PROMPTS) {
+          let subject = {wrappedJSObject: {target: browser, addon: install.addon}};
+          Services.obs.notifyObservers(subject, "webextension-install-notify", null);
+        } else {
+          self.installNotifyObservers("addon-install-complete", browser, url, install);
+        }
       },
     };
 
@@ -2156,7 +2162,7 @@ var AddonManagerInternal = {
     // main tab's browser). Check this by seeing if the browser we've been
     // passed is in a content type docshell and if so get the outer-browser.
     let topBrowser = aBrowser;
-    let docShell = aBrowser.ownerDocument.defaultView
+    let docShell = aBrowser.ownerGlobal
                            .QueryInterface(Ci.nsIInterfaceRequestor)
                            .getInterface(Ci.nsIDocShell)
                            .QueryInterface(Ci.nsIDocShellTreeItem);
@@ -2912,14 +2918,14 @@ var AddonManagerInternal = {
           let parentWindow = null;
           if (browser) {
             // Find the outer browser
-            let docShell = browser.ownerDocument.defaultView
+            let docShell = browser.ownerGlobal
                                   .QueryInterface(Ci.nsIInterfaceRequestor)
                                   .getInterface(Ci.nsIDocShell)
                                   .QueryInterface(Ci.nsIDocShellTreeItem);
             if (docShell.itemType == Ci.nsIDocShellTreeItem.typeContent)
               browser = docShell.chromeEventHandler;
 
-            parentWindow = browser.ownerDocument.defaultView;
+            parentWindow = browser.ownerGlobal;
             PromptUtils.fireDialogEvent(parentWindow, "DOMWillOpenModalDialog", browser);
           }
 
@@ -2986,14 +2992,29 @@ var AddonManagerInternal = {
       ];
 
       let listener = {};
-      events.forEach(event => {
-        listener[event] = (install) => {
-          let data = {event, id};
-          AddonManager.webAPI.copyProps(install, data);
-          this.sendEvent(mm, data);
-        }
+      let installPromise = new Promise((resolve, reject) => {
+        events.forEach(event => {
+          listener[event] = (install, addon) => {
+            let data = {event, id};
+            AddonManager.webAPI.copyProps(install, data);
+            this.sendEvent(mm, data);
+            if (event == "onInstallEnded") {
+              resolve(addon);
+            } else if (event == "onDownloadFailed" || event == "onInstallFailed") {
+              reject({message: "install failed"});
+            } else if (event == "onDownloadCancelled" || event == "onInstallCancelled") {
+              reject({message: "install cancelled"});
+            }
+          }
+        });
       });
-      return listener;
+
+      // We create the promise here since this is where we're setting
+      // up the InstallListener, but if the install is never started,
+      // no handlers will be attached so make sure we terminate errors.
+      installPromise.catch(() => {});
+
+      return {listener, installPromise};
     },
 
     forgetInstall(id) {
@@ -3027,15 +3048,15 @@ var AddonManagerInternal = {
         return Promise.reject({message: err.message});
       }
 
-      return AddonManagerInternal.getInstallForURL(options.url, "application/x-xpinstall",
-                                                   options.hash).then(install => {
+      return AddonManagerInternal.getInstallForURL(options.url, "application/x-xpinstall", options.hash)
+                                 .then(install => {
         AddonManagerInternal.setupPromptHandler(target, null, install, false);
 
         let id = this.nextInstall++;
-        let listener = this.makeListener(id, target.messageManager);
+        let {listener, installPromise} = this.makeListener(id, target.messageManager);
         install.addListener(listener);
 
-        this.installs.set(id, {install, target, listener});
+        this.installs.set(id, {install, target, listener, installPromise});
 
         let result = {id};
         this.copyProps(install, result);
@@ -3078,7 +3099,17 @@ var AddonManagerInternal = {
       if (!state) {
         return Promise.reject(`invalid id ${id}`);
       }
-      return Promise.resolve(state.install.install());
+      let result = state.install.install();
+
+      return state.installPromise.then(addon => new Promise(resolve => {
+        let callback = () => resolve(result);
+        if (Preferences.get(PREF_WEBEXT_PERM_PROMPTS, false)) {
+          let subject = {wrappedJSObject: {target, addon, callback}};
+          Services.obs.notifyObservers(subject, "webextension-install-notify", null)
+        } else {
+          callback();
+        }
+      }));
     },
 
     addonInstallCancel(target, id) {

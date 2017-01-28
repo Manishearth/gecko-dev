@@ -102,6 +102,7 @@
 
 #if defined(XP_WIN) && defined(ACCESSIBILITY)
 #include "mozilla/a11y/AccessibleWrap.h"
+#include "mozilla/a11y/nsWinUtils.h"
 #endif
 
 using namespace mozilla::dom;
@@ -269,6 +270,16 @@ TabParent::SetOwnerElement(Element* aElement)
         reinterpret_cast<uintptr_t>(widget->GetNativeData(NS_NATIVE_WINDOW));
     }
     Unused << SendUpdateNativeWindowHandle(newWindowHandle);
+    a11y::DocAccessibleParent* doc = GetTopLevelDocAccessible();
+    if (doc) {
+      HWND hWnd = reinterpret_cast<HWND>(doc->GetEmulatedWindowHandle());
+      if (hWnd) {
+        HWND parentHwnd = reinterpret_cast<HWND>(newWindowHandle);
+        if (parentHwnd != ::GetParent(hWnd)) {
+          ::SetParent(hWnd, parentHwnd);
+        }
+      }
+    }
   }
 #endif
 
@@ -906,6 +917,14 @@ TabParent::RecvPDocAccessibleConstructor(PDocAccessibleParent* aDoc,
 {
 #ifdef ACCESSIBILITY
   auto doc = static_cast<a11y::DocAccessibleParent*>(aDoc);
+
+  // If this tab is already shutting down just mark the new actor as shutdown
+  // and ignore it.  When the tab actor is destroyed it will be too.
+  if (mIsDestroyed) {
+    doc->MarkAsShutdown();
+    return IPC_OK();
+  }
+
   if (aParentDoc) {
     // A document should never directly be the parent of another document.
     // There should always be an outer doc accessible child of the outer
@@ -921,6 +940,9 @@ TabParent::RecvPDocAccessibleConstructor(PDocAccessibleParent* aDoc,
     MOZ_ASSERT(aDocCOMProxy.IsNull());
     if (added) {
       a11y::WrapperFor(doc)->SetID(aMsaaID);
+      if (a11y::nsWinUtils::IsWindowEmulationStarted()) {
+        doc->SetEmulatedWindowHandle(parentDoc->GetEmulatedWindowHandle());
+      }
     }
 #endif
     if (!added) {

@@ -50,7 +50,6 @@ public:
                          bool* aResult,
                          TextureFactoryIdentifier* aOutIdentifier) override
   { return IPC_FAIL_NO_REASON(this); }
-  virtual mozilla::ipc::IPCResult RecvRequestOverfill() override { return IPC_OK(); }
   virtual mozilla::ipc::IPCResult RecvWillClose() override { return IPC_OK(); }
   virtual mozilla::ipc::IPCResult RecvPause() override { return IPC_OK(); }
   virtual mozilla::ipc::IPCResult RecvResume() override { return IPC_OK(); }
@@ -115,7 +114,9 @@ public:
 
   virtual AsyncCompositionManager* GetCompositionManager(LayerTransactionParent* aParent) override;
   virtual mozilla::ipc::IPCResult RecvRemotePluginsReady()  override { return IPC_FAIL_NO_REASON(this); }
-  virtual mozilla::ipc::IPCResult RecvAcknowledgeCompositorUpdate(const uint64_t& aLayersId) override;
+  virtual mozilla::ipc::IPCResult RecvAcknowledgeCompositorUpdate(
+    const uint64_t& aLayersId,
+    const uint64_t& aSeqNo) override;
 
   void DidComposite(uint64_t aId,
                     TimeStamp& aCompositeStart,

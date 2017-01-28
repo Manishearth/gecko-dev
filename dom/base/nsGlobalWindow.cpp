@@ -2075,7 +2075,7 @@ nsGlobalWindow::IsBlackForCC(bool aTracingNeeded)
   }
 
   return (nsCCUncollectableMarker::InGeneration(GetMarkedCCGeneration()) ||
-          IsBlack()) &&
+          HasKnownLiveWrapper()) &&
          (!aTracingNeeded ||
           HasNothingToTrace(static_cast<nsIDOMEventTarget*>(this)));
 }
@@ -2384,7 +2384,7 @@ InitializeLegacyNetscapeObject(JSContext* aCx, JS::Handle<JSObject*> aGlobal)
 }
 
 bool
-nsGlobalWindow::ComputeIsSecureContext(nsIDocument* aDocument)
+nsGlobalWindow::ComputeIsSecureContext(nsIDocument* aDocument, SecureContextFlags aFlags)
 {
   MOZ_ASSERT(IsOuterWindow());
 
@@ -2394,6 +2394,7 @@ nsGlobalWindow::ComputeIsSecureContext(nsIDocument* aDocument)
   }
 
   // Implement https://w3c.github.io/webappsec-secure-contexts/#settings-object
+  // With some modifications to allow for aFlags.
 
   bool hadNonSecureContextCreator = false;
 
@@ -2419,9 +2420,15 @@ nsGlobalWindow::ComputeIsSecureContext(nsIDocument* aDocument)
     MOZ_ASSERT(parentWin ==
                nsGlobalWindow::Cast(parentOuterWin->GetCurrentInnerWindow()),
                "Creator window mismatch while setting Secure Context state");
-    hadNonSecureContextCreator = !parentWin->IsSecureContext();
+    if (aFlags != SecureContextFlags::eIgnoreOpener) {
+      hadNonSecureContextCreator = !parentWin->IsSecureContext();
+    } else {
+      hadNonSecureContextCreator = !parentWin->IsSecureContextIfOpenerIgnored();
+    }
   } else if (mHadOriginalOpener) {
-    hadNonSecureContextCreator = !mOriginalOpenerWasSecureContext;
+    if (aFlags != SecureContextFlags::eIgnoreOpener) {
+      hadNonSecureContextCreator = !mOriginalOpenerWasSecureContext;
+    }
   }
 
   if (hadNonSecureContextCreator) {
@@ -2726,6 +2733,8 @@ nsGlobalWindow::SetNewDocument(nsIDocument* aDocument,
       NS_ASSERTION(NS_SUCCEEDED(rv) && newInnerGlobal &&
                    newInnerWindow->GetWrapperPreserveColor() == newInnerGlobal,
                    "Failed to get script global");
+      newInnerWindow->mIsSecureContextIfOpenerIgnored =
+        ComputeIsSecureContext(aDocument, SecureContextFlags::eIgnoreOpener);
 
       mCreatingInnerWindow = false;
       createdInnerWindow = true;
@@ -3865,6 +3874,12 @@ bool
 nsPIDOMWindowInner::IsSecureContext() const
 {
   return nsGlobalWindow::Cast(this)->IsSecureContext();
+}
+
+bool
+nsPIDOMWindowInner::IsSecureContextIfOpenerIgnored() const
+{
+  return nsGlobalWindow::Cast(this)->IsSecureContextIfOpenerIgnored();
 }
 
 void
@@ -8001,24 +8016,6 @@ nsGlobalWindow::MozScrollSnap()
 }
 
 void
-nsGlobalWindow::MozRequestOverfill(OverfillCallback& aCallback,
-                                   mozilla::ErrorResult& aError)
-{
-  MOZ_ASSERT(IsInnerWindow());
-
-  nsIWidget* widget = nsContentUtils::WidgetForDocument(mDoc);
-  if (widget) {
-    mozilla::layers::LayerManager* manager = widget->GetLayerManager();
-    if (manager) {
-      manager->RequestOverfill(&aCallback);
-      return;
-    }
-  }
-
-  aError.Throw(NS_ERROR_NOT_AVAILABLE);
-}
-
-void
 nsGlobalWindow::ClearTimeout(int32_t aHandle)
 {
   MOZ_RELEASE_ASSERT(IsInnerWindow());
@@ -8552,7 +8549,7 @@ nsGlobalWindow::PostMessageMozOuter(JSContext* aCx, JS::Handle<JS::Value> aMessa
     return;
   }
 
-  aError = Dispatch("PostMessage", TaskCategory::Other, event.forget());
+  aError = Dispatch("PostMessageEvent", TaskCategory::Other, event.forget());
 }
 
 void
@@ -13827,6 +13824,14 @@ nsGlobalWindow::IsSecureContext() const
   return JS_GetIsSecureContext(js::GetObjectCompartment(GetWrapperPreserveColor()));
 }
 
+bool
+nsGlobalWindow::IsSecureContextIfOpenerIgnored() const
+{
+  MOZ_RELEASE_ASSERT(IsInnerWindow());
+
+  return mIsSecureContextIfOpenerIgnored;
+}
+
 already_AddRefed<External>
 nsGlobalWindow::GetExternal(ErrorResult& aRv)
 {
@@ -14293,6 +14298,16 @@ nsGlobalWindow::EventTargetFor(TaskCategory aCategory) const
     return GetDocGroup()->EventTargetFor(aCategory);
   }
   return DispatcherTrait::EventTargetFor(aCategory);
+}
+
+AbstractThread*
+nsGlobalWindow::AbstractMainThreadFor(TaskCategory aCategory)
+{
+  MOZ_RELEASE_ASSERT(NS_IsMainThread());
+  if (GetDocGroup()) {
+    return GetDocGroup()->AbstractMainThreadFor(aCategory);
+  }
+  return DispatcherTrait::AbstractMainThreadFor(aCategory);
 }
 
 nsGlobalWindow::TemporarilyDisableDialogs::TemporarilyDisableDialogs(

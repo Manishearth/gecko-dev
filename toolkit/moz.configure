@@ -36,20 +36,20 @@ set_define('MOZ_JPROF', jprof)
 imply_option('--enable-profiling', jprof)
 
 @depends(target)
-def sps_profiler(target):
+def gecko_profiler(target):
     if target.os == 'Android':
         return target.cpu in ('arm', 'x86')
     elif target.kernel == 'Linux':
         return target.cpu in ('x86', 'x86_64')
     return target.os in ('OSX', 'WINNT')
 
-@depends(sps_profiler)
-def sps_profiler_define(value):
+@depends(gecko_profiler)
+def gecko_profiler_define(value):
     if value:
         return True
 
-set_config('MOZ_ENABLE_PROFILER_SPS', sps_profiler_define)
-set_define('MOZ_ENABLE_PROFILER_SPS', sps_profiler_define)
+set_config('MOZ_GECKO_PROFILER', gecko_profiler_define)
+set_define('MOZ_GECKO_PROFILER', gecko_profiler_define)
 
 
 option('--enable-dmd', env='MOZ_DMD',
@@ -606,9 +606,17 @@ def check_minimum_llvm_config_version(llvm_config):
         You can verify this by typing 'llvm-config --version'.
         '''.format(version, min_version)))
 
-@depends(llvm_config, '--with-libclang-path', '--with-clang-path')
+@depends('--enable-stylo', '--enable-stylo-build-bindgen',
+         llvm_config, '--with-libclang-path', '--with-clang-path')
 @imports(_from='textwrap', _import='dedent')
-def bindgen_config_paths(llvm_config, libclang_path, clang_path):
+def bindgen_config_paths(stylo_enabled, bindgen_enabled,
+                         llvm_config, libclang_path, clang_path):
+    if not stylo_enabled:
+        return None
+
+    if not bindgen_enabled:
+        return None
+
     if not libclang_path and not clang_path:
         # We must have LLVM_CONFIG in this case.
         if not llvm_config:
@@ -952,30 +960,6 @@ def skia_includes(skia, skia_gpu):
     return includes
 
 set_config('SKIA_INCLUDES', skia_includes)
-
-# Support various fuzzing options
-# ==============================================================
-with only_when('--enable-compile-environment'):
-    option('--enable-fuzzing', help='Enable fuzzing support')
-
-    @depends('--enable-fuzzing')
-    def enable_fuzzing(value):
-        if value:
-            return True
-
-    @depends(enable_fuzzing,
-             try_compile(body='__AFL_COMPILER;',
-                         check_msg='for AFL compiler',
-                         when='--enable-fuzzing'))
-    def enable_libfuzzer(fuzzing, afl):
-        if fuzzing and not afl:
-            return True
-
-    set_config('FUZZING', enable_fuzzing)
-    set_define('FUZZING', enable_fuzzing)
-
-    set_config('LIBFUZZER', enable_libfuzzer)
-    set_define('LIBFUZZER', enable_libfuzzer)
 
 # Mortar
 # ==============================================================

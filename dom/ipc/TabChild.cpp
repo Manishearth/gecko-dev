@@ -2118,6 +2118,7 @@ TabChild::RecvAsyncMessage(const nsString& aMessage,
                            const IPC::Principal& aPrincipal,
                            const ClonedMessageData& aData)
 {
+  CrossProcessCpowHolder cpows(Manager(), aCpows);
   if (!mTabChildGlobal) {
     return IPC_OK();
   }
@@ -2135,7 +2136,6 @@ TabChild::RecvAsyncMessage(const nsString& aMessage,
   UnpackClonedMessageDataForChild(aData, data);
   RefPtr<nsFrameMessageManager> mm =
     static_cast<nsFrameMessageManager*>(mTabChildGlobal->mMessageManager.get());
-  CrossProcessCpowHolder cpows(Manager(), aCpows);
   mm->ReceiveMessage(static_cast<EventTarget*>(mTabChildGlobal), nullptr,
                      aMessage, false, &data, &cpows, aPrincipal, nullptr);
   return IPC_OK();
@@ -2651,7 +2651,7 @@ void
 TabChild::GetDPI(float* aDPI)
 {
     *aDPI = -1.0;
-    if (!mRemoteFrame) {
+    if (!(mDidFakeShow || mDidSetRealShowInfo)) {
         return;
     }
 
@@ -2668,7 +2668,7 @@ void
 TabChild::GetDefaultScale(double* aScale)
 {
     *aScale = -1.0;
-    if (!mRemoteFrame) {
+    if (!(mDidFakeShow || mDidSetRealShowInfo)) {
         return;
     }
 
@@ -2685,7 +2685,7 @@ void
 TabChild::GetWidgetRounding(int32_t* aRounding)
 {
   *aRounding = 1;
-  if (!mRemoteFrame) {
+  if (!(mDidFakeShow || mDidSetRealShowInfo)) {
     return;
   }
   if (mRounding > 0) {
@@ -2732,11 +2732,7 @@ TabChild::MakeHidden()
     return;
   }
 
-  CompositorBridgeChild* compositor = CompositorBridgeChild::Get();
-
-  // Clear cached resources directly. This avoids one extra IPC
-  // round-trip from CompositorBridgeChild to CompositorBridgeParent.
-  compositor->RecvClearCachedResources(mLayersId);
+  ClearCachedResources();
 
   // Hide all plugins in this tab.
   if (nsCOMPtr<nsIPresShell> shell = GetPresShell()) {
@@ -3013,14 +3009,15 @@ TabChild::ReinitRendering()
 }
 
 void
-TabChild::CompositorUpdated(const TextureFactoryIdentifier& aNewIdentifier)
+TabChild::CompositorUpdated(const TextureFactoryIdentifier& aNewIdentifier,
+                            uint64_t aDeviceResetSeqNo)
 {
   RefPtr<LayerManager> lm = mPuppetWidget->GetLayerManager();
   ClientLayerManager* clm = lm->AsClientLayerManager();
   MOZ_ASSERT(clm);
 
   mTextureFactoryIdentifier = aNewIdentifier;
-  clm->UpdateTextureFactoryIdentifier(aNewIdentifier);
+  clm->UpdateTextureFactoryIdentifier(aNewIdentifier, aDeviceResetSeqNo);
   FrameLayerBuilder::InvalidateAllLayers(clm);
 }
 

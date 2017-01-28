@@ -16,6 +16,7 @@
 #include "mozilla/FileUtils.h"
 #include "mozilla/HalTypes.h"
 #include "mozilla/LinkedList.h"
+#include "mozilla/MemoryReportingProcess.h"
 #include "mozilla/StaticPtr.h"
 #include "mozilla/TimeStamp.h"
 #include "mozilla/UniquePtr.h"
@@ -53,7 +54,7 @@ class nsIWidget;
 
 namespace mozilla {
 class PRemoteSpellcheckEngineParent;
-#ifdef MOZ_ENABLE_PROFILER_SPS
+#ifdef MOZ_GECKO_PROFILER
 class ProfileGatherer;
 #endif
 
@@ -95,6 +96,7 @@ class MemoryReport;
 class TabContext;
 class ContentBridgeParent;
 class GetFilesHelper;
+class MemoryReportRequestHost;
 
 class ContentParent final : public PContentParent
                           , public nsIContentParent
@@ -104,6 +106,7 @@ class ContentParent final : public PContentParent
                           , public gfx::gfxVarReceiver
                           , public mozilla::LinkedListElement<ContentParent>
                           , public gfx::GPUProcessListener
+                          , public mozilla::MemoryReportingProcess
 {
   typedef mozilla::ipc::GeckoChildProcessHost GeckoChildProcessHost;
   typedef mozilla::ipc::OptionalURIParams OptionalURIParams;
@@ -161,6 +164,8 @@ public:
   static void GetAll(nsTArray<ContentParent*>& aArray);
 
   static void GetAllEvenIfDead(nsTArray<ContentParent*>& aArray);
+
+  const nsAString& GetRemoteType() const;
 
   enum CPIteratorPolicy {
     eLive,
@@ -320,7 +325,7 @@ public:
 
   bool RequestRunToCompletion();
 
-  bool IsAlive() const;
+  bool IsAlive() const override;
 
   virtual bool IsForBrowser() const override
   {
@@ -705,10 +710,6 @@ private:
                                   TabParent* aTopLevel, const TabId& aTabId,
                                   uint64_t* aId);
 
-  PGMPServiceParent*
-  AllocPGMPServiceParent(mozilla::ipc::Transport* aTransport,
-                         base::ProcessId aOtherProcess) override;
-
   PBackgroundParent*
   AllocPBackgroundParent(Transport* aTransport, ProcessId aOtherProcess)
                          override;
@@ -729,6 +730,10 @@ private:
                                 InfallibleTArray<FontFamilyListEntry>* fontFamilies,
                                 OptionalURIParams* aUserContentSheetURL,
                                 nsTArray<LookAndFeelInt>* aLookAndFeelIntCache) override;
+
+
+  mozilla::ipc::IPCResult RecvAddMemoryReport(const MemoryReport& aReport) override;
+  mozilla::ipc::IPCResult RecvFinishMemoryReport(const uint32_t& aGeneration) override;
 
   virtual bool
   DeallocPJavaScriptParent(mozilla::jsipc::PJavaScriptParent*) override;
@@ -788,15 +793,6 @@ private:
 
   virtual bool
   DeallocPHeapSnapshotTempFileHelperParent(PHeapSnapshotTempFileHelperParent*) override;
-
-  virtual PMemoryReportRequestParent*
-  AllocPMemoryReportRequestParent(const uint32_t& aGeneration,
-                                  const bool &aAnonymize,
-                                  const bool &aMinimizeMemoryUsage,
-                                  const MaybeFileDesc &aDMDFile) override;
-
-  virtual bool
-  DeallocPMemoryReportRequestParent(PMemoryReportRequestParent* actor) override;
 
   virtual PCycleCollectWithLogsParent*
   AllocPCycleCollectWithLogsParent(const bool& aDumpAllTraces,
@@ -1089,6 +1085,11 @@ public:
   void SendGetFilesResponseAndForget(const nsID& aID,
                                      const GetFilesResponseResult& aResult);
 
+  bool SendRequestMemoryReport(const uint32_t& aGeneration,
+                               const bool& aAnonymize,
+                               const bool& aMinimizeMemoryUsage,
+                               const MaybeFileDesc& aDMDFile) override;
+
 private:
 
   // If you add strong pointers to cycle collected objects here, be sure to
@@ -1147,12 +1148,13 @@ private:
 
   PProcessHangMonitorParent* mHangMonitorActor;
 
-#ifdef MOZ_ENABLE_PROFILER_SPS
+#ifdef MOZ_GECKO_PROFILER
   RefPtr<mozilla::ProfileGatherer> mGatherer;
 #endif
   nsCString mProfile;
 
   UniquePtr<gfx::DriverCrashGuard> mDriverCrashGuard;
+  UniquePtr<MemoryReportRequestHost> mMemoryReportRequest;
 
 #if defined(XP_LINUX) && defined(MOZ_CONTENT_SANDBOX)
   mozilla::UniquePtr<SandboxBroker> mSandboxBroker;

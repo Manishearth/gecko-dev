@@ -56,10 +56,9 @@ var focusWindow = Task.async(function* focusWindow(win) {
   }
 
   let promise = new Promise(resolve => {
-    win.addEventListener("focus", function listener() {
-      win.removeEventListener("focus", listener, true);
+    win.addEventListener("focus", function() {
       resolve();
-    }, true);
+    }, {capture: true, once: true});
   });
 
   win.focus();
@@ -70,7 +69,7 @@ let img = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQImWNgYGBgAAAAB
 var imageBuffer = Uint8Array.from(atob(img), byte => byte.charCodeAt(0)).buffer;
 
 function getListStyleImage(button) {
-  let style = button.ownerDocument.defaultView.getComputedStyle(button);
+  let style = button.ownerGlobal.getComputedStyle(button);
 
   let match = /^url\("(.*)"\)$/.exec(style.listStyleImage);
 

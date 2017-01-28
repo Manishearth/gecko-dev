@@ -84,8 +84,6 @@ class PresShell final : public nsIPresShell,
 public:
   PresShell();
 
-  NS_DECL_AND_IMPL_ZEROING_OPERATOR_NEW
-
   // nsISupports
   NS_DECL_ISUPPORTS
 
@@ -332,8 +330,7 @@ public:
 #endif
 
 #ifdef DEBUG
-  virtual void ListStyleContexts(nsIFrame *aRootFrame, FILE *out,
-                                 int32_t aIndent = 0) override;
+  virtual void ListStyleContexts(FILE *out, int32_t aIndent = 0) override;
 
   virtual void ListStyleSheets(FILE *out, int32_t aIndent = 0) override;
   virtual void VerifyStyleTree() override;

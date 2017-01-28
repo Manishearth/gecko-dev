@@ -46,11 +46,11 @@
 #include "mozilla/dom/ExternalHelperAppParent.h"
 #include "mozilla/dom/GetFilesHelper.h"
 #include "mozilla/dom/GeolocationBinding.h"
+#include "mozilla/dom/MemoryReportRequest.h"
 #include "mozilla/dom/Notification.h"
 #include "mozilla/dom/PContentBridgeParent.h"
 #include "mozilla/dom/PContentPermissionRequestParent.h"
 #include "mozilla/dom/PCycleCollectWithLogsParent.h"
-#include "mozilla/dom/PMemoryReportRequestParent.h"
 #include "mozilla/dom/ServiceWorkerRegistrar.h"
 #include "mozilla/dom/StorageIPC.h"
 #include "mozilla/dom/devicestorage/DeviceStorageRequestParent.h"
@@ -88,7 +88,7 @@
 #include "mozilla/Preferences.h"
 #include "mozilla/ProcessHangMonitor.h"
 #include "mozilla/ProcessHangMonitorIPC.h"
-#ifdef MOZ_ENABLE_PROFILER_SPS
+#ifdef MOZ_GECKO_PROFILER
 #include "mozilla/ProfileGatherer.h"
 #endif
 #include "mozilla/ScopeExit.h"
@@ -232,7 +232,7 @@
 #include "nsIBrowserSearchService.h"
 #endif
 
-#ifdef MOZ_ENABLE_PROFILER_SPS
+#ifdef MOZ_GECKO_PROFILER
 #include "nsIProfiler.h"
 #include "nsIProfileSaveEvent.h"
 #endif
@@ -261,7 +261,7 @@ extern const char* kForceEnableE10sPref;
 
 using base::ChildPrivileges;
 using base::KillProcess;
-#ifdef MOZ_ENABLE_PROFILER_SPS
+#ifdef MOZ_GECKO_PROFILER
 using mozilla::ProfileGatherer;
 #endif
 
@@ -295,71 +295,6 @@ namespace dom {
 
 #define NS_IPC_IOSERVICE_SET_OFFLINE_TOPIC "ipc:network:set-offline"
 #define NS_IPC_IOSERVICE_SET_CONNECTIVITY_TOPIC "ipc:network:set-connectivity"
-
-class MemoryReportRequestParent : public PMemoryReportRequestParent
-{
-public:
-  explicit MemoryReportRequestParent(uint32_t aGeneration);
-
-  virtual ~MemoryReportRequestParent();
-
-  virtual void ActorDestroy(ActorDestroyReason aWhy) override;
-
-  virtual mozilla::ipc::IPCResult RecvReport(const MemoryReport& aReport) override;
-  virtual mozilla::ipc::IPCResult Recv__delete__() override;
-
-private:
-  const uint32_t mGeneration;
-  // Non-null if we haven't yet called EndProcessReport() on it.
-  RefPtr<nsMemoryReporterManager> mReporterManager;
-
-  ContentParent* Owner()
-  {
-    return static_cast<ContentParent*>(Manager());
-  }
-};
-
-MemoryReportRequestParent::MemoryReportRequestParent(uint32_t aGeneration)
-  : mGeneration(aGeneration)
-{
-  MOZ_COUNT_CTOR(MemoryReportRequestParent);
-  mReporterManager = nsMemoryReporterManager::GetOrCreate();
-  NS_WARNING_ASSERTION(mReporterManager, "GetOrCreate failed");
-}
-
-mozilla::ipc::IPCResult
-MemoryReportRequestParent::RecvReport(const MemoryReport& aReport)
-{
-  if (mReporterManager) {
-    mReporterManager->HandleChildReport(mGeneration, aReport);
-  }
-  return IPC_OK();
-}
-
-mozilla::ipc::IPCResult
-MemoryReportRequestParent::Recv__delete__()
-{
-  // Notifying the reporter manager is done in ActorDestroy, because
-  // it needs to happen even if the child process exits mid-report.
-  // (The reporter manager will time out eventually, but let's avoid
-  // that if possible.)
-  return IPC_OK();
-}
-
-void
-MemoryReportRequestParent::ActorDestroy(ActorDestroyReason aWhy)
-{
-  if (mReporterManager) {
-    mReporterManager->EndProcessReport(mGeneration, aWhy == Deletion);
-    mReporterManager = nullptr;
-  }
-}
-
-MemoryReportRequestParent::~MemoryReportRequestParent()
-{
-  MOZ_ASSERT(!mReporterManager);
-  MOZ_COUNT_DTOR(MemoryReportRequestParent);
-}
 
 // IPC receiver for remote GC/CC logging.
 class CycleCollectWithLogsParent final : public PCycleCollectWithLogsParent
@@ -531,7 +466,7 @@ static const char* sObserverTopics[] = {
 #ifdef ACCESSIBILITY
   "a11y-init-or-shutdown",
 #endif
-#ifdef MOZ_ENABLE_PROFILER_SPS
+#ifdef MOZ_GECKO_PROFILER
   "profiler-started",
   "profiler-stopped",
   "profiler-paused",
@@ -835,9 +770,28 @@ static nsIDocShell* GetOpenerDocShellHelper(Element* aFrameElement)
 mozilla::ipc::IPCResult
 ContentParent::RecvCreateGMPService()
 {
-  if (!PGMPService::Open(this)) {
+  Endpoint<PGMPServiceParent> parent;
+  Endpoint<PGMPServiceChild> child;
+
+  nsresult rv;
+  rv = PGMPService::CreateEndpoints(base::GetCurrentProcId(),
+                                    OtherPid(),
+                                    &parent, &child);
+  if (NS_FAILED(rv)) {
+    MOZ_ASSERT(false, "CreateEndpoints failed");
     return IPC_FAIL_NO_REASON(this);
   }
+
+  if (!GMPServiceParent::Create(Move(parent))) {
+    MOZ_ASSERT(false, "GMPServiceParent::Create failed");
+    return IPC_FAIL_NO_REASON(this);
+  }
+
+  if (!SendInitGMPService(Move(child))) {
+    MOZ_ASSERT(false, "SendInitGMPService failed");
+    return IPC_FAIL_NO_REASON(this);
+  }
+
   return IPC_OK();
 }
 
@@ -1075,6 +1029,12 @@ ContentParent::GetAllEvenIfDead(nsTArray<ContentParent*>& aArray)
   }
 }
 
+const nsAString&
+ContentParent::GetRemoteType() const
+{
+  return mRemoteType;
+}
+
 void
 ContentParent::Init()
 {
@@ -1109,7 +1069,7 @@ ContentParent::Init()
   }
 #endif
 
-#ifdef MOZ_ENABLE_PROFILER_SPS
+#ifdef MOZ_GECKO_PROFILER
   nsCOMPtr<nsIProfiler> profiler(do_GetService("@mozilla.org/tools/profiler;1"));
   bool profilerActive = false;
   DebugOnly<nsresult> rv = profiler->IsActive(&profilerActive);
@@ -1501,7 +1461,7 @@ ContentParent::ActorDestroy(ActorDestroyReason why)
 
   mConsoleService = nullptr;
 
-#ifdef MOZ_ENABLE_PROFILER_SPS
+#ifdef MOZ_GECKO_PROFILER
   if (mGatherer && !mProfile.IsEmpty()) {
     mGatherer->OOPExitProfile(mProfile);
   }
@@ -2330,7 +2290,7 @@ ContentParent::Observe(nsISupports* aSubject,
     NS_ASSERTION(!mSubprocess, "Close should have nulled mSubprocess");
   }
 
-#ifdef MOZ_ENABLE_PROFILER_SPS
+#ifdef MOZ_GECKO_PROFILER
   // Need to do this before the mIsAlive check to avoid missing profiles.
   if (!strcmp(aTopic, "profiler-subprocess-gather")) {
     if (mGatherer) {
@@ -2442,7 +2402,7 @@ ContentParent::Observe(nsISupports* aSubject,
     }
   }
 #endif
-#ifdef MOZ_ENABLE_PROFILER_SPS
+#ifdef MOZ_GECKO_PROFILER
   else if (!strcmp(aTopic, "profiler-started")) {
     nsCOMPtr<nsIProfilerStartParams> params(do_QueryInterface(aSubject));
     StartProfiler(params);
@@ -2462,13 +2422,6 @@ ContentParent::Observe(nsISupports* aSubject,
     Unused << SendNotifyEmptyHTTPCache();
   }
   return NS_OK;
-}
-
-PGMPServiceParent*
-ContentParent::AllocPGMPServiceParent(mozilla::ipc::Transport* aTransport,
-                                      base::ProcessId aOtherProcess)
-{
-  return GMPServiceParent::Create(aTransport, aOtherProcess);
 }
 
 PBackgroundParent*
@@ -2817,22 +2770,39 @@ ContentParent::DeallocPHeapSnapshotTempFileHelperParent(
   return true;
 }
 
-PMemoryReportRequestParent*
-ContentParent::AllocPMemoryReportRequestParent(const uint32_t& aGeneration,
-                                               const bool &aAnonymize,
-                                               const bool &aMinimizeMemoryUsage,
-                                               const MaybeFileDesc &aDMDFile)
+bool
+ContentParent::SendRequestMemoryReport(const uint32_t& aGeneration,
+                                       const bool& aAnonymize,
+                                       const bool& aMinimizeMemoryUsage,
+                                       const MaybeFileDesc& aDMDFile)
 {
-  MemoryReportRequestParent* parent =
-    new MemoryReportRequestParent(aGeneration);
-  return parent;
+  // This automatically cancels the previous request.
+  mMemoryReportRequest = MakeUnique<MemoryReportRequestHost>(aGeneration);
+  Unused << PContentParent::SendRequestMemoryReport(
+    aGeneration,
+    aAnonymize,
+    aMinimizeMemoryUsage,
+    aDMDFile);
+  return IPC_OK();
 }
 
-bool
-ContentParent::DeallocPMemoryReportRequestParent(PMemoryReportRequestParent* actor)
+mozilla::ipc::IPCResult
+ContentParent::RecvAddMemoryReport(const MemoryReport& aReport)
 {
-  delete actor;
-  return true;
+  if (mMemoryReportRequest) {
+    mMemoryReportRequest->RecvReport(aReport);
+  }
+  return IPC_OK();
+}
+
+mozilla::ipc::IPCResult
+ContentParent::RecvFinishMemoryReport(const uint32_t& aGeneration)
+{
+  if (mMemoryReportRequest) {
+    mMemoryReportRequest->Finish(aGeneration);
+    mMemoryReportRequest = nullptr;
+  }
+  return IPC_OK();
 }
 
 PCycleCollectWithLogsParent*
@@ -4400,7 +4370,7 @@ ContentParent::RecvCreateWindowInDifferentProcess(
 mozilla::ipc::IPCResult
 ContentParent::RecvProfile(const nsCString& aProfile)
 {
-#ifdef MOZ_ENABLE_PROFILER_SPS
+#ifdef MOZ_GECKO_PROFILER
   if (NS_WARN_IF(!mGatherer)) {
     return IPC_OK();
   }
@@ -4518,7 +4488,7 @@ ContentParent::RecvNotifyBenchmarkResult(const nsString& aCodecName,
 void
 ContentParent::StartProfiler(nsIProfilerStartParams* aParams)
 {
-#ifdef MOZ_ENABLE_PROFILER_SPS
+#ifdef MOZ_GECKO_PROFILER
   if (NS_WARN_IF(!aParams)) {
     return;
   }

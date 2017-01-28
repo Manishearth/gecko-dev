@@ -531,16 +531,18 @@ public class Tab {
 
         final String pageUrl = ReaderModeUtils.stripAboutReaderUrl(getURL());
 
-        ThreadUtils.postToBackgroundThread(new Runnable() {
-            @Override
-            public void run() {
-                mDB.addBookmark(getContentResolver(), mTitle, pageUrl);
-                Tabs.getInstance().notifyListeners(Tab.this, Tabs.TabEvents.BOOKMARK_ADDED);
-            }
-        });
-
         if (AboutPages.isAboutReader(url)) {
             ReadingListHelper.cacheReaderItem(pageUrl, mId, mAppContext);
+            // defer bookmarking after completely added to cache.
+        } else {
+            ThreadUtils.postToBackgroundThread(new Runnable() {
+                @Override
+                public void run() {
+                    mDB.addBookmark(getContentResolver(), mTitle, pageUrl);
+                    Tabs.getInstance().notifyListeners(Tab.this, Tabs.TabEvents.BOOKMARK_ADDED);
+                }
+            });
+
         }
     }
 
@@ -570,7 +572,9 @@ public class Tab {
     }
 
     public void doReload(boolean bypassCache) {
-        GeckoAppShell.notifyObservers("Session:Reload", "{\"bypassCache\":" + String.valueOf(bypassCache) + "}");
+        final GeckoBundle data = new GeckoBundle(1);
+        data.putBoolean("bypassCache", bypassCache);
+        EventDispatcher.getInstance().dispatch("Session:Reload", data);
     }
 
     // Our version of nsSHistory::GetCanGoBack

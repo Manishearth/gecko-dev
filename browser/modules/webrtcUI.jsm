@@ -63,7 +63,7 @@ this.webrtcUI = {
     mm.removeMessageListener("rtcpeer:Request", this);
     mm.removeMessageListener("rtcpeer:CancelRequest", this);
     mm.removeMessageListener("webrtc:Request", this);
-    mm.removeMessageListener("webrtc:StopRecording");
+    mm.removeMessageListener("webrtc:StopRecording", this);
     mm.removeMessageListener("webrtc:CancelRequest", this);
     mm.removeMessageListener("webrtc:UpdateBrowserIndicators", this);
 
@@ -164,12 +164,11 @@ this.webrtcUI = {
     browserWindow.focus();
     let identityBox = browserWindow.document.getElementById("identity-box");
     if (AppConstants.platform == "macosx" && !Services.focus.activeWindow) {
-      browserWindow.addEventListener("activate", function onActivate() {
-        browserWindow.removeEventListener("activate", onActivate);
+      browserWindow.addEventListener("activate", function() {
         Services.tm.mainThread.dispatch(function() {
           identityBox.click();
         }, Ci.nsIThread.DISPATCH_NORMAL);
-      });
+      }, {once: true});
       Cc["@mozilla.org/widget/macdocksupport;1"].getService(Ci.nsIMacDockSupport)
         .activateApplication(true);
       return;
@@ -374,6 +373,11 @@ function prompt(aBrowser, aRequest) {
     return;
   }
 
+  // Tell the browser to refresh the identity block display in case there
+  // are expired permission states.
+  aBrowser.dispatchEvent(new aBrowser.ownerGlobal
+                                     .CustomEvent("PermissionStateChange"));
+
   let uri = Services.io.newURI(aRequest.documentURI);
   let host = getHost(uri);
   let chromeDoc = aBrowser.ownerDocument;
@@ -444,7 +448,7 @@ function prompt(aBrowser, aRequest) {
 
   let options = {
     persistent: true,
-    hideClose: true,
+    hideClose: !Services.prefs.getBoolPref("privacy.permissionPrompts.showCloseButton"),
     checkbox: {
       label: stringBundle.getString("getUserMedia.remember"),
       checkedState: reasonForNoPermanentAllow ? {

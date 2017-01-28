@@ -75,7 +75,7 @@
 #include "mozilla/HalTypes.h"
 #include "mozilla/StaticPtr.h"
 #include "mozilla/Telemetry.h"
-#ifdef MOZ_ENABLE_PROFILER_SPS
+#ifdef MOZ_GECKO_PROFILER
 #include "ProfilerMarkers.h"
 #endif
 #include "mozilla/VsyncDispatcher.h"
@@ -182,7 +182,6 @@ CompositorBridgeParent::LayerTreeState::LayerTreeState()
   , mCrossProcessParent(nullptr)
   , mLayerTree(nullptr)
   , mUpdatedPluginDataAvailable(false)
-  , mPendingCompositorUpdates(0)
 {
 }
 
@@ -1274,14 +1273,6 @@ CompositorBridgeParent::RecvGetFrameUniformity(FrameUniformityData* aOutData)
   return IPC_OK();
 }
 
-mozilla::ipc::IPCResult
-CompositorBridgeParent::RecvRequestOverfill()
-{
-  uint32_t overfillRatio = mCompositor->GetFillRatio();
-  Unused << SendOverfill(overfillRatio);
-  return IPC_OK();
-}
-
 void
 CompositorBridgeParent::FlushApzRepaints(const LayerTransactionParent* aLayerTree)
 {
@@ -1634,7 +1625,7 @@ CompositorBridgeParent::GetAPZCTreeManager(uint64_t aLayersId)
 static void
 InsertVsyncProfilerMarker(TimeStamp aVsyncTimestamp)
 {
-#ifdef MOZ_ENABLE_PROFILER_SPS
+#ifdef MOZ_GECKO_PROFILER
   MOZ_ASSERT(CompositorThreadHolder::IsInCompositorThread());
   VsyncPayload* payload = new VsyncPayload(aVsyncTimestamp);
   PROFILER_MARKER_PAYLOAD("VsyncTimestamp", payload);
@@ -1824,9 +1815,9 @@ CompositorBridgeParent::ResetCompositorTask(const nsTArray<LayersBackend>& aBack
       Unused << cpcp->SendCompositorUpdated(layersId, newIdentifier.value(), aSeqNo);
 
       if (LayerTransactionParent* ltp = lts->mLayerTree) {
-        ltp->AddPendingCompositorUpdate();
+        ltp->SetPendingCompositorUpdate(aSeqNo);
       }
-      lts->mPendingCompositorUpdates++;
+      lts->mPendingCompositorUpdate = Some(aSeqNo);
     }
   });
 }

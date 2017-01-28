@@ -1483,6 +1483,10 @@ ReloadPrefsCallback(const char* pref, void* data)
     }
 #endif // JS_GC_ZEAL
 
+#ifdef FUZZING
+    bool fuzzingEnabled = Preferences::GetBool("fuzzing.enabled");
+#endif
+
     JS::ContextOptionsRef(cx).setBaseline(useBaseline)
                              .setIon(useIon)
                              .setAsmJS(useAsmJS)
@@ -1494,6 +1498,9 @@ ReloadPrefsCallback(const char* pref, void* data)
                              .setThrowOnDebuggeeWouldRun(throwOnDebuggeeWouldRun)
                              .setDumpStackOnDebuggeeWouldRun(dumpStackOnDebuggeeWouldRun)
                              .setWerror(werror)
+#ifdef FUZZING
+                             .setFuzzing(fuzzingEnabled)
+#endif
                              .setExtraWarnings(extraWarnings);
 
     JS_SetParallelParsingEnabled(cx, parallelParsing);
@@ -1560,9 +1567,9 @@ XPCJSContext::~XPCJSContext()
     delete mDyingWrappedNativeProtoMap;
     mDyingWrappedNativeProtoMap = nullptr;
 
-#ifdef MOZ_ENABLE_PROFILER_SPS
+#ifdef MOZ_GECKO_PROFILER
     // Tell the profiler that the context is gone
-    if (PseudoStack* stack = mozilla_get_pseudo_stack())
+    if (PseudoStack* stack = profiler_get_pseudo_stack())
         stack->sampleContext(nullptr);
 #endif
 
@@ -3422,8 +3429,8 @@ XPCJSContext::Initialize()
     JS_AddWeakPointerCompartmentCallback(cx, WeakPointerCompartmentCallback, this);
     JS_SetWrapObjectCallbacks(cx, &WrapObjectCallbacks);
     js::SetPreserveWrapperCallback(cx, PreserveWrapper);
-#ifdef MOZ_ENABLE_PROFILER_SPS
-    if (PseudoStack* stack = mozilla_get_pseudo_stack())
+#ifdef MOZ_GECKO_PROFILER
+    if (PseudoStack* stack = profiler_get_pseudo_stack())
         stack->sampleContext(cx);
 #endif
     JS_SetAccumulateTelemetryCallback(cx, AccumulateTelemetryCallback);

@@ -244,12 +244,7 @@ var LoginManagerContent = {
       case "RemoteLogins:loginsAutoCompleted": {
         let loginsFound =
           LoginHelper.vanillaObjectsToLogins(msg.data.logins);
-        // If we're in the parent process, don't pass a message manager so our
-        // autocomplete result objects know they can remove the login from the
-        // login manager directly.
-        let messageManager =
-          (Services.appinfo.processType === Services.appinfo.PROCESS_TYPE_CONTENT) ?
-            msg.target : undefined;
+        let messageManager = msg.target;
         request.promise.resolve({ logins: loginsFound, messageManager });
         break;
       }
@@ -297,9 +292,6 @@ var LoginManagerContent = {
 
     let messageManager = messageManagerFromWindow(win);
 
-    let remote = (Services.appinfo.processType ===
-                  Services.appinfo.PROCESS_TYPE_CONTENT);
-
     let previousResult = aPreviousResult ?
                            { searchString: aPreviousResult.searchString,
                              logins: LoginHelper.loginsToVanillaObjects(aPreviousResult.logins) } :
@@ -313,7 +305,7 @@ var LoginManagerContent = {
                         rect: aRect,
                         isSecure: InsecurePasswordUtils.isFormSecure(form),
                         isPasswordField: aElement.type == "password",
-                        remote };
+                      };
 
     return this._sendRequest(messageManager, requestData,
                              "RemoteLogins:autoCompleteLogins",
@@ -394,11 +386,10 @@ var LoginManagerContent = {
       log("Arming the DeferredTask we just created since document.readyState == 'complete'");
       deferredTask.arm();
     } else {
-      window.addEventListener("DOMContentLoaded", function armPasswordAddedTask() {
-        window.removeEventListener("DOMContentLoaded", armPasswordAddedTask);
+      window.addEventListener("DOMContentLoaded", function() {
         log("Arming the onDOMInputPasswordAdded DeferredTask due to DOMContentLoaded");
         deferredTask.arm();
-      });
+      }, {once: true});
     }
   },
 

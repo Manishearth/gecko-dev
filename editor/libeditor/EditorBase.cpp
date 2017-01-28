@@ -2909,15 +2909,13 @@ EditorBase::JoinNodesImpl(nsINode* aNodeToKeep,
 
   // OK, ready to do join now.
   // If it's a text node, just shuffle around some text.
-  nsCOMPtr<nsIDOMCharacterData> keepNodeAsText( do_QueryInterface(aNodeToKeep) );
-  nsCOMPtr<nsIDOMCharacterData> joinNodeAsText( do_QueryInterface(aNodeToJoin) );
-  if (keepNodeAsText && joinNodeAsText) {
+  if (IsTextNode(aNodeToKeep) && IsTextNode(aNodeToJoin)) {
     nsAutoString rightText;
     nsAutoString leftText;
-    keepNodeAsText->GetData(rightText);
-    joinNodeAsText->GetData(leftText);
+    aNodeToKeep->GetAsText()->GetData(rightText);
+    aNodeToJoin->GetAsText()->GetData(leftText);
     leftText += rightText;
-    keepNodeAsText->SetData(leftText);
+    aNodeToKeep->GetAsText()->SetData(leftText);
   } else {
     // Otherwise it's an interior node, so shuffle around the children.
     nsCOMPtr<nsINodeList> childNodes = aNodeToJoin->ChildNodes();
@@ -4267,34 +4265,22 @@ EditorBase::CreateTxnForComposition(const nsAString& aStringToInsert)
   return transaction.forget();
 }
 
-NS_IMETHODIMP
-EditorBase::CreateTxnForAddStyleSheet(StyleSheet* aSheet,
-                                      AddStyleSheetTransaction** aTransaction)
+already_AddRefed<AddStyleSheetTransaction>
+EditorBase::CreateTxnForAddStyleSheet(StyleSheet* aSheet)
 {
-  RefPtr<AddStyleSheetTransaction> transaction = new AddStyleSheetTransaction();
+  RefPtr<AddStyleSheetTransaction> transaction =
+    new AddStyleSheetTransaction(*this, aSheet);
 
-  nsresult rv = transaction->Init(this, aSheet);
-  if (NS_SUCCEEDED(rv)) {
-    transaction.forget(aTransaction);
-  }
-
-  return rv;
+  return transaction.forget();
 }
 
-NS_IMETHODIMP
-EditorBase::CreateTxnForRemoveStyleSheet(
-              StyleSheet* aSheet,
-              RemoveStyleSheetTransaction** aTransaction)
+already_AddRefed<RemoveStyleSheetTransaction>
+EditorBase::CreateTxnForRemoveStyleSheet(StyleSheet* aSheet)
 {
   RefPtr<RemoveStyleSheetTransaction> transaction =
-    new RemoveStyleSheetTransaction();
+    new RemoveStyleSheetTransaction(*this, aSheet);
 
-  nsresult rv = transaction->Init(this, aSheet);
-  if (NS_SUCCEEDED(rv)) {
-    transaction.forget(aTransaction);
-  }
-
-  return rv;
+  return transaction.forget();
 }
 
 nsresult
