@@ -57,7 +57,7 @@ use dom::window::{ReflowReason, Window};
 use dom::worker::TrustedWorkerAddress;
 use euclid::Rect;
 use euclid::point::Point2D;
-use hyper::header::{ContentType, HttpDate, LastModified};
+use hyper::header::{ContentType, HttpDate, LastModified, Headers};
 use hyper::header::ReferrerPolicy as ReferrerPolicyHeader;
 use hyper::mime::{Mime, SubLevel, TopLevel};
 use hyper_serde::Serde;
@@ -83,7 +83,8 @@ use profile_traits::time::{self, ProfilerCategory, profile};
 use script_layout_interface::message::{self, NewLayoutThreadInfo, ReflowQueryType};
 use script_runtime::{CommonScriptMsg, ScriptChan, ScriptThreadEventCategory, EnqueuedPromiseCallback};
 use script_runtime::{ScriptPort, StackRootTLS, get_reports, new_rt_and_cx, PromiseJobQueue};
-use script_traits::{CompositorEvent, ConstellationControlMsg, DiscardBrowsingContext, EventResult};
+use script_traits::{CompositorEvent, ConstellationControlMsg};
+use script_traits::{DocumentActivity, DiscardBrowsingContext, EventResult};
 use script_traits::{InitialScriptState, LayoutMsg, LoadData, MouseButton, MouseEventType, MozBrowserEvent};
 use script_traits::{NewLayoutInfo, ScriptMsg as ConstellationMsg};
 use script_traits::{ScriptThreadFactory, TimerEvent, TimerEventRequest, TimerSource};
@@ -97,6 +98,7 @@ use servo_config::opts;
 use servo_url::ServoUrl;
 use std::cell::Cell;
 use std::collections::{hash_map, HashMap, HashSet};
+use std::ops::Deref;
 use std::option::Option;
 use std::ptr;
 use std::rc::Rc;
@@ -147,10 +149,8 @@ struct InProgressLoad {
     window_size: Option<WindowSizeData>,
     /// Channel to the layout thread associated with this pipeline.
     layout_chan: Sender<message::Msg>,
-    /// The current viewport clipping rectangle applying to this pipeline, if any.
-    clip_rect: Option<Rect<f32>>,
-    /// Window is frozen (navigated away while loading for example).
-    is_frozen: bool,
+    /// The activity level of the document (inactive, active or fully active).
+    activity: DocumentActivity,
     /// Window is visible.
     is_visible: bool,
     /// The requested URL of the load.
@@ -173,8 +173,7 @@ impl InProgressLoad {
             parent_info: parent_info,
             layout_chan: layout_chan,
             window_size: window_size,
-            clip_rect: None,
-            is_frozen: false,
+            activity: DocumentActivity::FullyActive,
             is_visible: true,
             url: url,
             origin: origin,
@@ -965,10 +964,8 @@ impl ScriptThread {
                 self.handle_resize_inactive_msg(id, new_size),
             ConstellationControlMsg::GetTitle(pipeline_id) =>
                 self.handle_get_title_msg(pipeline_id),
-            ConstellationControlMsg::Freeze(pipeline_id) =>
-                self.handle_freeze_msg(pipeline_id),
-            ConstellationControlMsg::Thaw(pipeline_id) =>
-                self.handle_thaw_msg(pipeline_id),
+            ConstellationControlMsg::SetDocumentActivity(pipeline_id, activity) =>
+                self.handle_set_document_activity_msg(pipeline_id, activity),
             ConstellationControlMsg::ChangeFrameVisibilityStatus(pipeline_id, visible) =>
                 self.handle_visibility_change_msg(pipeline_id, visible),
             ConstellationControlMsg::NotifyVisibilityChange(parent_pipeline_id, frame_id, visible) =>
@@ -1166,9 +1163,8 @@ impl ScriptThread {
             }
             return;
         }
-        let mut loads = self.incomplete_loads.borrow_mut();
-        if let Some(ref mut load) = loads.iter_mut().find(|load| load.pipeline_id == id) {
-            load.clip_rect = Some(rect);
+        let loads = self.incomplete_loads.borrow();
+        if loads.iter().any(|load| load.pipeline_id == id) {
             return;
         }
         warn!("Page rect message sent to nonexistent pipeline");
@@ -1274,21 +1270,6 @@ impl ScriptThread {
         reports_chan.send(reports);
     }
 
-    /// To slow/speed up timers and manage any other script thread resource based on visibility.
-    /// Returns true if successful.
-    fn alter_resource_utilization(&self, id: PipelineId, visible: bool) -> bool {
-        let window = self.documents.borrow().find_window(id);
-        if let Some(window) = window {
-            if visible {
-                window.upcast::<GlobalScope>().speed_up_timers();
-            } else {
-                window.upcast::<GlobalScope>().slow_down_timers();
-            }
-            return true;
-        }
-        false
-    }
-
     /// Updates iframe element after a change in visibility
     fn handle_visibility_change_complete_msg(&self, parent_pipeline_id: PipelineId, id: FrameId, visible: bool) {
         let iframe = self.documents.borrow().find_iframe(parent_pipeline_id, id);
@@ -1299,56 +1280,42 @@ impl ScriptThread {
 
     /// Handle visibility change message
     fn handle_visibility_change_msg(&self, id: PipelineId, visible: bool) {
-        let resources_altered = self.alter_resource_utilization(id, visible);
-
         // Separate message sent since parent script thread could be different (Iframe of different
         // domain)
         self.constellation_chan.send(ConstellationMsg::VisibilityChangeComplete(id, visible)).unwrap();
 
-        if !resources_altered {
-            let mut loads = self.incomplete_loads.borrow_mut();
-            if let Some(ref mut load) = loads.iter_mut().find(|load| load.pipeline_id == id) {
-                load.is_visible = visible;
+        let window = self.documents.borrow().find_window(id);
+        match window {
+            Some(window) => {
+                window.alter_resource_utilization(visible);
                 return;
             }
-        } else {
-            return;
+            None => {
+                let mut loads = self.incomplete_loads.borrow_mut();
+                if let Some(ref mut load) = loads.iter_mut().find(|load| load.pipeline_id == id) {
+                    load.is_visible = visible;
+                    return;
+                }
+            }
         }
 
         warn!("change visibility message sent to nonexistent pipeline");
     }
 
-    /// Handles freeze message
-    fn handle_freeze_msg(&self, id: PipelineId) {
+    /// Handles activity change message
+    fn handle_set_document_activity_msg(&self, id: PipelineId, activity: DocumentActivity) {
+        debug!("Setting activity of {} to be {:?}.", id, activity);
         let document = self.documents.borrow().find_document(id);
         if let Some(document) = document {
-            document.window().freeze();
-            document.fully_deactivate();
+            document.set_activity(activity);
             return;
         }
         let mut loads = self.incomplete_loads.borrow_mut();
         if let Some(ref mut load) = loads.iter_mut().find(|load| load.pipeline_id == id) {
-            load.is_frozen = true;
+            load.activity = activity;
             return;
         }
-        warn!("freeze sent to nonexistent pipeline");
-    }
-
-    /// Handles thaw message
-    fn handle_thaw_msg(&self, id: PipelineId) {
-        let document = self.documents.borrow().find_document(id);
-        if let Some(document) = document {
-            self.rebuild_and_force_reflow(&document, ReflowReason::CachedPageNeededReflow);
-            document.window().thaw();
-            document.fully_activate();
-            return;
-        }
-        let mut loads = self.incomplete_loads.borrow_mut();
-        if let Some(ref mut load) = loads.iter_mut().find(|load| load.pipeline_id == id) {
-            load.is_frozen = false;
-            return;
-        }
-        warn!("thaw sent to nonexistent pipeline");
+        warn!("change of activity sent to nonexistent pipeline");
     }
 
     fn handle_focus_iframe_msg(&self,
@@ -1761,28 +1728,11 @@ impl ScriptThread {
             None => None,
         };
 
-        let referrer_policy = if let Some(headers) = metadata.headers {
-            headers.get::<ReferrerPolicyHeader>().map(|h| match *h {
-                ReferrerPolicyHeader::NoReferrer =>
-                    ReferrerPolicy::NoReferrer,
-                ReferrerPolicyHeader::NoReferrerWhenDowngrade =>
-                    ReferrerPolicy::NoReferrerWhenDowngrade,
-                ReferrerPolicyHeader::SameOrigin =>
-                    ReferrerPolicy::SameOrigin,
-                ReferrerPolicyHeader::Origin =>
-                    ReferrerPolicy::Origin,
-                ReferrerPolicyHeader::OriginWhenCrossOrigin =>
-                    ReferrerPolicy::OriginWhenCrossOrigin,
-                ReferrerPolicyHeader::UnsafeUrl =>
-                    ReferrerPolicy::UnsafeUrl,
-                ReferrerPolicyHeader::StrictOrigin =>
-                    ReferrerPolicy::StrictOrigin,
-                ReferrerPolicyHeader::StrictOriginWhenCrossOrigin =>
-                    ReferrerPolicy::StrictOriginWhenCrossOrigin,
-            })
-        } else {
-            None
-        };
+        let referrer_policy = metadata.headers
+                                      .as_ref()
+                                      .map(Serde::deref)
+                                      .and_then(Headers::get::<ReferrerPolicyHeader>)
+                                      .map(ReferrerPolicy::from);
 
         let document = Document::new(&window,
                                      Some(&browsing_context),
@@ -1791,15 +1741,12 @@ impl ScriptThread {
                                      is_html_document,
                                      content_type,
                                      last_modified,
+                                     incomplete.activity,
                                      DocumentSource::FromParser,
                                      loader,
                                      referrer,
                                      referrer_policy);
         document.set_ready_state(DocumentReadyState::Loading);
-
-        if !incomplete.is_frozen {
-            document.fully_activate();
-        }
 
         self.documents.borrow_mut().insert(incomplete.pipeline_id, &*document);
 
@@ -1849,25 +1796,17 @@ impl ScriptThread {
         document.set_https_state(metadata.https_state);
 
         if is_html_document == IsHTMLDocument::NonHTMLDocument {
-            ServoParser::parse_xml_document(
-                &document,
-                parse_input,
-                final_url,
-                Some(incomplete.pipeline_id));
+            ServoParser::parse_xml_document(&document, parse_input, final_url);
         } else {
-            ServoParser::parse_html_document(
-                &document,
-                parse_input,
-                final_url,
-                Some(incomplete.pipeline_id));
+            ServoParser::parse_html_document(&document, parse_input, final_url);
         }
 
-        if incomplete.is_frozen {
-            window.upcast::<GlobalScope>().suspend();
+        if incomplete.activity != DocumentActivity::FullyActive {
+            window.suspend();
         }
 
         if !incomplete.is_visible {
-            self.alter_resource_utilization(incomplete.pipeline_id, false);
+            window.alter_resource_utilization(false);
         }
 
         document.get_current_parser().unwrap()

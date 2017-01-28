@@ -58,6 +58,7 @@ use net_traits::CoreResourceMsg::Fetch;
 use net_traits::request::{CredentialsMode, Destination, RequestInit, RequestMode};
 use net_traits::trim_http_whitespace;
 use network_listener::{NetworkListener, PreInvoke};
+use script_traits::DocumentActivity;
 use servo_atoms::Atom;
 use servo_config::prefs::PREFS;
 use servo_url::ServoUrl;
@@ -1181,7 +1182,7 @@ impl XMLHttpRequest {
         self.response_json.get()
     }
 
-    fn document_text_html(&self) -> Root<Document>{
+    fn document_text_html(&self) -> Root<Document> {
         let charset = self.final_charset().unwrap_or(UTF_8);
         let wr = self.global();
         let decoded = charset.decode(&self.response.borrow(), DecoderTrap::Replace).unwrap();
@@ -1190,8 +1191,7 @@ impl XMLHttpRequest {
         ServoParser::parse_html_document(
             &document,
             DOMString::from(decoded),
-            wr.get_url(),
-            Some(wr.pipeline_id()));
+            wr.get_url());
         document
     }
 
@@ -1204,8 +1204,7 @@ impl XMLHttpRequest {
         ServoParser::parse_xml_document(
             &document,
             DOMString::from(decoded),
-            wr.get_url(),
-            Some(wr.pipeline_id()));
+            wr.get_url());
         document
     }
 
@@ -1230,6 +1229,7 @@ impl XMLHttpRequest {
                       is_html_document,
                       content_type,
                       None,
+                      DocumentActivity::Inactive,
                       DocumentSource::FromParser,
                       docloader,
                       None,

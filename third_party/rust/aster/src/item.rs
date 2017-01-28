@@ -5,8 +5,8 @@ use std::iter::IntoIterator;
 use syntax::abi::Abi;
 use syntax::ast;
 use syntax::codemap::{DUMMY_SP, Span, respan};
-use syntax::parse::token::keywords;
 use syntax::ptr::P;
+use syntax::symbol::keywords;
 
 use attr::AttrBuilder;
 use block::BlockBuilder;
@@ -19,6 +19,7 @@ use mac::MacBuilder;
 use method::MethodSigBuilder;
 use path::PathBuilder;
 use struct_field::StructFieldBuilder;
+use symbol::ToSymbol;
 use ty::TyBuilder;
 use ty_param::TyParamBoundBuilder;
 use variant::VariantBuilder;
@@ -109,6 +110,19 @@ impl<F> ItemBuilder<F>
             span: span,
             id: id,
         })
+    }
+
+    pub fn mod_<T>(self, id: T) -> ItemModBuilder<F>
+        where T: ToIdent,
+    {
+        ItemModBuilder {
+            ident: id.to_ident(),
+            vis: self.vis.clone(),
+            attrs: vec![],
+            span: self.span,
+            items: vec![],
+            builder: self,
+        }
     }
 
     pub fn build_use(self, view_path: ast::ViewPath_) -> F::Result {
@@ -730,8 +744,10 @@ pub struct ItemExternCrateBuilder<F> {
 impl<F> ItemExternCrateBuilder<F>
     where F: Invoke<P<ast::Item>>,
 {
-    pub fn with_name(self, name: ast::Name) -> F::Result {
-        let extern_ = ast::ItemKind::ExternCrate(Some(name));
+    pub fn with_name<N>(self, name: N) -> F::Result
+        where N: ToSymbol
+    {
+        let extern_ = ast::ItemKind::ExternCrate(Some(name.to_symbol()));
         self.builder.build_item_kind(self.id, extern_)
     }
 
@@ -1323,7 +1339,7 @@ impl<F> ItemImplItemBuilder<F>
         self.span = span;
         self
     }
-
+    
     pub fn with_attrs<I>(mut self, iter: I) -> Self
         where I: IntoIterator<Item=ast::Attribute>,
     {
@@ -1486,5 +1502,50 @@ impl<F> Invoke<Const> for ItemConstBuilder<F>
     fn invoke(self, const_: Const) -> F::Result {
         let ty = ast::ItemKind::Const(const_.ty, const_.expr.expect("an expr is required for a const item"));
         self.builder.build_item_kind(self.id, ty)
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+pub struct ItemModBuilder<F> {
+    builder: ItemBuilder<F>,
+    ident: ast::Ident,
+    vis: ast::Visibility,
+    attrs: Vec<ast::Attribute>,
+    span: Span,
+    items: Vec<P<ast::Item>>,
+}
+
+impl<F> ItemModBuilder<F>
+{
+    pub fn item(self) -> ItemBuilder<Self> {
+        ItemBuilder::with_callback(self)
+    }
+
+    pub fn build(self) -> F::Result
+        where F: Invoke<P<ast::Item>>,
+    {
+        let item = ast::Item {
+            ident: self.ident,
+            attrs: self.attrs,
+            id: ast::DUMMY_NODE_ID,
+            vis: self.vis,
+            span: self.span,
+            node: ast::ItemKind::Mod(ast::Mod {
+                inner: DUMMY_SP,
+                items: self.items
+            }),
+        };
+
+        self.builder.callback.invoke(P(item))
+    }
+}
+
+impl<F> Invoke<P<ast::Item>> for ItemModBuilder<F> {
+    type Result = Self;
+    
+    fn invoke(mut self, item: P<ast::Item>) -> Self {
+        self.items.push(item);
+        self
     }
 }

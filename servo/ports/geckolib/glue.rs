@@ -39,6 +39,7 @@ use style::gecko_bindings::bindings::RawGeckoAnimationValueListBorrowedMut;
 use style::gecko_bindings::bindings::RawGeckoElementBorrowed;
 use style::gecko_bindings::bindings::RawGeckoPresContextBorrowed;
 use style::gecko_bindings::bindings::RawServoAnimationValueBorrowed;
+use style::gecko_bindings::bindings::RawServoAnimationValueStrong;
 use style::gecko_bindings::bindings::RawServoImportRuleBorrowed;
 use style::gecko_bindings::bindings::ServoComputedValuesBorrowedOrNull;
 use style::gecko_bindings::bindings::nsTArrayBorrowed_uintptr_t;
@@ -48,6 +49,7 @@ use style::gecko_bindings::structs::{ThreadSafePrincipalHolder, ThreadSafeURIHol
 use style::gecko_bindings::structs::{nsRestyleHint, nsChangeHint};
 use style::gecko_bindings::structs::Loader;
 use style::gecko_bindings::structs::RawGeckoPresContextOwned;
+use style::gecko_bindings::structs::RawServoAnimationValueBorrowedListBorrowed;
 use style::gecko_bindings::structs::ServoStyleSheet;
 use style::gecko_bindings::structs::nsresult;
 use style::gecko_bindings::sugar::ownership::{FFIArcHelpers, HasArcFFI, HasBoxFFI};
@@ -58,7 +60,7 @@ use style::parser::{ParserContext, ParserContextExtraData};
 use style::properties::{CascadeFlags, ComputedValues, Importance, PropertyDeclaration};
 use style::properties::{PropertyDeclarationParseResult, PropertyDeclarationBlock, PropertyId};
 use style::properties::{apply_declarations, parse_one_declaration};
-use style::properties::animated_properties::AnimationValue;
+use style::properties::animated_properties::{AnimationValue, Interpolate};
 use style::restyle_hints::RestyleHint;
 use style::selector_parser::PseudoElementCascadeType;
 use style::sequential;
@@ -68,7 +70,7 @@ use style::stylesheets::StylesheetLoader as StyleStylesheetLoader;
 use style::supports::parse_condition_or_declaration;
 use style::thread_state;
 use style::timer::Timer;
-use style::traversal::{resolve_style, DomTraversal};
+use style::traversal::{resolve_style, DomTraversal, TraversalDriver};
 use style_traits::ToCss;
 use stylesheet_loader::StylesheetLoader;
 
@@ -139,14 +141,19 @@ fn traverse_subtree(element: GeckoElement, raw_data: RawServoStyleSetBorrowed,
     debug!("{:?}", ShowSubtreeData(element.as_node()));
 
     let shared_style_context = create_shared_context(&per_doc_data);
-    let traversal = RecalcStyleOnly::new(shared_style_context);
-    let known_depth = None;
-
-    if per_doc_data.num_threads == 1 || per_doc_data.work_queue.is_none() {
-        sequential::traverse_dom(&traversal, element, token);
+    let traversal_driver = if per_doc_data.num_threads == 1 || per_doc_data.work_queue.is_none() {
+        TraversalDriver::Sequential
     } else {
+        TraversalDriver::Parallel
+    };
+
+    let traversal = RecalcStyleOnly::new(shared_style_context, traversal_driver);
+    let known_depth = None;
+    if traversal_driver.is_parallel() {
         parallel::traverse_dom(&traversal, element, known_depth, token,
                                per_doc_data.work_queue.as_mut().unwrap());
+    } else {
+        sequential::traverse_dom(&traversal, element, token);
     }
 }
 
@@ -158,6 +165,40 @@ pub extern "C" fn Servo_TraverseSubtree(root: RawGeckoElementBorrowed,
     debug!("Servo_TraverseSubtree: {:?}", element);
     traverse_subtree(element, raw_data,
                      behavior == structs::TraversalRootBehavior::UnstyledChildrenOnly);
+}
+
+#[no_mangle]
+pub extern "C" fn Servo_AnimationValues_Interpolate(from: RawServoAnimationValueBorrowed,
+                                                    to: RawServoAnimationValueBorrowed,
+                                                    progress: f64)
+     -> RawServoAnimationValueStrong
+{
+    let from_value = AnimationValue::as_arc(&from);
+    let to_value = AnimationValue::as_arc(&to);
+    if let Ok(value) = from_value.interpolate(to_value, progress) {
+        Arc::new(value).into_strong()
+    } else {
+        RawServoAnimationValueStrong::null()
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn Servo_AnimationValues_Uncompute(value: RawServoAnimationValueBorrowedListBorrowed)
+     -> RawServoDeclarationBlockStrong
+{
+    let value = unsafe { value.as_ref().unwrap() };
+    let uncomputed_values = value.into_iter()
+                                 .map(|v| {
+                                     let raw_anim = unsafe { v.as_ref().unwrap() };
+                                     let anim = AnimationValue::as_arc(&raw_anim);
+                                     (anim.uncompute(), Importance::Normal)
+                                 })
+                                 .collect();
+
+    Arc::new(RwLock::new(PropertyDeclarationBlock {
+        declarations: uncomputed_values,
+        important_count: 0,
+    })).into_strong()
 }
 
 /// Takes a ServoAnimationValues and populates it with the animation values corresponding

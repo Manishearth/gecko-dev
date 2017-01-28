@@ -5220,6 +5220,18 @@
             "url": "/_mozilla/css/table_intrinsic_style_specified_width_a.html"
           }
         ],
+        "css/table_margin_a.html": [
+          {
+            "path": "css/table_margin_a.html",
+            "references": [
+              [
+                "/_mozilla/css/table_margin_ref.html",
+                "=="
+              ]
+            ],
+            "url": "/_mozilla/css/table_margin_a.html"
+          }
+        ],
         "css/table_margin_auto_a.html": [
           {
             "path": "css/table_margin_auto_a.html",
@@ -6462,6 +6474,42 @@
             "url": "/_mozilla/mozilla/iframe/resize_after_load.html"
           }
         ],
+        "mozilla/remove_link_styles.html": [
+          {
+            "path": "mozilla/remove_link_styles.html",
+            "references": [
+              [
+                "/_mozilla/mozilla/remove_link_styles_ref.html",
+                "=="
+              ]
+            ],
+            "url": "/_mozilla/mozilla/remove_link_styles.html"
+          }
+        ],
+        "mozilla/remove_style_styles.html": [
+          {
+            "path": "mozilla/remove_style_styles.html",
+            "references": [
+              [
+                "/_mozilla/mozilla/remove_style_styles_ref.html",
+                "=="
+              ]
+            ],
+            "url": "/_mozilla/mozilla/remove_style_styles.html"
+          }
+        ],
+        "mozilla/reparse_style_elements.html": [
+          {
+            "path": "mozilla/reparse_style_elements.html",
+            "references": [
+              [
+                "/_mozilla/mozilla/reparse_style_elements_ref.html",
+                "=="
+              ]
+            ],
+            "url": "/_mozilla/mozilla/reparse_style_elements.html"
+          }
+        ],
         "mozilla/restyle-out-of-document.html": [
           {
             "path": "mozilla/restyle-out-of-document.html",
@@ -6738,6 +6786,12 @@
           {
             "path": "css/offset_properties_inline.html",
             "url": "/_mozilla/css/offset_properties_inline.html"
+          }
+        ],
+        "css/test_font_family_parsing.html": [
+          {
+            "path": "css/test_font_family_parsing.html",
+            "url": "/_mozilla/css/test_font_family_parsing.html"
           }
         ],
         "css/test_variable_legal_values.html": [
@@ -7458,6 +7512,12 @@
           {
             "path": "mozilla/bluetooth/idl-BluetoothUUID.html",
             "url": "/_mozilla/mozilla/bluetooth/idl-BluetoothUUID.html"
+          }
+        ],
+        "mozilla/bluetooth/interfaces.html": [
+          {
+            "path": "mozilla/bluetooth/interfaces.html",
+            "url": "/_mozilla/mozilla/bluetooth/interfaces.html"
           }
         ],
         "mozilla/bluetooth/readValue/characteristic/blocklisted-characteristic.html": [
@@ -8748,6 +8808,18 @@
           {
             "path": "mozilla/node_replaceChild.html",
             "url": "/_mozilla/mozilla/node_replaceChild.html"
+          }
+        ],
+        "mozilla/out-of-order-stylesheet-loads-and-imports.html": [
+          {
+            "path": "mozilla/out-of-order-stylesheet-loads-and-imports.html",
+            "url": "/_mozilla/mozilla/out-of-order-stylesheet-loads-and-imports.html"
+          }
+        ],
+        "mozilla/out-of-order-stylesheet-loads.html": [
+          {
+            "path": "mozilla/out-of-order-stylesheet-loads.html",
+            "url": "/_mozilla/mozilla/out-of-order-stylesheet-loads.html"
           }
         ],
         "mozilla/parentNode_querySelector.html": [
@@ -20586,6 +20658,18 @@
           "url": "/_mozilla/css/table_intrinsic_style_specified_width_a.html"
         }
       ],
+      "css/table_margin_a.html": [
+        {
+          "path": "css/table_margin_a.html",
+          "references": [
+            [
+              "/_mozilla/css/table_margin_ref.html",
+              "=="
+            ]
+          ],
+          "url": "/_mozilla/css/table_margin_a.html"
+        }
+      ],
       "css/table_margin_auto_a.html": [
         {
           "path": "css/table_margin_auto_a.html",
@@ -21838,6 +21922,42 @@
             ]
           ],
           "url": "/_mozilla/mozilla/iframe/resize_after_load.html"
+        }
+      ],
+      "mozilla/remove_link_styles.html": [
+        {
+          "path": "mozilla/remove_link_styles.html",
+          "references": [
+            [
+              "/_mozilla/mozilla/remove_link_styles_ref.html",
+              "=="
+            ]
+          ],
+          "url": "/_mozilla/mozilla/remove_link_styles.html"
+        }
+      ],
+      "mozilla/remove_style_styles.html": [
+        {
+          "path": "mozilla/remove_style_styles.html",
+          "references": [
+            [
+              "/_mozilla/mozilla/remove_style_styles_ref.html",
+              "=="
+            ]
+          ],
+          "url": "/_mozilla/mozilla/remove_style_styles.html"
+        }
+      ],
+      "mozilla/reparse_style_elements.html": [
+        {
+          "path": "mozilla/reparse_style_elements.html",
+          "references": [
+            [
+              "/_mozilla/mozilla/reparse_style_elements_ref.html",
+              "=="
+            ]
+          ],
+          "url": "/_mozilla/mozilla/reparse_style_elements.html"
         }
       ],
       "mozilla/restyle-out-of-document.html": [

@@ -150,6 +150,8 @@ use gecko_bindings::structs::nscoord;
 use gecko_bindings::structs::nsresult;
 use gecko_bindings::structs::Loader;
 use gecko_bindings::structs::ServoStyleSheet;
+use gecko_bindings::structs::EffectCompositor_CascadeLevel;
+use gecko_bindings::structs::RawServoAnimationValueBorrowedListBorrowed;
 pub type nsTArrayBorrowed_uintptr_t<'a> = &'a mut ::gecko_bindings::structs::nsTArray<usize>;
 pub type ServoComputedValuesStrong = ::gecko_bindings::sugar::ownership::Strong<ServoComputedValues>;
 pub type ServoComputedValuesBorrowed<'a> = &'a ServoComputedValues;
@@ -497,6 +499,13 @@ extern "C" {
 extern "C" {
     pub fn Gecko_GetServoDeclarationBlock(element: RawGeckoElementBorrowed)
      -> RawServoDeclarationBlockStrongBorrowedOrNull;
+}
+extern "C" {
+    pub fn Gecko_GetAnimationRule(aElement: RawGeckoElementBorrowed,
+                                  aPseudoTag: *mut nsIAtom,
+                                  aCascadeLevel:
+                                      EffectCompositor_CascadeLevel)
+     -> RawServoDeclarationBlockStrong;
 }
 extern "C" {
     pub fn Gecko_Atomize(aString: *const ::std::os::raw::c_char, aLength: u32)
@@ -1226,6 +1235,19 @@ extern "C" {
                                           arg4:
                                               ServoComputedValuesBorrowedOrNull,
                                           arg5: RawGeckoPresContextBorrowed);
+}
+extern "C" {
+    pub fn Servo_AnimationValues_Interpolate(from:
+                                                 RawServoAnimationValueBorrowed,
+                                             to:
+                                                 RawServoAnimationValueBorrowed,
+                                             progress: f64)
+     -> RawServoAnimationValueStrong;
+}
+extern "C" {
+    pub fn Servo_AnimationValues_Uncompute(value:
+                                               RawServoAnimationValueBorrowedListBorrowed)
+     -> RawServoDeclarationBlockStrong;
 }
 extern "C" {
     pub fn Servo_ParseStyleAttribute(data: *const nsACString_internal)

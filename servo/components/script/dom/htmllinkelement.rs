@@ -18,7 +18,7 @@ use dom::element::{AttributeMutation, Element, ElementCreator};
 use dom::element::{cors_setting_for_element, reflect_cross_origin_attribute, set_cross_origin_attribute};
 use dom::globalscope::GlobalScope;
 use dom::htmlelement::HTMLElement;
-use dom::node::{Node, document_from_node, window_from_node};
+use dom::node::{Node, UnbindContext, document_from_node, window_from_node};
 use dom::stylesheet::StyleSheet as DOMStyleSheet;
 use dom::virtualmethods::VirtualMethods;
 use html5ever_atoms::LocalName;
@@ -37,6 +37,15 @@ use stylesheet_loader::{StylesheetLoader, StylesheetContextSource, StylesheetOwn
 
 unsafe_no_jsmanaged_fields!(Stylesheet);
 
+#[derive(JSTraceable, PartialEq, Clone, Copy, HeapSizeOf)]
+pub struct RequestGenerationId(u32);
+
+impl RequestGenerationId {
+    fn increment(self) -> RequestGenerationId {
+        RequestGenerationId(self.0 + 1)
+    }
+}
+
 #[dom_struct]
 pub struct HTMLLinkElement {
     htmlelement: HTMLElement,
@@ -52,6 +61,8 @@ pub struct HTMLLinkElement {
     pending_loads: Cell<u32>,
     /// Whether any of the loads have failed.
     any_failed_load: Cell<bool>,
+    /// A monotonically increasing counter that keeps track of which stylesheet to apply.
+    request_generation_id: Cell<RequestGenerationId>,
 }
 
 impl HTMLLinkElement {
@@ -65,6 +76,7 @@ impl HTMLLinkElement {
             cssom_stylesheet: MutNullableJS::new(None),
             pending_loads: Cell::new(0),
             any_failed_load: Cell::new(false),
+            request_generation_id: Cell::new(RequestGenerationId(0)),
         }
     }
 
@@ -78,11 +90,14 @@ impl HTMLLinkElement {
                            HTMLLinkElementBinding::Wrap)
     }
 
-    pub fn set_stylesheet(&self, s: Arc<Stylesheet>) {
-        assert!(self.stylesheet.borrow().is_none());
-        *self.stylesheet.borrow_mut() = Some(s);
+    pub fn get_request_generation_id(&self) -> RequestGenerationId {
+        self.request_generation_id.get()
     }
 
+    pub fn set_stylesheet(&self, s: Arc<Stylesheet>) {
+        assert!(self.stylesheet.borrow().is_none()); // Useful for catching timing issues.
+        *self.stylesheet.borrow_mut() = Some(s);
+    }
 
     pub fn get_stylesheet(&self) -> Option<Arc<Stylesheet>> {
         self.stylesheet.borrow().clone()
@@ -213,6 +228,15 @@ impl VirtualMethods for HTMLLinkElement {
             }
         }
     }
+
+    fn unbind_from_tree(&self, context: &UnbindContext) {
+        if let Some(ref s) = self.super_type() {
+            s.unbind_from_tree(context);
+        }
+
+        let document = document_from_node(self);
+        document.invalidate_stylesheets();
+    }
 }
 
 
@@ -259,6 +283,8 @@ impl HTMLLinkElement {
             Some(ref value) => &***value,
             None => "",
         };
+
+        self.request_generation_id.set(self.request_generation_id.get().increment());
 
         // TODO: #8085 - Don't load external stylesheets if the node's mq
         // doesn't match.

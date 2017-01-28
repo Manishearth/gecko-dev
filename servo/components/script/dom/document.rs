@@ -41,8 +41,7 @@ use dom::documenttype::DocumentType;
 use dom::domimplementation::DOMImplementation;
 use dom::element::{Element, ElementCreator, ElementPerformFullscreenEnter, ElementPerformFullscreenExit};
 use dom::errorevent::ErrorEvent;
-use dom::event::{Event, EventBubbles, EventCancelable, EventDefault};
-use dom::eventdispatcher::EventStatus;
+use dom::event::{Event, EventBubbles, EventCancelable, EventDefault, EventStatus};
 use dom::eventtarget::EventTarget;
 use dom::focusevent::FocusEvent;
 use dom::forcetouchevent::ForceTouchEvent;
@@ -109,7 +108,8 @@ use origin::Origin;
 use script_layout_interface::message::{Msg, ReflowQueryType};
 use script_runtime::{CommonScriptMsg, ScriptThreadEventCategory};
 use script_thread::{MainThreadScriptMsg, Runnable};
-use script_traits::{AnimationState, CompositorEvent, MouseButton, MouseEventType, MozBrowserEvent};
+use script_traits::{AnimationState, CompositorEvent, DocumentActivity};
+use script_traits::{MouseButton, MouseEventType, MozBrowserEvent};
 use script_traits::{ScriptMsg as ConstellationMsg, TouchpadPressurePhase};
 use script_traits::{TouchEventType, TouchId};
 use script_traits::UntrustedNodeAddress;
@@ -192,7 +192,7 @@ pub struct Document {
     last_modified: Option<String>,
     encoding: Cell<EncodingRef>,
     is_html_document: bool,
-    is_fully_active: Cell<bool>,
+    activity: Cell<DocumentActivity>,
     url: DOMRefCell<ServoUrl>,
     quirks_mode: Cell<QuirksMode>,
     /// Caches for the getElement methods
@@ -233,7 +233,7 @@ pub struct Document {
     asap_scripts_set: DOMRefCell<Vec<JS<HTMLScriptElement>>>,
     /// https://html.spec.whatwg.org/multipage/#concept-n-noscript
     /// True if scripting is enabled for all scripts in this document
-    scripting_enabled: Cell<bool>,
+    scripting_enabled: bool,
     /// https://html.spec.whatwg.org/multipage/#animation-frame-callback-identifier
     /// Current identifier of animation frame callback
     animation_frame_ident: Cell<u32>,
@@ -388,17 +388,33 @@ impl Document {
         self.trigger_mozbrowser_event(MozBrowserEvent::SecurityChange(https_state));
     }
 
-    // https://html.spec.whatwg.org/multipage/#fully-active
     pub fn is_fully_active(&self) -> bool {
-        self.is_fully_active.get()
+        self.activity.get() == DocumentActivity::FullyActive
     }
 
-    pub fn fully_activate(&self) {
-        self.is_fully_active.set(true)
+    pub fn is_active(&self) -> bool {
+        self.activity.get() != DocumentActivity::Inactive
     }
 
-    pub fn fully_deactivate(&self) {
-        self.is_fully_active.set(false)
+    pub fn set_activity(&self, activity: DocumentActivity) {
+        // This function should only be called on documents with a browsing context
+        assert!(self.browsing_context.is_some());
+        // Set the document's activity level, reflow if necessary, and suspend or resume timers.
+        if activity != self.activity.get() {
+            self.activity.set(activity);
+            if activity == DocumentActivity::FullyActive {
+                self.title_changed();
+                self.dirty_all_nodes();
+                self.window().reflow(
+                    ReflowGoal::ForDisplay,
+                    ReflowQueryType::NoQuery,
+                    ReflowReason::CachedPageNeededReflow
+                );
+                self.window().resume();
+            } else {
+                self.window().suspend();
+            }
+        }
     }
 
     pub fn origin(&self) -> &Origin {
@@ -529,11 +545,6 @@ impl Document {
             }
         }
         self.reflow_timeout.set(Some(timeout))
-    }
-
-    /// Disables any pending reflow timeouts.
-    pub fn disarm_reflow_timeout(&self) {
-        self.reflow_timeout.set(None)
     }
 
     /// Remove any existing association between the provided id and any elements in this document.
@@ -690,7 +701,7 @@ impl Document {
 
     /// Return whether scripting is enabled or not
     pub fn is_scripting_enabled(&self) -> bool {
-        self.scripting_enabled.get()
+        self.scripting_enabled
     }
 
     /// Return the element that currently has focus.
@@ -1557,6 +1568,15 @@ impl Document {
                 self.process_deferred_scripts();
             },
             LoadType::PageSource(_) => {
+                if self.browsing_context.is_some() {
+                    // Disarm the reflow timer and trigger the initial reflow.
+                    self.reflow_timeout.set(None);
+                    self.upcast::<Node>().dirty(NodeDamage::OtherNodeDamage);
+                    self.window.reflow(ReflowGoal::ForDisplay,
+                                       ReflowQueryType::NoQuery,
+                                       ReflowReason::FirstLoad);
+                }
+
                 // Deferred scripts have to wait for page to finish loading,
                 // this is the first opportunity to process them.
 
@@ -1889,6 +1909,7 @@ impl Document {
                          is_html_document: IsHTMLDocument,
                          content_type: Option<DOMString>,
                          last_modified: Option<String>,
+                         activity: DocumentActivity,
                          source: DocumentSource,
                          doc_loader: DocumentLoader,
                          referrer: Option<String>,
@@ -1924,7 +1945,7 @@ impl Document {
             // https://dom.spec.whatwg.org/#concept-document-encoding
             encoding: Cell::new(UTF_8),
             is_html_document: is_html_document == IsHTMLDocument::HTMLDocument,
-            is_fully_active: Cell::new(false),
+            activity: Cell::new(activity),
             id_map: DOMRefCell::new(HashMap::new()),
             tag_map: DOMRefCell::new(HashMap::new()),
             tagns_map: DOMRefCell::new(HashMap::new()),
@@ -1949,7 +1970,7 @@ impl Document {
             deferred_scripts: Default::default(),
             asap_in_order_scripts_list: Default::default(),
             asap_scripts_set: Default::default(),
-            scripting_enabled: Cell::new(browsing_context.is_some()),
+            scripting_enabled: browsing_context.is_some(),
             animation_frame_ident: Cell::new(0),
             animation_frame_list: DOMRefCell::new(vec![]),
             running_animation_callbacks: Cell::new(false),
@@ -1992,6 +2013,7 @@ impl Document {
                          IsHTMLDocument::NonHTMLDocument,
                          None,
                          None,
+                         DocumentActivity::Inactive,
                          DocumentSource::NotFromParser,
                          docloader,
                          None,
@@ -2005,6 +2027,7 @@ impl Document {
                doctype: IsHTMLDocument,
                content_type: Option<DOMString>,
                last_modified: Option<String>,
+               activity: DocumentActivity,
                source: DocumentSource,
                doc_loader: DocumentLoader,
                referrer: Option<String>,
@@ -2017,6 +2040,7 @@ impl Document {
                                                                       doctype,
                                                                       content_type,
                                                                       last_modified,
+                                                                      activity,
                                                                       source,
                                                                       doc_loader,
                                                                       referrer,
@@ -2090,6 +2114,7 @@ impl Document {
                                         doctype,
                                         None,
                                         None,
+                                        DocumentActivity::Inactive,
                                         DocumentSource::NotFromParser,
                                         DocumentLoader::new(&self.loader()),
                                         None,
@@ -3246,8 +3271,7 @@ impl DocumentMethods for Document {
 
         // Step 2.
         // TODO: handle throw-on-dynamic-markup-insertion counter.
-        // FIXME: this should check for being active rather than fully active
-        if !self.is_fully_active() {
+        if !self.is_active() {
             // Step 3.
             return Ok(());
         }

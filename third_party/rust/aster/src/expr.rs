@@ -1,4 +1,4 @@
-#![cfg_attr(feature = "unstable-testing", allow(should_implement_trait))]
+#![cfg_attr(feature = "clippy", allow(should_implement_trait))]
 
 use std::iter::IntoIterator;
 
@@ -17,7 +17,7 @@ use mac::MacBuilder;
 use pat::PatBuilder;
 use path::{IntoPath, PathBuilder};
 use qpath::QPathBuilder;
-use str::ToInternedString;
+use symbol::ToSymbol;
 use ty::TyBuilder;
 
 //////////////////////////////////////////////////////////////////////////////
@@ -172,19 +172,19 @@ impl<F> ExprBuilder<F>
     }
 
     pub fn f32<S>(self, value: S) -> F::Result
-        where S: ToInternedString,
+        where S: ToSymbol,
     {
         self.lit().f32(value)
     }
 
     pub fn f64<S>(self, value: S) -> F::Result
-        where S: ToInternedString,
+        where S: ToSymbol,
     {
         self.lit().f64(value)
     }
 
     pub fn str<S>(self, value: S) -> F::Result
-        where S: ToInternedString,
+        where S: ToSymbol,
     {
         self.lit().str(value)
     }
@@ -402,14 +402,14 @@ impl<F> ExprBuilder<F>
     }
 
     pub fn break_(self) -> F::Result {
-        self.build_expr_kind(ast::ExprKind::Break(None))
+        self.build_expr_kind(ast::ExprKind::Break(None, None))
     }
 
     pub fn break_to<I>(self, label: I) -> F::Result
         where I: ToIdent,
     {
         let label = respan(self.span, label.to_ident());
-        self.build_expr_kind(ast::ExprKind::Break(Some(label)))
+        self.build_expr_kind(ast::ExprKind::Break(Some(label), None))
     }
 
     pub fn continue_(self) -> F::Result {

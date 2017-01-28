@@ -12,18 +12,15 @@
 #![plugin(plugins)]
 
 extern crate app_units;
-extern crate core;
 extern crate euclid;
 extern crate fnv;
 extern crate gfx;
 extern crate gfx_traits;
 extern crate heapsize;
-#[macro_use] extern crate heapsize_derive;
 extern crate ipc_channel;
 #[macro_use]
 extern crate layout;
 extern crate layout_traits;
-#[allow(unused_extern_crates)]
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
@@ -124,7 +121,7 @@ use style::stylesheets::{Origin, Stylesheet, UserAgentStylesheets};
 use style::stylist::Stylist;
 use style::thread_state;
 use style::timer::Timer;
-use style::traversal::DomTraversal;
+use style::traversal::{DomTraversal, TraversalDriver};
 
 /// Information needed by the layout thread.
 pub struct LayoutThread {
@@ -936,6 +933,17 @@ impl LayoutThread {
                         let origin = Rect::new(Point2D::new(Au(0), Au(0)), root_size);
                         build_state.root_stacking_context.bounds = origin;
                         build_state.root_stacking_context.overflow = origin;
+
+                        if !build_state.iframe_sizes.is_empty() {
+                            // build_state.iframe_sizes is only used here, so its okay to replace
+                            // it with an empty vector
+                            let iframe_sizes = std::mem::replace(&mut build_state.iframe_sizes, vec![]);
+                            let msg = ConstellationMsg::FrameSizes(iframe_sizes);
+                            if let Err(e) = self.constellation_chan.send(msg) {
+                                warn!("Layout resize to constellation failed ({}).", e);
+                            }
+                        }
+
                         rw_data.display_list = Some(Arc::new(build_state.to_display_list()));
                     }
                     (ReflowGoal::ForScriptQuery, false) => {}
@@ -1162,7 +1170,13 @@ impl LayoutThread {
                                                                          data.reflow_info.goal);
 
         // NB: Type inference falls apart here for some reason, so we need to be very verbose. :-(
-        let traversal = RecalcStyleAndConstructFlows::new(shared_layout_context);
+        let traversal_driver = if self.parallel_flag && self.parallel_traversal.is_some() {
+            TraversalDriver::Parallel
+        } else {
+            TraversalDriver::Sequential
+        };
+
+        let traversal = RecalcStyleAndConstructFlows::new(shared_layout_context, traversal_driver);
         let dom_depth = Some(0); // This is always the root node.
         let token = {
             let stylist = &<RecalcStyleAndConstructFlows as
@@ -1178,7 +1192,8 @@ impl LayoutThread {
                     self.time_profiler_chan.clone(),
                     || {
                 // Perform CSS selector matching and flow construction.
-                if let (true, Some(pool)) = (self.parallel_flag, self.parallel_traversal.as_mut()) {
+                if traversal_driver.is_parallel() {
+                    let pool = self.parallel_traversal.as_mut().unwrap();
                     // Parallel mode
                     parallel::traverse_dom::<ServoLayoutElement, RecalcStyleAndConstructFlows>(
                         &traversal, element, dom_depth, token, pool);

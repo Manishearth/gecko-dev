@@ -410,7 +410,9 @@ pub enum CSSWideKeyword {
 
 impl Parse for CSSWideKeyword {
     fn parse(_context: &ParserContext, input: &mut Parser) -> Result<Self, ()> {
-        match_ignore_ascii_case! { try!(input.expect_ident()),
+        let ident = input.expect_ident()?;
+        input.expect_exhausted()?;
+        match_ignore_ascii_case! { ident,
             "initial" => Ok(CSSWideKeyword::InitialKeyword),
             "inherit" => Ok(CSSWideKeyword::InheritKeyword),
             "unset" => Ok(CSSWideKeyword::UnsetKeyword),
@@ -1953,8 +1955,10 @@ pub fn apply_declarations<'a, F, I>(viewport_size: Size2D<Au>,
     let is_item = matches!(context.inherited_style.get_box().clone_display(),
         % if product == "gecko":
         computed_values::display::T::grid |
+        computed_values::display::T::inline_grid |
         % endif
-        computed_values::display::T::flex);
+        computed_values::display::T::flex |
+        computed_values::display::T::inline_flex);
     let (blockify_root, blockify_item) = match flags.contains(SKIP_ROOT_AND_ITEM_BASED_DISPLAY_FIXUP) {
         false => (is_root_element, is_item),
         true => (false, false),
@@ -2015,7 +2019,11 @@ pub fn apply_declarations<'a, F, I>(viewport_size: Size2D<Au>,
         }
     }
 
-    % if "align-items" in data.longhands_by_name:
+    // This implements an out-of-date spec. The new spec moves the handling of
+    // this to layout, which Gecko implements but Servo doesn't.
+    //
+    // See https://github.com/servo/servo/issues/15229
+    % if product == "servo" and "align-items" in data.longhands_by_name:
     {
         use computed_values::align_self::T as align_self;
         use computed_values::align_items::T as align_items;
@@ -2027,9 +2035,6 @@ pub fn apply_declarations<'a, F, I>(viewport_size: Size2D<Au>,
                     align_items::flex_start => align_self::flex_start,
                     align_items::flex_end => align_self::flex_end,
                     align_items::center => align_self::center,
-                    % if product == "gecko":
-                        align_items::normal => align_self::normal,
-                    % endif
                 };
             style.mutate_position().set_align_self(self_align);
         }

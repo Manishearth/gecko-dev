@@ -7,7 +7,14 @@ use syntax::ptr::P;
 
 use invoke::{Invoke, Identity};
 
-use str::ToInternedString;
+use symbol::ToSymbol;
+
+#[cfg(feature = "with-syntex")]
+#[allow(non_camel_case_types)]
+type umax = u64;
+#[cfg(not(feature = "with-syntex"))]
+#[allow(non_camel_case_types)]
+type umax = u128;
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -57,11 +64,11 @@ impl<F> LitBuilder<F>
     }
 
     pub fn int(self, value: u64) -> F::Result {
-        self.build_lit(ast::LitKind::Int(value, ast::LitIntType::Unsuffixed))
+        self.build_lit(ast::LitKind::Int(value as umax, ast::LitIntType::Unsuffixed))
     }
 
     fn build_int(self, value: u64, ty: ast::IntTy) -> F::Result {
-        self.build_lit(ast::LitKind::Int(value, ast::LitIntType::Signed(ty)))
+        self.build_lit(ast::LitKind::Int(value as umax, ast::LitIntType::Signed(ty)))
     }
 
     pub fn isize(self, value: usize) -> F::Result {
@@ -85,11 +92,11 @@ impl<F> LitBuilder<F>
     }
 
     pub fn uint(self, value: u64) -> F::Result {
-        self.build_lit(ast::LitKind::Int(value, ast::LitIntType::Unsuffixed))
+        self.build_lit(ast::LitKind::Int(value as umax, ast::LitIntType::Unsuffixed))
     }
 
     fn build_uint(self, value: u64, ty: ast::UintTy) -> F::Result {
-        self.build_lit(ast::LitKind::Int(value, ast::LitIntType::Unsigned(ty)))
+        self.build_lit(ast::LitKind::Int(value as umax, ast::LitIntType::Unsigned(ty)))
     }
 
     pub fn usize(self, value: usize) -> F::Result {
@@ -113,19 +120,19 @@ impl<F> LitBuilder<F>
     }
 
     fn build_float<S>(self, value: S, ty: ast::FloatTy) -> F::Result
-        where S: ToInternedString,
+        where S: ToSymbol,
     {
-        self.build_lit(ast::LitKind::Float(value.to_interned_string(), ty))
+        self.build_lit(ast::LitKind::Float(value.to_symbol(), ty))
     }
 
     pub fn f32<S>(self, value: S) -> F::Result
-        where S: ToInternedString,
+        where S: ToSymbol,
     {
         self.build_float(value, ast::FloatTy::F32)
     }
 
     pub fn f64<S>(self, value: S) -> F::Result
-        where S: ToInternedString,
+        where S: ToSymbol,
     {
         self.build_float(value, ast::FloatTy::F64)
     }
@@ -139,9 +146,9 @@ impl<F> LitBuilder<F>
     }
 
     pub fn str<S>(self, value: S) -> F::Result
-        where S: ToInternedString,
+        where S: ToSymbol,
     {
-        let value = value.to_interned_string();
+        let value = value.to_symbol();
         self.build_lit(ast::LitKind::Str(value, ast::StrStyle::Cooked))
     }
 
