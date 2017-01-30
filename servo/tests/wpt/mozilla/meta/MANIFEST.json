@@ -1580,6 +1580,18 @@
             "url": "/_mozilla/css/flex_nochild.html"
           }
         ],
+        "css/flex_root_percent_size.html": [
+          {
+            "path": "css/flex_root_percent_size.html",
+            "references": [
+              [
+                "/_mozilla/css/flex_root_percent_size_ref.html",
+                "=="
+              ]
+            ],
+            "url": "/_mozilla/css/flex_root_percent_size.html"
+          }
+        ],
         "css/flex_row_direction.html": [
           {
             "path": "css/flex_row_direction.html",
@@ -5304,6 +5316,18 @@
             "url": "/_mozilla/css/table_preferred_width_a.html"
           }
         ],
+        "css/table_root_percent_width.html": [
+          {
+            "path": "css/table_root_percent_width.html",
+            "references": [
+              [
+                "/_mozilla/css/table_root_percent_width_ref.html",
+                "=="
+              ]
+            ],
+            "url": "/_mozilla/css/table_root_percent_width.html"
+          }
+        ],
         "css/table_row_direction_a.html": [
           {
             "path": "css/table_row_direction_a.html",
@@ -6786,6 +6810,12 @@
           {
             "path": "css/offset_properties_inline.html",
             "url": "/_mozilla/css/offset_properties_inline.html"
+          }
+        ],
+        "css/stylesheet_media_queries.html": [
+          {
+            "path": "css/stylesheet_media_queries.html",
+            "url": "/_mozilla/css/stylesheet_media_queries.html"
           }
         ],
         "css/test_font_family_parsing.html": [
@@ -15284,6 +15314,12 @@
             "url": "/_mozilla/mozilla/style_no_trailing_space.html"
           }
         ],
+        "mozilla/style_remove_prop.html": [
+          {
+            "path": "mozilla/style_remove_prop.html",
+            "url": "/_mozilla/mozilla/style_remove_prop.html"
+          }
+        ],
         "mozilla/textcontent.html": [
           {
             "path": "mozilla/textcontent.html",
@@ -17016,6 +17052,18 @@
             ]
           ],
           "url": "/_mozilla/css/flex_nochild.html"
+        }
+      ],
+      "css/flex_root_percent_size.html": [
+        {
+          "path": "css/flex_root_percent_size.html",
+          "references": [
+            [
+              "/_mozilla/css/flex_root_percent_size_ref.html",
+              "=="
+            ]
+          ],
+          "url": "/_mozilla/css/flex_root_percent_size.html"
         }
       ],
       "css/flex_row_direction.html": [
@@ -20740,6 +20788,18 @@
             ]
           ],
           "url": "/_mozilla/css/table_preferred_width_a.html"
+        }
+      ],
+      "css/table_root_percent_width.html": [
+        {
+          "path": "css/table_root_percent_width.html",
+          "references": [
+            [
+              "/_mozilla/css/table_root_percent_width_ref.html",
+              "=="
+            ]
+          ],
+          "url": "/_mozilla/css/table_root_percent_width.html"
         }
       ],
       "css/table_row_direction_a.html": [

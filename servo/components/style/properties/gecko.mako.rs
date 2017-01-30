@@ -51,11 +51,14 @@ use gecko::values::GeckoStyleCoordConvertible;
 use gecko::values::round_border_to_device_pixels;
 use logical_geometry::WritingMode;
 use properties::longhands;
+use properties::{DeclaredValue, Importance, LonghandId};
+use properties::{PropertyDeclaration, PropertyDeclarationBlock, PropertyDeclarationId};
 use std::fmt::{self, Debug};
 use std::mem::{transmute, zeroed};
 use std::ptr;
 use std::sync::Arc;
 use std::cmp;
+use values::computed::ToComputedValue;
 
 pub mod style_structs {
     % for style_struct in data.style_structs:
@@ -154,6 +157,28 @@ impl ComputedValues {
     // FIXME(bholley): Implement this properly.
     #[inline]
     pub fn is_multicol(&self) -> bool { false }
+
+    pub fn to_declaration_block(&self, property: PropertyDeclarationId) -> PropertyDeclarationBlock {
+        match property {
+            % for prop in data.longhands:
+                % if prop.animatable:
+                    PropertyDeclarationId::Longhand(LonghandId::${prop.camel_case}) => {
+                        PropertyDeclarationBlock {
+                            declarations: vec![
+                                (PropertyDeclaration::${prop.camel_case}(DeclaredValue::Value(
+                                    longhands::${prop.ident}::SpecifiedValue::from_computed_value(
+                                      &self.get_${prop.style_struct.ident.strip("_")}().clone_${prop.ident}()))),
+                                 Importance::Normal)
+                            ],
+                            important_count: 0
+                        }
+                    },
+                % endif
+            % endfor
+            PropertyDeclarationId::Custom(_name) => unimplemented!(),
+            _ => unimplemented!()
+        }
+    }
 }
 
 <%def name="declare_style_struct(style_struct)">
@@ -2692,7 +2717,7 @@ clip-path
         use properties::longhands::content::computed_value::T;
         use properties::longhands::content::computed_value::ContentItem;
         use gecko_bindings::structs::nsStyleContentType::*;
-        use gecko_bindings::bindings::Gecko_ClearStyleContents;
+        use gecko_bindings::bindings::Gecko_ClearAndResizeStyleContents;
 
         // Converts a string as utf16, and returns an owned, zero-terminated raw buffer.
         fn as_utf16_and_forget(s: &str) -> *mut u16 {
@@ -2704,19 +2729,21 @@ clip-path
             ptr
         }
 
-        // Ensure destructors run, otherwise we could leak.
-        if !self.gecko.mContents.is_empty() {
-            unsafe {
-                Gecko_ClearStyleContents(&mut self.gecko);
-            }
-        }
-
         match v {
             T::none |
-            T::normal => {}, // Do nothing, already cleared.
+            T::normal => {
+                // Ensure destructors run, otherwise we could leak.
+                if !self.gecko.mContents.is_empty() {
+                    unsafe {
+                        Gecko_ClearAndResizeStyleContents(&mut self.gecko, 0);
+                    }
+                }
+            },
             T::Content(items) => {
-                // NB: set_len also reserves the appropriate space.
-                unsafe { self.gecko.mContents.set_len(items.len() as u32) }
+                unsafe {
+                    Gecko_ClearAndResizeStyleContents(&mut self.gecko,
+                                                      items.len() as u32);
+                }
                 for (i, item) in items.into_iter().enumerate() {
                     // TODO: Servo lacks support for attr(), and URIs.
                     // NB: Gecko compares the mString value if type is not image
