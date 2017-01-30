@@ -32,6 +32,7 @@
 
 #include "mozilla/EffectCompositor.h"
 #include "mozilla/EventStates.h"
+#include "mozilla/Keyframe.h"
 #include "mozilla/ServoAnimationRule.h"
 #include "mozilla/ServoElementSnapshot.h"
 #include "mozilla/ServoRestyleManager.h"
@@ -908,9 +909,9 @@ Gecko_ClearPODTArray(void* aArray, size_t aElementSize, size_t aElementAlign)
 }
 
 void
-Gecko_ClearStyleContents(nsStyleContent* aContent)
+Gecko_ClearAndResizeStyleContents(nsStyleContent* aContent, uint32_t aHowMany)
 {
-  aContent->AllocateContents(0);
+  aContent->AllocateContents(aHowMany);
 }
 
 void
@@ -945,6 +946,22 @@ Gecko_EnsureStyleAnimationArrayLength(void* aArray, size_t aLen)
     reinterpret_cast<nsStyleAutoArray<StyleAnimation>*>(aArray);
 
   base->EnsureLengthAtLeast(aLen);
+}
+
+Keyframe*
+Gecko_AnimationAppendKeyframe(RawGeckoKeyframeListBorrowedMut aKeyframes,
+                              float aOffset,
+                              const nsTimingFunction* aTimingFunction)
+{
+  Keyframe* keyframe = aKeyframes->AppendElement();
+  keyframe->mOffset.emplace(aOffset);
+  if (aTimingFunction &&
+      aTimingFunction->mType != nsTimingFunction::Type::Linear) {
+    keyframe->mTimingFunction.emplace();
+    keyframe->mTimingFunction->Init(*aTimingFunction);
+  }
+
+  return keyframe;
 }
 
 void
