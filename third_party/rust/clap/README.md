@@ -45,12 +45,43 @@ Created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc)
 
 ## What's New
 
-Here's the highlights for v2.19.3
+Here's the highlights for v2.20.1
 
+* Fixes a bug where the final word wasn't wrapped in help messages
+* Updates `libc` and `term_size` deps for the `libc` version conflict
+* Fixes finding required arguments in group arguments
+* Fixes broken link from `app_from_crate!` to `crate_authors!`
+* Fixes some docs spelling mistakes
+
+
+Here's the highlights from v2.0.0 to v2.20.0
+
+* **ArgsNegateSubcommands:**  disables args being allowed between subcommands
+* **DontCollapseArgsInUsage:** disables the collapsing of positional args into `[ARGS]` in the usage string
+* **DisableHelpSubcommand:**  disables building the `help` subcommand
+* **AllowMissingPositional:**  allows one to implement `$ prog [optional] <required>` style CLIs where the second postional argument is required, but the first is optional
+* **PropagateGlobalValuesDown:**  automatically propagats global arg's values down through *used* subcommands
+* **Arg::value_terminator:**  adds the ability to terminate multiple values with a given string or char
+* **Arg::default_value_if[s]:**  adds new methods for *conditional* default values (such as a particular value from another argument was used)
+* **Arg::requires_if[s]:**  adds the ability to *conditionally* require additional args (such as if a particular value was used)
+* **Arg::required_if[s]:**  adds the ability for an arg to be *conditionally* required (i.e. "arg X is only required if arg Y was used with value Z")
+* **Arg::validator_os:**  adds ability to validate values which may contain invalid UTF-8
+* **crate_description!:** Uses the `Cargo.toml` description field to fill in the `App::about` method at compile time
+* **crate_name!:** Uses the `Cargo.toml` name field to fill in the `App::new` method at compile time
+* **app_from_crate!:** Combines `crate_version!`, `crate_name!`, `crate_description!`, and `crate_authors!` into a single macro call to build a default `App` instance from the `Cargo.toml` fields
+* **no_cargo:**  adds a `no_cargo` feature to disable Cargo-env-var-dependent macros for those *not* using `cargo` to build their crates
+* **Options:**  fixes a critical bug where options weren't forced to have a value
+*   fixes a bug where calling the help of a subcommand wasn't ignoring required args of parent commands
+* **Help Subcommand:**  fixes a bug where the help subcommand couldn't be overriden
+* **Low Index Multiples:**  fixes a bug which caused combinations of LowIndexMultiples and `Arg::allow_hyphen_values` to fail parsing
+* **Default Values:**  improves the error message when default values are involved
+* **YAML:**  adds conditional requirements and conditional default values to YAML
+*  Support `--("some-arg-name")` syntax for defining long arg names when using `clap_app!` macro
+*  Support `("some app name")` syntax for defining app names when using `clap_app!` macro
+* **Help Wrapping:**  long app names (with spaces), authors, and descriptions are now wrapped appropriately
+* **Conditional Default Values:**  fixes the failing doc tests of Arg::default_value_ifs
+* **Conditional Requirements:**  adds docs for Arg::requires_ifs
 * Fixes a bug where calling the help of a subcommand wasn't ignoring required args of parent commands
-
-Here's the highlights from v2.0.0 to v2.19.2
-
 * Fixes a bug by escaping square brackets in ZSH completions which were causing conflicts and errors.
 * **Bash Completion:**  allows bash completion to fall back to traidtional bash completion upon no matching completing function
 * **Arg Setting**: Allows specifying an `AllowLeadingHyphen` style setting for values only for specific args, vice command wide
@@ -649,8 +680,8 @@ This will cause *only* the patch version to be updated upon a `cargo update` cal
 
 #### Minimum Version of Rust
 
-`clap` will officially support current stable Rust, minus two releases, but may work with prior releases as well. For example, current stable Rust at the time of this writing is 1.13.0, meaning `clap` is garunteed to compile with 1.11.0 and beyond.
-At the 1.14.0 release, `clap` will be garunteed to compile with 1.12.0 and beyond, etc.
+`clap` will officially support current stable Rust, minus two releases, but may work with prior releases as well. For example, current stable Rust at the time of this writing is 1.13.0, meaning `clap` is guaranteed to compile with 1.11.0 and beyond.
+At the 1.14.0 release, `clap` will be guaranteed to compile with 1.12.0 and beyond, etc.
 
 Upon bumping the minimum version of Rust (assuming it's within the stable-2 range), it *must* be clearly annotated in the `CHANGELOG.md`
 

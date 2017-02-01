@@ -8,7 +8,7 @@ mod help;
 // Std
 use std::borrow::Borrow;
 use std::env;
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::fmt;
 use std::io::{self, BufRead, BufWriter, Write};
 use std::path::Path;
@@ -17,7 +17,7 @@ use std::rc::Rc;
 use std::result::Result as StdResult;
 
 // Third Party
-use vec_map::VecMap;
+use vec_map::{self, VecMap};
 #[cfg(feature = "yaml")]
 use yaml_rust::Yaml;
 
@@ -51,7 +51,7 @@ use completions::Shell;
 ///     .arg(
 ///         Arg::with_name("in_file").index(1)
 ///     )
-///     .after_help("Longer explaination to appear after the options when \
+///     .after_help("Longer explanation to appear after the options when \
 ///                  displaying the help information from --help or -h")
 ///     .get_matches();
 ///
@@ -104,12 +104,12 @@ impl<'a, 'b> App<'a, 'b> {
     #[deprecated(since="2.14.1", note="Can never work; use explicit App::author() and App::version() calls instead")]
     pub fn with_defaults<S: Into<String>>(n: S) -> Self {
         let mut a = App { p: Parser::with_name(n.into()) };
-        a.p.meta.author = Some(crate_authors!());
-        a.p.meta.version = Some(crate_version!());
+        a.p.meta.author = Some("Kevin K. <kbknapp@gmail.com>");
+        a.p.meta.version = Some("2.19.2");
         a
     }
 
-    /// Creates a new instace of [`App`] from a .yml (YAML) file. A full example of supported YAML
+    /// Creates a new instance of [`App`] from a .yml (YAML) file. A full example of supported YAML
     /// objects can be found in [`examples/17_yaml.rs`] and [`examples/17_yaml.yml`]. One great use
     /// for using YAML is when supporting multiple languages and dialects, as each language could
     /// be a distinct YAML file and determined at compiletime via `cargo` "features" in your
@@ -177,7 +177,7 @@ impl<'a, 'b> App<'a, 'b> {
     }
 
     /// Overrides the system-determined binary name. This should only be used when absolutely
-    /// neccessary, such as when the binary name for your application is misleading, or perhaps
+    /// necessary, such as when the binary name for your application is misleading, or perhaps
     /// *not* how the user should invoke your program.
     ///
     /// **Pro-tip:** When building things such as third party `cargo` subcommands, this setting
@@ -486,7 +486,7 @@ impl<'a, 'b> App<'a, 'b> {
     /// [`AppSettings`]: ./enum.AppSettings.html
     pub fn global_setting(mut self, setting: AppSettings) -> Self {
         self.p.set(setting);
-        self.p.g_settings.push(setting);
+        self.p.g_settings.set(setting);
         self
     }
 
@@ -510,7 +510,7 @@ impl<'a, 'b> App<'a, 'b> {
     pub fn global_settings(mut self, settings: &[AppSettings]) -> Self {
         for s in settings {
             self.p.set(*s);
-            self.p.g_settings.push(*s)
+            self.p.g_settings.set(*s)
         }
         self
     }
@@ -614,7 +614,7 @@ impl<'a, 'b> App<'a, 'b> {
         self
     }
 
-    /// Adds an [argument] to the list of valid possibilties.
+    /// Adds an [argument] to the list of valid possibilities.
     ///
     /// # Examples
     ///
@@ -893,7 +893,7 @@ impl<'a, 'b> App<'a, 'b> {
         self
     }
 
-    /// Adds a [`SubCommand`] to the list of valid possibilties. Subcommands are effectively
+    /// Adds a [`SubCommand`] to the list of valid possibilities. Subcommands are effectively
     /// sub-[`App`]s, because they can contain their own arguments, subcommands, version, usage,
     /// etc. They also function just like [`App`]s, in that they get their own auto generated help,
     /// version, and usage.
@@ -915,7 +915,7 @@ impl<'a, 'b> App<'a, 'b> {
         self
     }
 
-    /// Adds multiple subcommands to the list of valid possibilties by iterating over an
+    /// Adds multiple subcommands to the list of valid possibilities by iterating over an
     /// [`IntoIterator`] of [`SubCommand`]s
     ///
     /// # Examples
@@ -1004,6 +1004,12 @@ impl<'a, 'b> App<'a, 'b> {
     /// [`io::stdout()`]: https://doc.rust-lang.org/std/io/fn.stdout.html
     /// [`BufWriter`]: https://doc.rust-lang.org/std/io/struct.BufWriter.html
     pub fn print_help(&mut self) -> ClapResult<()> {
+        // If there are global arguments, or settings we need to propgate them down to subcommands
+        // before parsing incase we run into a subcommand
+        self.p.propogate_globals();
+        self.p.propogate_settings();
+        self.p.derive_display_order();
+
         self.p.create_help_and_version();
         let out = io::stdout();
         let mut buf_w = BufWriter::new(out.lock());
@@ -1023,6 +1029,15 @@ impl<'a, 'b> App<'a, 'b> {
     /// ```
     /// [`io::Write`]: https://doc.rust-lang.org/std/io/trait.Write.html
     pub fn write_help<W: Write>(&self, w: &mut W) -> ClapResult<()> {
+        // PENDING ISSUE: 808
+        //      https://github.com/kbknapp/clap-rs/issues/808
+        // If there are global arguments, or settings we need to propgate them down to subcommands
+        // before parsing incase we run into a subcommand
+        // self.p.propogate_globals();
+        // self.p.propogate_settings();
+        // self.p.derive_display_order();
+        // self.p.create_help_and_version();
+
         Help::write_app_help(w, self)
     }
 
@@ -1052,9 +1067,9 @@ impl<'a, 'b> App<'a, 'b> {
     /// The following example generates a bash completion script via a `build.rs` script. In this
     /// simple example, we'll demo a very small application with only a single subcommand and two
     /// args. Real applications could be many multiple levels deep in subcommands, and have tens or
-    /// potentiall hundreds of arguments.
+    /// potentially hundreds of arguments.
     ///
-    /// First, it helps if we separate out our `App` definition into a seperate file. Whether you
+    /// First, it helps if we separate out our `App` definition into a separate file. Whether you
     /// do this as a function, or bare App definition is a matter of personal preference.
     ///
     /// ```
@@ -1351,6 +1366,12 @@ impl<'a, 'b> App<'a, 'b> {
             return Err(e);
         }
 
+        if self.p.is_set(AppSettings::PropagateGlobalValuesDown) {
+            for a in &self.p.global_args {
+                matcher.propagate(a.name);
+            }
+        }
+
         Ok(matcher.into())
     }
 
@@ -1512,11 +1533,12 @@ impl<'n, 'e> AnyArg<'n, 'e> for App<'n, 'e> {
     fn id(&self) -> usize { self.p.id }
     fn kind(&self) -> ArgKind { ArgKind::Subcmd }
     fn overrides(&self) -> Option<&[&'e str]> { None }
-    fn requires(&self) -> Option<&[&'e str]> { None }
+    fn requires(&self) -> Option<&[(Option<&'e str>, &'n str)]> { None }
     fn blacklist(&self) -> Option<&[&'e str]> { None }
     fn required_unless(&self) -> Option<&[&'e str]> { None }
     fn val_names(&self) -> Option<&VecMap<&'e str>> { None }
     fn is_set(&self, _: ArgSettings) -> bool { false }
+    fn val_terminator(&self) -> Option<&'e str> {None}
     fn set(&mut self, _: ArgSettings) {
         unreachable!("App struct does not support AnyArg::set, this is a bug!")
     }
@@ -1525,6 +1547,7 @@ impl<'n, 'e> AnyArg<'n, 'e> for App<'n, 'e> {
     fn num_vals(&self) -> Option<u64> { None }
     fn possible_vals(&self) -> Option<&[&'e str]> { None }
     fn validator(&self) -> Option<&Rc<Fn(String) -> StdResult<(), String>>> { None }
+    fn validator_os(&self) -> Option<&Rc<Fn(&OsStr) -> StdResult<(), OsString>>> { None }
     fn min_vals(&self) -> Option<u64> { None }
     fn short(&self) -> Option<char> { None }
     fn long(&self) -> Option<&'e str> { None }
@@ -1532,6 +1555,7 @@ impl<'n, 'e> AnyArg<'n, 'e> for App<'n, 'e> {
     fn takes_value(&self) -> bool { true }
     fn help(&self) -> Option<&'e str> { self.p.meta.about }
     fn default_val(&self) -> Option<&'n str> { None }
+    fn default_vals_ifs(&self) -> Option<vec_map::Values<(&'n str, Option<&'e str>, &'e str)>> {None}
     fn longest_filter(&self) -> bool { true }
     fn aliases(&self) -> Option<Vec<&'e str>> {
         if let Some(ref aliases) = self.p.meta.aliases {
