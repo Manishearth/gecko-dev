@@ -13,8 +13,9 @@ Cu.import("resource://gre/modules/Services.jsm");
 
 XPCOMUtils.defineLazyModuleGetter(this, "Task", "resource://gre/modules/Task.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "OS", "resource://gre/modules/osfile.jsm");
-XPCOMUtils.defineLazyModuleGetter(this, "Messaging", "resource://gre/modules/Messaging.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "EventDispatcher", "resource://gre/modules/Messaging.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "PrivateBrowsingUtils", "resource://gre/modules/PrivateBrowsingUtils.jsm");
+XPCOMUtils.defineLazyModuleGetter(this, "PrivacyLevel", "resource://gre/modules/sessionstore/PrivacyLevel.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "FormData", "resource://gre/modules/FormData.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "ScrollPosition", "resource://gre/modules/ScrollPosition.jsm");
 XPCOMUtils.defineLazyModuleGetter(this, "TelemetryStopwatch", "resource://gre/modules/TelemetryStopwatch.jsm");
@@ -49,10 +50,6 @@ const STATE_STOPPED = 0;
 const STATE_RUNNING = 1;
 const STATE_QUITTING = -1;
 const STATE_QUITTING_FLUSHED = -2;
-
-const PRIVACY_NONE = 0;
-const PRIVACY_ENCRYPTED = 1;
-const PRIVACY_FULL = 2;
 
 const PREFS_RESTORE_FROM_CRASH = "browser.sessionstore.resume_from_crash";
 const PREFS_MAX_CRASH_RESUMES = "browser.sessionstore.max_resumed_crashes";
@@ -630,14 +627,15 @@ SessionStore.prototype = {
   },
 
   onTabClose: function ss_onTabClose(aWindow, aBrowser, aTabIndex) {
-    if (this._maxTabsUndo == 0) {
+    let data = aBrowser.__SS_data || {};
+    if (this._maxTabsUndo == 0 || this._sessionDataIsEmpty(data)) {
+      this._lastClosedTabIndex = -1;
       return;
     }
 
     if (aWindow.BrowserApp.tabs.length > 0) {
       // Bundle this browser's data and extra data and save in the closedTabs
       // window property
-      let data = aBrowser.__SS_data || {};
       data.extData = aBrowser.__SS_extdata || {};
 
       this._windows[aWindow.__SSID].closedTabs.unshift(data);
@@ -656,6 +654,17 @@ SessionStore.prototype = {
       let evt = new Event("SSTabCloseProcessed", {"bubbles":true, "cancelable":false});
       aBrowser.dispatchEvent(evt);
     }
+  },
+
+  _sessionDataIsEmpty: function ss_sessionDataIsEmpty(aData) {
+    if (!aData || !aData.entries || aData.entries.length == 0) {
+      return true;
+    }
+
+    let entries = aData.entries;
+
+    return (entries.length == 1 &&
+            (entries[0].url == "about:home" || entries[0].url == "about:privatebrowsing"));
   },
 
   onTabLoad: function ss_onTabLoad(aWindow, aBrowser) {
@@ -787,7 +796,7 @@ SessionStore.prototype = {
     // If the main content document has an associated URL that we are not
     // allowed to store data for, bail out. We explicitly discard data for any
     // children as well even if storing data for those frames would be allowed.
-    if (!this.checkPrivacyLevel(content.document.documentURI)) {
+    if (!PrivacyLevel.check(content.document.documentURI)) {
       return;
     }
 
@@ -798,7 +807,7 @@ SessionStore.prototype = {
     let children = [];
     for (let i = 0; i < content.frames.length; i++) {
       let frame = content.frames[i];
-      if (!this.checkPrivacyLevel(frame.document.documentURI)) {
+      if (!PrivacyLevel.check(frame.document.documentURI)) {
         continue;
       }
 
@@ -1507,16 +1516,6 @@ SessionStore.prototype = {
   },
 
   /**
-   * Don't save sensitive data if the user doesn't want to
-   * (distinguishes between encrypted and non-encrypted sites)
-   */
-  checkPrivacyLevel: function ss_checkPrivacyLevel(aURL) {
-    let isHTTPS = aURL.startsWith("https:");
-    let pref = "browser.sessionstore.privacy_level";
-    return Services.prefs.getIntPref(pref) < (isHTTPS ? PRIVACY_ENCRYPTED : PRIVACY_FULL);
-  },
-
-  /**
   * Starts the restoration process for a browser. History is restored at this
   * point, but text data must be delayed until the content loads.
   */
@@ -1762,6 +1761,10 @@ SessionStore.prototype = {
     }
   },
 
+  get canUndoLastCloseTab() {
+    return this._lastClosedTabIndex > -1;
+  },
+
   _sendClosedTabsToJava: function ss_sendClosedTabsToJava(aWindow) {
 
     // If the app is shutting down, we don't need to do anything.
@@ -1789,7 +1792,7 @@ SessionStore.prototype = {
       });
 
     log("sending " + tabs.length + " closed tabs to Java");
-    Messaging.sendRequest({
+    EventDispatcher.instance.sendRequest({
       type: "ClosedTabs:Data",
       tabs: tabs
     });

@@ -19,6 +19,7 @@
 #include "js/HeapAPI.h"
 #include "js/SliceBudget.h"
 #include "js/TracingAPI.h"
+#include "threading/ProtectedData.h"
 #include "vm/TaggedProto.h"
 
 class JSLinearString;
@@ -56,13 +57,13 @@ class MarkStack
 {
     friend class GCMarker;
 
-    uintptr_t* stack_;
-    uintptr_t* tos_;
-    uintptr_t* end_;
+    ActiveThreadData<uintptr_t*> stack_;
+    ActiveThreadData<uintptr_t*> tos_;
+    ActiveThreadData<uintptr_t*> end_;
 
     // The capacity we start with and reset() to.
-    size_t baseCapacity_;
-    size_t maxCapacity_;
+    ActiveThreadData<size_t> baseCapacity_;
+    ActiveThreadData<size_t> maxCapacity_;
 
   public:
     explicit MarkStack(size_t maxCapacity)
@@ -335,29 +336,29 @@ class GCMarker : public JSTracer
     MarkStack stack;
 
     /* The color is only applied to objects and functions. */
-    uint32_t color;
+    ActiveThreadData<uint32_t> color;
 
     /* Pointer to the top of the stack of arenas we are delaying marking on. */
-    js::gc::Arena* unmarkedArenaStackTop;
+    ActiveThreadData<js::gc::Arena*> unmarkedArenaStackTop;
 
     /*
      * If the weakKeys table OOMs, disable the linear algorithm and fall back
      * to iterating until the next GC.
      */
-    bool linearWeakMarkingDisabled_;
+    ActiveThreadData<bool> linearWeakMarkingDisabled_;
 
 #ifdef DEBUG
     /* Count of arenas that are currently in the stack. */
-    size_t markLaterArenas;
+    ActiveThreadData<size_t> markLaterArenas;
 
     /* Assert that start and stop are called with correct ordering. */
-    bool started;
+    ActiveThreadData<bool> started;
 
     /*
      * If this is true, all marked objects must belong to a compartment being
      * GCed. This is used to look for compartment bugs.
      */
-    bool strictCompartmentChecking;
+    ActiveThreadData<bool> strictCompartmentChecking;
 #endif // DEBUG
 };
 

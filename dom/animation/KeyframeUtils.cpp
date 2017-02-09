@@ -271,8 +271,7 @@ struct AdditionalProperty
 struct KeyframeValueEntry
 {
   nsCSSPropertyID mProperty;
-  StyleAnimationValue mValue;
-  RefPtr<RawServoAnimationValue> mServoValue;
+  AnimationValue mValue;
 
   float mOffset;
   Maybe<ComputedTimingFunction> mTimingFunction;
@@ -704,7 +703,6 @@ KeyframeUtils::GetAnimationPropertiesFromKeyframes(
       entry->mOffset = frame.mComputedOffset;
       entry->mProperty = value.mProperty;
       entry->mValue = value.mValue;
-      entry->mServoValue = value.mServoValue;
       entry->mTimingFunction = frame.mTimingFunction;
       entry->mComposite =
         frame.mComposite ? frame.mComposite.value() : aEffectComposite;
@@ -1330,6 +1328,16 @@ BuildSegmentsFromValueEntries(nsTArray<KeyframeValueEntry>& aEntries,
       }
     }
 
+    // Skip this entry if the next entry has the same offset except for initial
+    // and final ones. We will handle missing keyframe in the next loop
+    // if the property is changed on the next entry.
+    if (aEntries[i].mProperty == aEntries[i + 1].mProperty &&
+        aEntries[i].mOffset == aEntries[i + 1].mOffset &&
+        aEntries[i].mOffset != 1.0f && aEntries[i].mOffset != 0.0f) {
+      ++i;
+      continue;
+    }
+
     // No keyframe for this property at offset 1.
     if (aEntries[i].mProperty != aEntries[i + 1].mProperty &&
         aEntries[i].mOffset != 1.0f) {
@@ -1340,13 +1348,18 @@ BuildSegmentsFromValueEntries(nsTArray<KeyframeValueEntry>& aEntries,
       continue;
     }
 
-    // Starting from i, determine the next [i, j] interval from which to
-    // generate a segment.
-    size_t j;
+    // Starting from i + 1, determine the next [i, j] interval from which to
+    // generate a segment. Basically, j is i + 1, but there are some special
+    // cases for offset 0 and 1, so we need to handle them specifically.
+    // Note: From this moment, we make sure [i + 1] is valid and
+    //       there must be an initial entry (i.e. mOffset = 0.0) and
+    //       a final entry (i.e. mOffset = 1.0). Besides, all the entries
+    //       with the same offsets except for initial/final ones are filtered
+    //       out already.
+    size_t j = i + 1;
     if (aEntries[i].mOffset == 0.0f && aEntries[i + 1].mOffset == 0.0f) {
       // We need to generate an initial zero-length segment.
       MOZ_ASSERT(aEntries[i].mProperty == aEntries[i + 1].mProperty);
-      j = i + 1;
       while (j + 1 < n &&
              aEntries[j + 1].mOffset == 0.0f &&
              aEntries[j + 1].mProperty == aEntries[j].mProperty) {
@@ -1356,7 +1369,6 @@ BuildSegmentsFromValueEntries(nsTArray<KeyframeValueEntry>& aEntries,
       if (aEntries[i + 1].mOffset == 1.0f &&
           aEntries[i + 1].mProperty == aEntries[i].mProperty) {
         // We need to generate a final zero-length segment.
-        j = i + 1;
         while (j + 1 < n &&
                aEntries[j + 1].mOffset == 1.0f &&
                aEntries[j + 1].mProperty == aEntries[j].mProperty) {
@@ -1369,12 +1381,6 @@ BuildSegmentsFromValueEntries(nsTArray<KeyframeValueEntry>& aEntries,
         ++i;
         continue;
       }
-    } else {
-      while (aEntries[i].mOffset == aEntries[i + 1].mOffset &&
-             aEntries[i].mProperty == aEntries[i + 1].mProperty) {
-        ++i;
-      }
-      j = i + 1;
     }
 
     // If we've moved on to a new property, create a new AnimationProperty
@@ -1396,8 +1402,6 @@ BuildSegmentsFromValueEntries(nsTArray<KeyframeValueEntry>& aEntries,
     segment->mToKey          = aEntries[j].mOffset;
     segment->mFromValue      = aEntries[i].mValue;
     segment->mToValue        = aEntries[j].mValue;
-    segment->mServoFromValue = aEntries[i].mServoValue;
-    segment->mServoToValue   = aEntries[j].mServoValue;
     segment->mTimingFunction = aEntries[i].mTimingFunction;
     segment->mFromComposite  = aEntries[i].mComposite;
     segment->mToComposite    = aEntries[j].mComposite;
@@ -1778,8 +1782,8 @@ GetCumulativeDistances(const nsTArray<ComputedKeyframeValues>& aValues,
           double componentDistance = 0.0;
           if (StyleAnimationValue::ComputeDistance(
                 prop,
-                prevPacedValues[propIdx].mValue,
-                pacedValues[propIdx].mValue,
+                prevPacedValues[propIdx].mValue.mGecko,
+                pacedValues[propIdx].mValue.mGecko,
                 aStyleContext,
                 componentDistance)) {
             dist += componentDistance * componentDistance;
@@ -1792,8 +1796,8 @@ GetCumulativeDistances(const nsTArray<ComputedKeyframeValues>& aValues,
         // no distance between the previous paced value and this value.
         Unused <<
           StyleAnimationValue::ComputeDistance(aPacedProperty,
-                                               prevPacedValues[0].mValue,
-                                               pacedValues[0].mValue,
+                                               prevPacedValues[0].mValue.mGecko,
+                                               pacedValues[0].mValue.mGecko,
                                                aStyleContext,
                                                dist);
       }

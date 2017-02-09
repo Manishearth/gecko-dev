@@ -465,6 +465,7 @@ CrossCompartmentWrapper::regexp_toShared(JSContext* cx, HandleObject wrapper, Re
 
     // Get an equivalent RegExpShared associated with the current compartment.
     RegExpShared* re = wrapperGuard.re();
+    cx->markAtom(re->getSource());
     return cx->compartment()->regExps.get(cx, re->getSource(), re->getFlags(), g);
 }
 
@@ -515,7 +516,7 @@ js::NukeCrossCompartmentWrappers(JSContext* cx,
     CHECK_REQUEST(cx);
     JSRuntime* rt = cx->runtime();
 
-    rt->gc.evictNursery(JS::gcreason::EVICT_NURSERY);
+    rt->zoneGroupFromMainThread()->evictNursery(JS::gcreason::EVICT_NURSERY);
 
     // Iterate through scopes looking for system cross compartment wrappers
     // that point to an object that shares a global with obj.
@@ -572,7 +573,7 @@ js::RemapWrapper(JSContext* cx, JSObject* wobjArg, JSObject* newTargetArg)
     Value origv = ObjectValue(*origTarget);
     JSCompartment* wcompartment = wobj->compartment();
 
-    AutoDisableProxyCheck adpc(cx->runtime());
+    AutoDisableProxyCheck adpc;
 
     // If we're mapping to a different target (as opposed to just recomputing
     // for the same target), we must not have an existing wrapper for the new
@@ -655,7 +656,7 @@ js::RecomputeWrappers(JSContext* cx, const CompartmentFilter& sourceFilter,
                       const CompartmentFilter& targetFilter)
 {
     // Drop any nursery-allocated wrappers.
-    cx->runtime()->gc.evictNursery(JS::gcreason::EVICT_NURSERY);
+    cx->runtime()->zoneGroupFromMainThread()->evictNursery(JS::gcreason::EVICT_NURSERY);
 
     AutoWrapperVector toRecompute(cx);
     for (CompartmentsIter c(cx->runtime(), SkipAtoms); !c.done(); c.next()) {

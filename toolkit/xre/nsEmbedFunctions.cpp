@@ -90,6 +90,16 @@
 #include "mozilla/SandboxInfo.h"
 #endif
 
+#if defined(XP_LINUX)
+#include <sys/prctl.h>
+#ifndef PR_SET_PTRACER
+#define PR_SET_PTRACER 0x59616d61
+#endif
+#ifndef PR_SET_PTRACER_ANY
+#define PR_SET_PTRACER_ANY ((unsigned long)-1)
+#endif
+#endif
+
 #ifdef MOZ_IPDL_TESTS
 #include "mozilla/_ipdltest/IPDLUnitTests.h"
 #include "mozilla/_ipdltest/IPDLUnitTestProcessChild.h"
@@ -515,6 +525,11 @@ XRE_InitChildProcess(int aArgc,
 #ifdef OS_POSIX
   if (PR_GetEnv("MOZ_DEBUG_CHILD_PROCESS") ||
       PR_GetEnv("MOZ_DEBUG_CHILD_PAUSE")) {
+#if defined(XP_LINUX) && defined(DEBUG)
+    if (prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0, 0, 0) != 0) {
+      printf_stderr("Could not allow ptrace from any process.\n");
+    }
+#endif
     printf_stderr("\n\nCHILDCHILDCHILDCHILD\n  debug me @ %d\n\n",
                   base::GetCurrentProcId());
     sleep(30);
@@ -610,49 +625,8 @@ XRE_InitChildProcess(int aArgc,
         process = new PluginProcessChild(parentPID);
         break;
 
-      case GeckoProcessType_Content: {
-          process = new ContentProcess(parentPID);
-          // If passed in grab the application path for xpcom init
-          bool foundAppdir = false;
-
-#if defined(XP_MACOSX) && defined(MOZ_CONTENT_SANDBOX)
-          // If passed in grab the profile path for sandboxing
-          bool foundProfile = false;
-#endif
-
-          for (int idx = aArgc; idx > 0; idx--) {
-            if (aArgv[idx] && !strcmp(aArgv[idx], "-appdir")) {
-              MOZ_ASSERT(!foundAppdir);
-              if (foundAppdir) {
-                  continue;
-              }
-              nsCString appDir;
-              appDir.Assign(nsDependentCString(aArgv[idx+1]));
-              static_cast<ContentProcess*>(process.get())->SetAppDir(appDir);
-              foundAppdir = true;
-            }
-
-#if defined(XP_MACOSX) && defined(MOZ_CONTENT_SANDBOX)
-            if (aArgv[idx] && !strcmp(aArgv[idx], "-profile")) {
-              MOZ_ASSERT(!foundProfile);
-              if (foundProfile) {
-                continue;
-              }
-              nsCString profile;
-              profile.Assign(nsDependentCString(aArgv[idx+1]));
-              static_cast<ContentProcess*>(process.get())->SetProfile(profile);
-              foundProfile = true;
-            }
-            if (foundProfile && foundAppdir) {
-              break;
-            }
-#else
-            if (foundAppdir) {
-              break;
-            }
-#endif /* XP_MACOSX && MOZ_CONTENT_SANDBOX */
-          }
-        }
+      case GeckoProcessType_Content:
+        process = new ContentProcess(parentPID);
         break;
 
       case GeckoProcessType_IPDLUnitTest:
@@ -675,7 +649,7 @@ XRE_InitChildProcess(int aArgc,
         MOZ_CRASH("Unknown main thread class");
       }
 
-      if (!process->Init()) {
+      if (!process->Init(aArgc, aArgv)) {
         return NS_ERROR_FAILURE;
       }
 

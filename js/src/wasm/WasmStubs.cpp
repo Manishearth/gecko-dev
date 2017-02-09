@@ -487,6 +487,9 @@ wasm::GenerateImportFunction(jit::MacroAssembler& masm, const FuncImport& fi, Si
     masm.loadWasmPinnedRegsFromTls();
 
     GenerateFunctionEpilogue(masm, framePushed, &offsets);
+
+    masm.wasmEmitTrapOutOfLineCode();
+
     offsets.end = masm.currentOffset();
     return offsets;
 }
@@ -611,10 +614,6 @@ wasm::GenerateImportInterpExit(MacroAssembler& masm, const FuncImport& fi, uint3
     defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)
     MOZ_ASSERT(NonVolatileRegs.has(HeapReg));
 #endif
-#if defined(JS_CODEGEN_ARM) || defined(JS_CODEGEN_ARM64) || \
-    defined(JS_CODEGEN_MIPS32) || defined(JS_CODEGEN_MIPS64)
-    MOZ_ASSERT(NonVolatileRegs.has(GlobalReg));
-#endif
 
     GenerateExitEpilogue(masm, framePushed, ExitReason::ImportInterp, &offsets);
 
@@ -701,7 +700,8 @@ wasm::GenerateImportJitExit(MacroAssembler& masm, const FuncImport& fi, Label* t
         Register act = WasmIonExitRegE1;
 
         // JitActivation* act = cx->activation();
-        masm.movePtr(SymbolicAddress::Context, cx);
+        masm.movePtr(SymbolicAddress::ContextPtr, cx);
+        masm.loadPtr(Address(cx, 0), cx);
         masm.loadPtr(Address(cx, JSContext::offsetOfActivation()), act);
 
         // act.active_ = true;
@@ -730,7 +730,8 @@ wasm::GenerateImportJitExit(MacroAssembler& masm, const FuncImport& fi, Label* t
         Register tmp = WasmIonExitRegD2;
 
         // JitActivation* act = cx->activation();
-        masm.movePtr(SymbolicAddress::Context, cx);
+        masm.movePtr(SymbolicAddress::ContextPtr, cx);
+        masm.loadPtr(Address(cx, 0), cx);
         masm.loadPtr(Address(cx, JSContext::offsetOfActivation()), act);
 
         // cx->jitTop = act->prevJitTop_;

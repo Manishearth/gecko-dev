@@ -314,6 +314,22 @@ union GetFilesResponseResult
   GetFilesResponseFailure;
 };
 
+struct FileCreationSuccessResult
+{
+  PBlob blob;
+};
+
+struct FileCreationErrorResult
+{
+  nsresult errorCode;
+};
+
+union FileCreationResult
+{
+  FileCreationSuccessResult;
+  FileCreationErrorResult;
+};
+
 struct BlobURLRegistrationData
 {
     nsCString url;
@@ -332,6 +348,22 @@ struct GMPCapabilityData
     nsCString name;
     nsCString version;
     GMPAPITags[] capabilities;
+};
+
+struct XPCOMInitData
+{
+    bool isOffline;
+    bool isConnected;
+    int32_t captivePortalState;
+    bool isLangRTL;
+    bool haveBidiKeyboards;
+    nsString[] dictionaries;
+    ClipboardCapabilities clipboardCaps;
+    DomainPolicyClone domainPolicy;
+    /* used on MacOSX only */
+    FontFamilyListEntry[] fontFamilies;
+    OptionalURIParams userContentSheetURL;
+    PrefSetting[] prefs;
 };
 
 struct GfxInfoFeatureStatus
@@ -413,6 +445,7 @@ both:
 child:
     async InitGMPService(Endpoint<PGMPServiceChild> service);
     async InitProcessHangMonitor(Endpoint<PProcessHangMonitorChild> hangMonitor);
+    async InitContentBridgeChild(Endpoint<PContentBridgeChild> endpoint);
 
     // Give the content process its endpoints to the compositor.
     async InitRendering(
@@ -525,6 +558,8 @@ child:
      * Send BlobURLRegistrationData to child process.
      */
     async InitBlobURLs(BlobURLRegistrationData[] registrations);
+
+    async SetXPCOMProcessAttributes(XPCOMInitData xpcomInit, StructuredCloneData initialData, LookAndFeelInt[] lookAndFeelIntCache);
 
     // Notify child that last-pb-context-exited notification was observed
     async LastPrivateDocShellDestroyed();
@@ -646,38 +681,17 @@ child:
 
     async GMPsChanged(GMPCapabilityData[] capabilities);
 
+    async FileCreationResponse(nsID aID, FileCreationResult aResult);
+
 parent:
     async InitBackground(Endpoint<PBackgroundParent> aEndpoint);
-
-    /**
-     * Tell the content process some attributes of itself.  This is
-     * among the first information queried by content processes after
-     * startup.  (The message is sync to allow the content process to
-     * control when it receives the information.)
-     *
-     * |id| is a unique ID among all subprocesses. When
-     * |isForBrowser|, we're loading <browser> or <xul:browser remote>.
-     *
-     * Keep the return values in sync with PBrowser()!
-     */
-    sync GetProcessAttributes()
-        returns (ContentParentId cpId, bool isForBrowser);
-    sync GetXPCOMProcessAttributes()
-        returns (bool isOffline, bool isConnected, int32_t captivePortalState,
-                 bool isLangRTL,
-                 bool haveBidiKeyboards, nsString[] dictionaries,
-                 ClipboardCapabilities clipboardCaps,
-                 DomainPolicyClone domainPolicy,
-                 StructuredCloneData initialData,
-                 FontFamilyListEntry[] fontFamilies /* used on MacOSX only */,
-                 OptionalURIParams userContentSheetURL,
-                 LookAndFeelInt[] lookAndFeelIntCache);
 
     sync CreateChildProcess(IPCTabContext context,
                             ProcessPriority priority,
                             TabId openerTabId)
         returns (ContentParentId cpId, bool isForBrowser, TabId tabId);
-    sync BridgeToChildProcess(ContentParentId cpId);
+    sync BridgeToChildProcess(ContentParentId cpId)
+        returns (Endpoint<PContentBridgeParent> endpoint);
 
     async CreateGMPService();
 
@@ -815,7 +829,6 @@ parent:
     async ExtProtocolChannelConnectParent(uint32_t registrarId);
 
     // PrefService message
-    sync ReadPrefsArray() returns (PrefSetting[] prefs) verify;
     sync GetGfxVars() returns (GfxVarUpdate[] vars);
 
     sync ReadFontList() returns (FontListEntry[] retValue);
@@ -895,6 +908,9 @@ parent:
 
     // Notify the parent of the presence or absence of private docshells
     async PrivateDocShellsExist(bool aExist);
+
+    // Tell the parent that the child has gone idle for the first time.
+    async FirstIdle();
 
     async AudioChannelServiceStatus(bool aActiveTelephonyChannel,
                                     bool aContentOrNormalChannel,
@@ -1142,6 +1158,10 @@ parent:
 
      async GetFilesRequest(nsID aID, nsString aDirectory, bool aRecursiveFlag);
      async DeleteGetFilesRequest(nsID aID);
+
+     async FileCreationRequest(nsID aID, nsString aFullPath, nsString aType,
+                               nsString aName, bool lastModifiedPassed,
+                               int64_t lastModified, bool aIsFromNsIFile);
 
      async StoreAndBroadcastBlobURLRegistration(nsCString url, PBlob blob,
                                                 Principal principal);

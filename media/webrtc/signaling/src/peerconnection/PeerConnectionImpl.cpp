@@ -100,8 +100,9 @@
 #include "mozilla/dom/Event.h"
 #include "nsIDOMCustomEvent.h"
 #include "mozilla/EventDispatcher.h"
-#include "mozilla/net/DataChannelProtocol.h"
 #endif
+
+#include "mozilla/net/DataChannelProtocol.h"
 
 #ifndef USE_FAKE_MEDIA_STREAMS
 #include "MediaStreamGraphImpl.h"
@@ -566,7 +567,11 @@ PeerConnectionConfiguration::AddIceServer(const RTCIceServer &aServer)
 
     if (isStuns || isTurns) {
       // Should we barf if transport is set to udp or something?
-      transport = "tls";
+      transport = kNrIceTransportTls;
+    }
+
+    if (transport.IsEmpty()) {
+      transport = kNrIceTransportUdp;
     }
 
     if (isTurn || isTurns) {
@@ -576,13 +581,11 @@ PeerConnectionConfiguration::AddIceServer(const RTCIceServer &aServer)
       if (!addTurnServer(host.get(), port,
                          username.get(),
                          credential.get(),
-                         (transport.IsEmpty() ?
-                          kNrIceTransportUdp : transport.get()))) {
+                         transport.get())) {
         return NS_ERROR_FAILURE;
       }
     } else {
-      if (!addStunServer(host.get(), port, (transport.IsEmpty() ?
-                         kNrIceTransportUdp : transport.get()))) {
+      if (!addStunServer(host.get(), port, transport.get())) {
         return NS_ERROR_FAILURE;
       }
     }
@@ -1173,7 +1176,9 @@ PeerConnectionImpl::EnsureDataConnection(uint16_t aNumstreams)
 
 nsresult
 PeerConnectionImpl::GetDatachannelParameters(
-    const mozilla::JsepApplicationCodecDescription** datachannelCodec,
+    uint32_t* channels,
+    uint16_t* localport,
+    uint16_t* remoteport,
     uint16_t* level) const {
 
   auto trackPairs = mJsepSession->GetNegotiatedTrackPairs();
@@ -1219,8 +1224,15 @@ PeerConnectionImpl::GetDatachannelParameters(
           continue;
         }
 
-        *datachannelCodec =
-          static_cast<const JsepApplicationCodecDescription*>(codec);
+        if (codec->mChannels) {
+          *channels = codec->mChannels;
+        } else {
+          *channels = WEBRTC_DATACHANNEL_STREAMS_DEFAULT;
+        }
+        *localport =
+          static_cast<const JsepApplicationCodecDescription*>(codec)->mLocalPort;
+        *remoteport =
+          static_cast<const JsepApplicationCodecDescription*>(codec)->mRemotePort;
         if (trackPair.mBundleLevel.isSome()) {
           *level = static_cast<uint16_t>(*trackPair.mBundleLevel);
         } else {
@@ -1231,9 +1243,11 @@ PeerConnectionImpl::GetDatachannelParameters(
     }
   }
 
-  *datachannelCodec = nullptr;
+  *channels = 0;
+  *localport = 0;
+  *remoteport = 0;
   *level = 0;
-  return NS_OK;
+  return NS_ERROR_FAILURE;
 }
 
 /* static */
@@ -1288,33 +1302,24 @@ PeerConnectionImpl::InitializeDataChannel()
   PC_AUTO_ENTER_API_CALL(false);
   CSFLogDebug(logTag, "%s", __FUNCTION__);
 
-  const JsepApplicationCodecDescription* codec;
-  uint16_t level;
-  nsresult rv = GetDatachannelParameters(&codec, &level);
+  uint32_t channels = 0;
+  uint16_t localport = 0;
+  uint16_t remoteport = 0;
+  uint16_t level = 0;
+  nsresult rv = GetDatachannelParameters(&channels, &localport, &remoteport, &level);
 
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  if (!codec) {
+  if (NS_FAILED(rv)) {
     CSFLogDebug(logTag, "%s: We did not negotiate datachannel", __FUNCTION__);
     return NS_OK;
   }
 
 #if !defined(MOZILLA_EXTERNAL_LINKAGE)
-  uint32_t channels = codec->mChannels;
   if (channels > MAX_NUM_STREAMS) {
     channels = MAX_NUM_STREAMS;
   }
 
   rv = EnsureDataConnection(channels);
   if (NS_SUCCEEDED(rv)) {
-    uint16_t localport = 5000;
-    uint16_t remoteport = 0;
-    // The logic that reflects the remote payload type is what sets the remote
-    // port here.
-    if (!codec->GetPtAsInt(&remoteport)) {
-      return NS_ERROR_FAILURE;
-    }
-
     // use the specified TransportFlow
     RefPtr<TransportFlow> flow = mMedia->GetTransportFlow(level, false).get();
     CSFLogDebug(logTag, "Transportflow[%u] = %p",

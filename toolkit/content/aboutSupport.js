@@ -247,9 +247,12 @@ var snapshotFormatters = {
           title = key;
         }
       }
+      let td = $.new("td", value);
+      td.style["white-space"] = "pre-wrap";
+
       return $.new("tr", [
         $.new("th", title, "column"),
-        $.new("td", value),
+        td,
       ]);
     }
 
@@ -282,7 +285,7 @@ var snapshotFormatters = {
       delete data.info;
     }
 
-    if (AppConstants.NIGHTLY_BUILD) {
+    if (AppConstants.NIGHTLY_BUILD || AppConstants.MOZ_DEV_EDITION) {
       let windowUtils = window.QueryInterface(Ci.nsIInterfaceRequestor)
                               .getInterface(Ci.nsIDOMWindowUtils);
       let gpuProcessPid = windowUtils.gpuProcessPid;
@@ -373,8 +376,15 @@ var snapshotFormatters = {
            apzInfo.length
            ? apzInfo.join("; ")
            : localizedMsg(["apzNone"]));
-    addRowFromKey("features", "webglRenderer");
+    addRowFromKey("features", "webgl1Renderer");
+    addRowFromKey("features", "webgl1Version");
+    addRowFromKey("features", "webgl1Extensions");
+    addRowFromKey("features", "webgl1WSIInfo");
     addRowFromKey("features", "webgl2Renderer");
+    addRowFromKey("features", "webgl2Version");
+    addRowFromKey("features", "webgl2Extensions");
+    addRowFromKey("features", "webgl2WSIInfo");
+    addRowFromKey("features", "supportsHardwareH264", "hardwareH264");
     addRowFromKey("features", "currentAudioBackend", "audioBackend");
     addRowFromKey("features", "direct2DEnabled", "#Direct2D");
 

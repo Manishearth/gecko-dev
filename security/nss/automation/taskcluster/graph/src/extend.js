@@ -18,8 +18,7 @@ const WINDOWS_CHECKOUT_CMD =
 queue.filter(task => {
   if (task.group == "Builds") {
     // Remove extra builds on {A,UB}San and ARM.
-    if (task.collection == "asan" || task.collection == "arm-debug" ||
-        task.collection == "gyp-asan") {
+    if (task.collection == "asan" || task.collection == "arm-debug") {
       return false;
     }
 
@@ -48,7 +47,7 @@ queue.filter(task => {
   }
 
   // GYP builds with -Ddisable_libpkix=1 by default.
-  if ((task.collection == "gyp" || task.collection == "gyp-asan") &&
+  if ((task.collection == "gyp" || task.collection == "asan") &&
       task.tests == "chains") {
     return false;
   }
@@ -57,7 +56,7 @@ queue.filter(task => {
 });
 
 queue.map(task => {
-  if (task.collection == "asan" || task.collection == "gyp-asan") {
+  if (task.collection == "asan") {
     // CRMF and FIPS tests still leak, unfortunately.
     if (task.tests == "crmf" || task.tests == "fips") {
       task.env.ASAN_OPTIONS = "detect_leaks=0";
@@ -118,7 +117,7 @@ export default async function main() {
     image: LINUX_IMAGE
   });
 
-  await scheduleLinux("Linux 64 (debug, gyp, asan, ubsan)", {
+  await scheduleLinux("Linux 64 (GYP, ASan, debug)", {
     command: [
       "/bin/bash",
       "-c",
@@ -129,23 +128,7 @@ export default async function main() {
       NSS_DISABLE_ARENA_FREE_LIST: "1",
       NSS_DISABLE_UNLOAD: "1",
       CC: "clang",
-      CCC: "clang++"
-    },
-    platform: "linux64",
-    collection: "gyp-asan",
-    image: LINUX_IMAGE
-  });
-
-  await scheduleLinux("Linux 64 (ASan, debug)", {
-    env: {
-      UBSAN_OPTIONS: "print_stacktrace=1",
-      NSS_DISABLE_ARENA_FREE_LIST: "1",
-      NSS_DISABLE_UNLOAD: "1",
-      CC: "clang",
       CCC: "clang++",
-      USE_UBSAN: "1",
-      USE_ASAN: "1",
-      USE_64: "1"
     },
     platform: "linux64",
     collection: "asan",
@@ -278,6 +261,7 @@ async function scheduleFuzzing() {
       CC: "clang",
       CCC: "clang++"
     },
+    features: ["allowPtrace"],
     platform: "linux64",
     collection: "fuzz",
     image: FUZZ_IMAGE
@@ -332,10 +316,6 @@ async function scheduleFuzzing() {
       "bin/checkout.sh && nss/automation/taskcluster/scripts/fuzz.sh " +
         "hash nss/fuzz/corpus/hash -max_total_time=300 -max_len=4096"
     ],
-    // Need a privileged docker container to remove detect_leaks=0.
-    env: {
-      ASAN_OPTIONS: "allocator_may_return_null=1:detect_leaks=0",
-    },
     symbol: "Hash",
     kind: "test"
   }));
@@ -349,10 +329,6 @@ async function scheduleFuzzing() {
       "bin/checkout.sh && nss/automation/taskcluster/scripts/fuzz.sh " +
         "quickder nss/fuzz/corpus/quickder -max_total_time=300 -max_len=10000"
     ],
-    // Need a privileged docker container to remove detect_leaks=0.
-    env: {
-      ASAN_OPTIONS: "allocator_may_return_null=1:detect_leaks=0",
-    },
     symbol: "QuickDER",
     kind: "test"
   }));
@@ -366,10 +342,6 @@ async function scheduleFuzzing() {
       "bin/checkout.sh && nss/automation/taskcluster/scripts/fuzz.sh " +
         "mpi nss/fuzz/corpus/mpi -max_total_time=300 -max_len=2048"
     ],
-    // Need a privileged docker container to remove detect_leaks=0.
-    env: {
-      ASAN_OPTIONS: "allocator_may_return_null=1:detect_leaks=0",
-    },
     symbol: "MPI",
     kind: "test"
   }));
@@ -383,10 +355,6 @@ async function scheduleFuzzing() {
       "bin/checkout.sh && nss/automation/taskcluster/scripts/fuzz.sh " +
         "certDN nss/fuzz/corpus/certDN -max_total_time=300 -max_len=4096"
     ],
-    // Need a privileged docker container to remove detect_leaks=0.
-    env: {
-      ASAN_OPTIONS: "allocator_may_return_null=1:detect_leaks=0",
-    },
     symbol: "CertDN",
     kind: "test"
   }));

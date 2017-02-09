@@ -107,6 +107,8 @@ Var PreviousInstallArch
 
 Var ControlHeightPX
 Var ControlRightPX
+Var ControlTopAdjustment
+Var OptionsItemWidthPX
 
 ; Uncomment the following to prevent pinging the metrics server when testing
 ; the stub installer
@@ -669,35 +671,25 @@ Function SendPing
     ${EndIf}
 
     ${If} "$R2" == "0"
-      ; Check to see if this install location is currently set as the default
-      ; browser by Default Programs.
-      ClearErrors
-      ReadRegStr $R3 HKLM "Software\RegisteredApplications" "${AppRegName}"
-      ${Unless} ${Errors}
-        AppAssocReg::QueryAppIsDefaultAll "${AppRegName}" "effective"
-        Pop $R3
-        ${If} $R3 == "1"
-          StrCpy $R3 ""
-          ReadRegStr $R2 HKLM "Software\Classes\http\shell\open\command" ""
-          ${If} $R2 != ""
-            ${GetPathFromString} "$R2" $R2
-            ${GetParent} "$R2" $R3
-            ${GetLongPath} "$R3" $R3
-            ${If} $R3 == $INSTDIR
-              StrCpy $R2 "1" ; This Firefox install is set as default.
-            ${Else}
-              StrCpy $R2 "$R2" "" -11 # length of firefox.exe
-              ${If} "$R2" == "${FileMainEXE}"
-                StrCpy $R2 "2" ; Another Firefox install is set as default.
-              ${Else}
-                StrCpy $R2 "0"
-              ${EndIf}
-            ${EndIf}
+      StrCpy $R3 ""
+      ReadRegStr $R2 HKLM "Software\Classes\http\shell\open\command" ""
+      ${If} $R2 != ""
+        ${GetPathFromString} "$R2" $R2
+        ${GetParent} "$R2" $R3
+        ${GetLongPath} "$R3" $R3
+        ${If} $R3 == $INSTDIR
+          StrCpy $R2 "1" ; This Firefox install is set as default.
+        ${Else}
+          StrCpy $R2 "$R2" "" -11 # length of firefox.exe
+          ${If} "$R2" == "${FileMainEXE}"
+            StrCpy $R2 "2" ; Another Firefox install is set as default.
           ${Else}
-            StrCpy $R2 "0" ; Firefox is not set as default.
+            StrCpy $R2 "0"
           ${EndIf}
         ${EndIf}
-      ${EndUnless}
+      ${Else}
+        StrCpy $R2 "0" ; Firefox is not set as default.
+      ${EndIf}
     ${EndIf}
 
     ${If} $CanSetAsDefault == "true"
@@ -912,6 +904,17 @@ Function createOptions
   ${EndIf}
 
   StrCpy $ExistingTopDir ""
+  StrCpy $ControlTopAdjustment 0
+
+  ; Convert the options item width to pixels, so we can tell when a text string
+  ; exceeds this width and needs multiple lines.
+  StrCpy $2 "${OPTIONS_ITEM_WIDTH_DU}" -1
+  IntOp $2 $2 - 14 ; subtract approximate width of a checkbox
+  System::Call "*(i r2,i,i,i) p .r3"
+  System::Call "user32::MapDialogRect(p $HWNDPARENT, p r3)"
+  System::Call "*$3(i .s,i,i,i)"
+  Pop $OptionsItemWidthPX
+  System::Free $3
 
   nsDialogs::Create /NOUNLOAD 1018
   Pop $Dialog
@@ -1002,8 +1005,20 @@ Function createOptions
   ${Else}
     StrCpy $0 "$(ADD_SC_DESKTOP_QUICKLAUNCHBAR)"
   ${EndIf}
+
+  ; In some locales, this string may be too long to fit on one line.
+  ; In that case, we'll need to give the control two lines worth of height.
+  StrCpy $1 12 ; single line height
+  ${GetTextExtent} $0 $FontNormal $R1 $R2
+  ${If} $R1 > $OptionsItemWidthPX
+    ; Add a second line to the control height.
+    IntOp $1 $1 + 12
+    ; The rest of the controls will have to be lower to account for this label
+    ; needing two lines worth of height.
+    IntOp $ControlTopAdjustment $ControlTopAdjustment + 12
+  ${EndIf}
   ${NSD_CreateCheckbox} ${OPTIONS_ITEM_EDGE_DU} 100u \
-                        ${OPTIONS_ITEM_WIDTH_DU} 12u "$0"
+                        ${OPTIONS_ITEM_WIDTH_DU} "$1u" "$0"
   Pop $CheckboxShortcuts
   ; The uxtheme must be disabled on checkboxes in order to override the system
   ; font color.
@@ -1012,8 +1027,20 @@ Function createOptions
   SendMessage $CheckboxShortcuts ${WM_SETFONT} $FontNormal 0
   ${NSD_Check} $CheckboxShortcuts
 
-  ${NSD_CreateCheckbox} ${OPTIONS_ITEM_EDGE_DU} 116u ${OPTIONS_SUBITEM_WIDTH_DU} \
-                        12u "$(SEND_PING)"
+  IntOp $0 116 + $ControlTopAdjustment
+  ; In some locales, this string may be too long to fit on one line.
+  ; In that case, we'll need to give the control two lines worth of height.
+  StrCpy $1 12 ; single line height
+  ${GetTextExtent} "$(SEND_PING)" $FontNormal $R1 $R2
+  ${If} $R1 > $OptionsItemWidthPX
+    ; Add a second line to the control height.
+    IntOp $1 $1 + 12
+    ; The rest of the controls will have to be lower to account for this label
+    ; needing two lines worth of height.
+    IntOp $ControlTopAdjustment $ControlTopAdjustment + 12
+  ${EndIf}
+  ${NSD_CreateCheckbox} ${OPTIONS_ITEM_EDGE_DU} "$0u" ${OPTIONS_ITEM_WIDTH_DU} \
+                        "$1u" "$(SEND_PING)"
   Pop $CheckboxSendPing
   ; The uxtheme must be disabled on checkboxes in order to override the system
   ; font color.
@@ -1041,13 +1068,28 @@ Function createOptions
       ClearErrors
       ReadRegStr $0 HKLM "SYSTEM\CurrentControlSet\services\MozillaMaintenance" "ImagePath"
       ${If} ${Errors}
-        ${NSD_CreateCheckbox} ${OPTIONS_ITEM_EDGE_DU} 132u ${OPTIONS_ITEM_WIDTH_DU} \
-                              12u "$(INSTALL_MAINT_SERVICE)"
+        IntOp $0 132 + $ControlTopAdjustment
+        ; In some locales, this string may be too long to fit on one line.
+        ; In that case, we'll need to give the control two lines worth of height.
+        StrCpy $1 12 ; single line height
+        ${GetTextExtent} "$(INSTALL_MAINT_SERVICE)" $FontNormal $R1 $R2
+        ${If} $R1 > $OptionsItemWidthPX
+          ; Add a second line to the control height.
+          IntOp $1 $1 + 12
+          ; The rest of the controls will have to be lower to account for this label
+          ; needing two lines worth of height.
+          IntOp $ControlTopAdjustment $ControlTopAdjustment + 12
+        ${EndIf}
+        ${NSD_CreateCheckbox} ${OPTIONS_ITEM_EDGE_DU} "$0u" ${OPTIONS_ITEM_WIDTH_DU} \
+                              "$1u" "$(INSTALL_MAINT_SERVICE)"
         Pop $CheckboxInstallMaintSvc
         System::Call 'uxtheme::SetWindowTheme(i $CheckboxInstallMaintSvc, w " ", w " ")'
         SetCtlColors $CheckboxInstallMaintSvc ${COMMON_TEXT_COLOR_NORMAL} ${COMMON_BKGRD_COLOR}
         SendMessage $CheckboxInstallMaintSvc ${WM_SETFONT} $FontNormal 0
         ${NSD_Check} $CheckboxInstallMaintSvc
+        ; Since we're adding in an optional control, remember the lower the ones
+        ; that come after it.
+        IntOp $ControlTopAdjustment 20 + $ControlTopAdjustment
       ${EndIf}
     ${EndIf}
   ${EndIf}
@@ -1074,11 +1116,8 @@ Function createOptions
     ${LoopUntil} $R0 == ""
 
     ${GetTextExtent} $R1 $FontNormal $R0 $R1
-    ${If} $CheckboxInstallMaintSvc == "0"
-      ${NSD_CreateLabel} ${OPTIONS_ITEM_EDGE_DU} 134u $R0 $R1 "$(ARCH_DROPLIST_LABEL)"
-    ${Else}
-      ${NSD_CreateLabel} ${OPTIONS_ITEM_EDGE_DU} 154u $R0 $R1 "$(ARCH_DROPLIST_LABEL)"
-    ${EndIf}
+    IntOp $0 134 + $ControlTopAdjustment
+    ${NSD_CreateLabel} ${OPTIONS_ITEM_EDGE_DU} "$0u" $R0 $R1 "$(ARCH_DROPLIST_LABEL)"
     Pop $0
     SetCtlColors $0 ${COMMON_TEXT_COLOR_NORMAL} ${COMMON_BKGRD_COLOR}
     SendMessage $0 ${WM_SETFONT} $FontNormal 0
@@ -1101,11 +1140,8 @@ Function createOptions
     ; Put the droplist right after the label, with some padding.
     ${GetDlgItemEndPX} $0 $ControlRightPX
     IntOp $ControlRightPX $ControlRightPX + 4
-    ${If} $CheckboxInstallMaintSvc == "0"
-      ${NSD_CreateDropList} $ControlRightPX 132u $R0 $R3 ""
-    ${Else}
-      ${NSD_CreateDropList} $ControlRightPX 152u $R0 $R3 ""
-    ${EndIf}
+    IntOp $0 132 + $ControlTopAdjustment
+    ${NSD_CreateDropList} $ControlRightPX "$0u" $R0 $R3 ""
     Pop $DroplistArch
     ${NSD_CB_AddString} $DroplistArch "$(VERSION_32BIT)"
     ${NSD_CB_AddString} $DroplistArch "$(VERSION_64BIT)"
@@ -1114,12 +1150,7 @@ Function createOptions
     System::Call 'uxtheme::SetWindowTheme(i $DroplistArch, w " ", w " ")'
     SetCtlColors $DroplistArch ${COMMON_TEXT_COLOR_NORMAL} ${COMMON_BKGRD_COLOR}
     SendMessage $DroplistArch ${WM_SETFONT} $FontNormal 0
-
-    ${If} ${RunningX64}
-      ${NSD_CB_SelectString} $DroplistArch "$(VERSION_64BIT)"
-    ${Else}
-      ${NSD_CB_SelectString} $DroplistArch "$(VERSION_32BIT)"
-    ${EndIf}
+    ${NSD_CB_SelectString} $DroplistArch "$(VERSION_64BIT)"
   ${EndIf}
 
   GetDlgItem $0 $HWNDPARENT 1 ; Install button
@@ -2056,15 +2087,9 @@ Function LaunchApp
 FunctionEnd
 
 Function LaunchAppFromElevatedProcess
-  ; Find the installation directory when launching using GetFunctionAddress
-  ; from an elevated installer since $INSTDIR will not be set in this installer
-  ${StrFilter} "${FileMainEXE}" "+" "" "" $R9
-  ReadRegStr $0 HKLM "Software\Clients\StartMenuInternet\$R9\DefaultIcon" ""
-  ${GetPathFromString} "$0" $0
   ; Set the current working directory to the installation directory
-  ${GetParent} "$0" $1
-  SetOutPath "$1"
-  Exec "$\"$0$\""
+  SetOutPath "$INSTDIR"
+  Exec "$\"$INSTDIR\${FileMainEXE}$\""
 FunctionEnd
 
 Function CopyPostSigningData

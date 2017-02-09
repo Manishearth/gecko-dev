@@ -137,12 +137,19 @@ VRDisplayOpenVR::VRDisplayOpenVR(::vr::IVRSystem *aVRSystem,
 
   mDisplayInfo.mDisplayName.AssignLiteral("OpenVR HMD");
   mDisplayInfo.mIsConnected = true;
+  mDisplayInfo.mIsMounted = false;
   mDisplayInfo.mCapabilityFlags = VRDisplayCapabilityFlags::Cap_None |
                                   VRDisplayCapabilityFlags::Cap_Orientation |
                                   VRDisplayCapabilityFlags::Cap_Position |
                                   VRDisplayCapabilityFlags::Cap_External |
                                   VRDisplayCapabilityFlags::Cap_Present |
                                   VRDisplayCapabilityFlags::Cap_StageParameters;
+
+  ::vr::ETrackedPropertyError err;
+  bool bHasProximitySensor = mVRSystem->GetBoolTrackedDeviceProperty(::vr::k_unTrackedDeviceIndex_Hmd, ::vr::Prop_ContainsProximitySensor_Bool, &err);
+  if (err == ::vr::TrackedProp_Success && bHasProximitySensor) {
+    mDisplayInfo.mCapabilityFlags |= VRDisplayCapabilityFlags::Cap_MountDetection;
+  }
 
   mVRCompositor->SetTrackingSpace(::vr::TrackingUniverseSeated);
 
@@ -258,15 +265,31 @@ VRDisplayOpenVR::GetImmediateSensorState()
   return GetSensorState(0.0f);
 }
 
+void
+VRDisplayOpenVR::PollEvents()
+{
+  ::vr::VREvent_t event;
+  while (mVRSystem->PollNextEvent(&event, sizeof(event))) {
+    if (event.trackedDeviceIndex == ::vr::k_unTrackedDeviceIndex_Hmd) {
+      switch (event.eventType) {
+      case ::vr::VREvent_TrackedDeviceUserInteractionStarted:
+        mDisplayInfo.mIsMounted = true;
+        break;
+      case ::vr::VREvent_TrackedDeviceUserInteractionEnded:
+        mDisplayInfo.mIsMounted = false;
+        break;
+      default:
+        // ignore
+        break;
+      }
+    }
+  }
+}
+
 VRHMDSensorState
 VRDisplayOpenVR::GetSensorState(double timeOffset)
 {
-  {
-    ::vr::VREvent_t event;
-    while (mVRSystem->PollNextEvent(&event, sizeof(event))) {
-      // ignore
-    }
-  }
+  PollEvents();
 
   ::vr::TrackedDevicePose_t poses[::vr::k_unMaxTrackedDeviceCount];
   // Note: We *must* call WaitGetPoses in order for any rendering to happen at all
@@ -392,6 +415,37 @@ VRDisplayOpenVR::NotifyVSync()
 {
   // We update mIsConneced once per frame.
   mDisplayInfo.mIsConnected = vr_IsHmdPresent();
+
+  // Make sure we respond to OpenVR events even when not presenting
+  PollEvents();
+}
+
+VRControllerOpenVR::VRControllerOpenVR()
+  : VRControllerHost(VRDeviceType::OpenVR)
+{
+  MOZ_COUNT_CTOR_INHERITED(VRControllerOpenVR, VRControllerHost);
+  mControllerInfo.mControllerName.AssignLiteral("OpenVR Controller");
+  mControllerInfo.mMappingType = GamepadMappingType::_empty;
+  mControllerInfo.mHand = GamepadHand::_empty;
+  mControllerInfo.mNumButtons = gNumOpenVRButtonMask;
+  mControllerInfo.mNumAxes = gNumOpenVRAxis;
+}
+
+VRControllerOpenVR::~VRControllerOpenVR()
+{
+  MOZ_COUNT_DTOR_INHERITED(VRControllerOpenVR, VRControllerHost);
+}
+
+void
+VRControllerOpenVR::SetTrackedIndex(uint32_t aTrackedIndex)
+{
+  mTrackedIndex = aTrackedIndex;
+}
+
+uint32_t
+VRControllerOpenVR::GetTrackedIndex()
+{
+  return mTrackedIndex;
 }
 
 VRSystemManagerOpenVR::VRSystemManagerOpenVR()
@@ -437,6 +491,7 @@ VRSystemManagerOpenVR::Destroy()
       mOpenVRHMD = nullptr;
     }
     RemoveControllers();
+    mVRSystem = nullptr;
     mOpenVRInstalled = false;
   }
 }
@@ -488,15 +543,15 @@ VRSystemManagerOpenVR::GetHMDs(nsTArray<RefPtr<VRDisplayHost>>& aHMDResult)
 void
 VRSystemManagerOpenVR::HandleInput()
 {
-  RefPtr<impl::VRControllerOpenVR> controller;
-  vr::VRControllerState_t state;
-  uint32_t axis = 0;
-
-  if (!mOpenVRInstalled) {
+  // mVRSystem is available after VRDisplay is created
+  // at GetHMDs().
+  if (!mVRSystem) {
     return;
   }
 
-  MOZ_ASSERT(mVRSystem);
+  RefPtr<impl::VRControllerOpenVR> controller;
+  vr::VRControllerState_t state;
+  uint32_t axis = 0;
 
   vr::TrackedDevicePose_t poses[vr::k_unMaxTrackedDeviceCount];
   mVRSystem->GetDeviceToAbsoluteTrackingPose(vr::TrackingUniverseSeated, 0.0f,
@@ -627,11 +682,11 @@ VRSystemManagerOpenVR::GetControllers(nsTArray<RefPtr<VRControllerHost>>& aContr
 void
 VRSystemManagerOpenVR::ScanForControllers()
 {
-  if (!mOpenVRInstalled) {
+  // mVRSystem is available after VRDisplay is created
+  // at GetHMDs().
+  if (!mVRSystem) {
     return;
   }
-
-  MOZ_ASSERT(mVRSystem);
 
   vr::TrackedDeviceIndex_t trackedIndexArray[vr::k_unMaxTrackedDeviceCount];
   uint32_t newControllerCount = 0;
@@ -681,11 +736,11 @@ VRSystemManagerOpenVR::ScanForControllers()
       RefPtr<VRControllerOpenVR> openVRController = new VRControllerOpenVR();
       openVRController->SetIndex(mControllerCount);
       openVRController->SetTrackedIndex(trackedDevice);
+      openVRController->SetHand(hand);
       mOpenVRController.AppendElement(openVRController);
 
       // Not already present, add it.
-      AddGamepad("OpenVR Gamepad", GamepadMappingType::_empty,
-                 hand, gNumOpenVRButtonMask, gNumOpenVRAxis);
+      AddGamepad(openVRController->GetControllerInfo());
       ++mControllerCount;
     }
   }
@@ -696,31 +751,4 @@ VRSystemManagerOpenVR::RemoveControllers()
 {
   mOpenVRController.Clear();
   mControllerCount = 0;
-}
-
-VRControllerOpenVR::VRControllerOpenVR()
-  : VRControllerHost(VRDeviceType::OpenVR)
-{
-  MOZ_COUNT_CTOR_INHERITED(VRControllerOpenVR, VRControllerHost);
-  mControllerInfo.mControllerName.AssignLiteral("OpenVR HMD");
-  mControllerInfo.mMappingType = GamepadMappingType::_empty;
-  mControllerInfo.mNumButtons = gNumOpenVRButtonMask;
-  mControllerInfo.mNumAxes = gNumOpenVRAxis;
-}
-
-VRControllerOpenVR::~VRControllerOpenVR()
-{
-  MOZ_COUNT_DTOR_INHERITED(VRControllerOpenVR, VRControllerHost);
-}
-
-void
-VRControllerOpenVR::SetTrackedIndex(uint32_t aTrackedIndex)
-{
-  mTrackedIndex = aTrackedIndex;
-}
-
-uint32_t
-VRControllerOpenVR::GetTrackedIndex()
-{
-  return mTrackedIndex;
 }

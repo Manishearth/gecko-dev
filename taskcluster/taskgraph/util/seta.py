@@ -32,10 +32,21 @@ class SETA(object):
         # cached push_ids that failed to retrieve datetime for
         self.failed_json_push_calls = []
 
+    def _get_task_string(self, task_tuple):
+        # convert task tuple to single task string, so the task label sent in can match
+        # remove any empty parts of the tuple
+        task_tuple = [x for x in task_tuple if len(x) != 0]
+
+        if len(task_tuple) == 0:
+            return ''
+        if len(task_tuple) != 3:
+            return ' '.join(task_tuple)
+
+        return 'test-%s/%s-%s' % (task_tuple[0], task_tuple[1], task_tuple[2])
+
     def query_low_value_tasks(self, project):
         # Request the set of low value tasks from the SETA service.  Low value tasks will be
         # optimized out of the task graph.
-        logger.debug("Querying SETA service for low-value tasks on {}".format(project))
         low_value_tasks = []
 
         url = SETA_ENDPOINT % project
@@ -47,12 +58,17 @@ class SETA(object):
                              args=(url, ),
                              kwargs={'timeout': 5, 'headers': headers})
             task_list = json.loads(response.content).get('jobtypes', '')
-            if len(task_list) > 0:
-                low_value_tasks = task_list.values()[0]
 
-            # Bug 1315145, disable SETA for tier-1 platforms until backfill is implemented.
-            low_value_tasks = [x for x in low_value_tasks if x.find('debug') == -1]
-            low_value_tasks = [x for x in low_value_tasks if x.find('asan') == -1]
+            if type(task_list) == dict and len(task_list) > 0:
+                if type(task_list.values()[0]) == list and len(task_list.values()[0]) > 0:
+                    low_value_tasks = task_list.values()[0]
+                    # bb job types return a list instead of a single string,
+                    # convert to a single string to match tc tasks format
+                    if type(low_value_tasks[0]) == list:
+                        low_value_tasks = [self._get_task_string(x) for x in low_value_tasks]
+
+            # ensure no build tasks slipped in, we never want to optimize out those
+            low_value_tasks = [x for x in low_value_tasks if 'build' not in x.lower()]
 
         # In the event of request times out, requests will raise a TimeoutError.
         except exceptions.Timeout:
@@ -104,7 +120,6 @@ class SETA(object):
         url = PUSH_ENDPOINT % (project, cur_push_id - 2, prev_push_id)
 
         try:
-            logger.debug("Retrieving datetime of previous push")
             response = retry(requests.get, attempts=2, sleeptime=10,
                              args=(url, ),
                              kwargs={'timeout': 5, 'headers': headers})
@@ -149,7 +164,6 @@ class SETA(object):
     def is_low_value_task(self, label, project, pushlog_id, push_date):
         # marking a task as low_value means it will be optimized out by tc
         if project not in SETA_PROJECTS:
-            logger.debug("SETA is not enabled for project `{}`".format(project))
             return False
 
         schedule_all_every = PROJECT_SCHEDULE_ALL_EVERY_PUSHES.get(project, 5)

@@ -382,6 +382,11 @@ private:
   // Please note that the event may not cause any text input even if this
   // is true.  E.g., it might be dead key state or Ctrl key may be pressed.
   bool    mIsPrintableKey;
+  // mCharMessageHasGone is true if the message is a keydown message and
+  // it's followed by at least one char message but it's gone at removing
+  // from the queue.  This could occur if PeekMessage() or something is
+  // hooked by odd tool.
+  bool    mCharMessageHasGone;
   // mIsOverridingKeyboardLayout is true if the instance temporarily overriding
   // keyboard layout with specified by the constructor.
   bool    mIsOverridingKeyboardLayout;
@@ -508,6 +513,8 @@ private:
     return (aMessage == WM_SYSCHAR || aMessage == WM_SYSDEADCHAR);
   }
   bool MayBeSameCharMessage(const MSG& aCharMsg1, const MSG& aCharMsg2) const;
+  bool IsSamePhysicalKeyMessage(const MSG& aKeyOrCharMsg1,
+                                const MSG& aKeyOrCharMsg2) const;
   bool IsFollowedByPrintableCharMessage() const;
   bool IsFollowedByPrintableCharOrSysCharMessage() const;
   bool IsFollowedByDeadCharMessage() const;
@@ -673,6 +680,8 @@ class KeyboardLayout
 public:
   static KeyboardLayout* GetInstance();
   static void Shutdown();
+  static HKL GetActiveLayout();
+  static nsCString GetActiveLayoutName();
   static void NotifyIdleServiceOfUserActivity();
 
   static bool IsPrintableCharKey(uint8_t aVirtualKey);
@@ -846,6 +855,12 @@ private:
    * state.
    */
   void LoadLayout(HKL aLayout);
+
+  /**
+   * Gets the keyboard layout name of aLayout.  Be careful, this may be too
+   * slow to call at handling user input.
+   */
+  nsCString GetLayoutName(HKL aLayout) const;
 
   /**
    * InitNativeKey() must be called when actually widget receives WM_KEYDOWN or

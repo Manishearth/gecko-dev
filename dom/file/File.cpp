@@ -36,6 +36,9 @@
 #include "mozilla/dom/BlobBinding.h"
 #include "mozilla/dom/DOMError.h"
 #include "mozilla/dom/FileBinding.h"
+#include "mozilla/dom/FileCreatorHelper.h"
+#include "mozilla/dom/FileSystemUtils.h"
+#include "mozilla/dom/Promise.h"
 #include "mozilla/dom/WorkerPrivate.h"
 #include "mozilla/dom/WorkerRunnable.h"
 #include "nsThreadUtils.h"
@@ -470,15 +473,18 @@ File::GetName(nsAString& aFileName) const
 }
 
 void
-File::GetPath(nsAString& aPath) const
+File::GetRelativePath(nsAString& aPath) const
 {
-  mImpl->GetPath(aPath);
-}
+  aPath.Truncate();
 
-void
-File::SetPath(const nsAString& aPath)
-{
-  mImpl->SetPath(aPath);
+  nsAutoString path;
+  mImpl->GetDOMPath(path);
+
+  // WebkitRelativePath doesn't start with '/'
+  if (!path.IsEmpty()) {
+    MOZ_ASSERT(path[0] == FILESYSTEM_DOM_PATH_SEPARATOR_CHAR);
+    aPath.Assign(Substring(path, 1));
+  }
 }
 
 Date
@@ -499,9 +505,10 @@ File::GetLastModified(ErrorResult& aRv)
 }
 
 void
-File::GetMozFullPath(nsAString& aFilename, ErrorResult& aRv) const
+File::GetMozFullPath(nsAString& aFilename, SystemCallerGuarantee aGuarantee,
+                     ErrorResult& aRv) const
 {
-  mImpl->GetMozFullPath(aFilename, aRv);
+  mImpl->GetMozFullPath(aFilename, aGuarantee, aRv);
 }
 
 void
@@ -576,61 +583,40 @@ File::Constructor(const GlobalObject& aGlobal,
   return file.forget();
 }
 
-/* static */ already_AddRefed<File>
+/* static */ already_AddRefed<Promise>
 File::CreateFromNsIFile(const GlobalObject& aGlobal,
                         nsIFile* aData,
                         const ChromeFilePropertyBag& aBag,
+                        SystemCallerGuarantee aGuarantee,
                         ErrorResult& aRv)
 {
   MOZ_ASSERT(NS_IsMainThread());
-  if (!nsContentUtils::IsCallerChrome()) {
-    aRv.Throw(NS_ERROR_FAILURE);
-    return nullptr;
-  }
 
-  nsCOMPtr<nsPIDOMWindowInner> window = do_QueryInterface(aGlobal.GetAsSupports());
+  nsCOMPtr<nsIGlobalObject> global = do_QueryInterface(aGlobal.GetAsSupports());
 
-  RefPtr<MultipartBlobImpl> impl = new MultipartBlobImpl(EmptyString());
-  impl->InitializeChromeFile(window, aData, aBag, true, aRv);
-  if (aRv.Failed()) {
-    return nullptr;
-  }
-  MOZ_ASSERT(impl->IsFile());
-
-  if (aBag.mLastModified.WasPassed()) {
-    impl->SetLastModified(aBag.mLastModified.Value());
-  }
-
-  RefPtr<File> domFile = new File(aGlobal.GetAsSupports(), impl);
-  return domFile.forget();
+  RefPtr<Promise> promise =
+    FileCreatorHelper::CreateFile(global, aData, aBag, true, aRv);
+  return promise.forget();
 }
 
-/* static */ already_AddRefed<File>
+/* static */ already_AddRefed<Promise>
 File::CreateFromFileName(const GlobalObject& aGlobal,
-                         const nsAString& aData,
+                         const nsAString& aPath,
                          const ChromeFilePropertyBag& aBag,
+                         SystemCallerGuarantee aGuarantee,
                          ErrorResult& aRv)
 {
-  if (!nsContentUtils::ThreadsafeIsCallerChrome()) {
-    aRv.ThrowTypeError<MSG_MISSING_ARGUMENTS>(NS_LITERAL_STRING("File"));
+  nsCOMPtr<nsIFile> file;
+  aRv = NS_NewLocalFile(aPath, false, getter_AddRefs(file));
+  if (NS_WARN_IF(aRv.Failed())) {
     return nullptr;
   }
 
-  nsCOMPtr<nsPIDOMWindowInner> window = do_QueryInterface(aGlobal.GetAsSupports());
+  nsCOMPtr<nsIGlobalObject> global = do_QueryInterface(aGlobal.GetAsSupports());
 
-  RefPtr<MultipartBlobImpl> impl = new MultipartBlobImpl(EmptyString());
-  impl->InitializeChromeFile(window, aData, aBag, aRv);
-  if (aRv.Failed()) {
-    return nullptr;
-  }
-  MOZ_ASSERT(impl->IsFile());
-
-  if (aBag.mLastModified.WasPassed()) {
-    impl->SetLastModified(aBag.mLastModified.Value());
-  }
-
-  RefPtr<File> domFile = new File(aGlobal.GetAsSupports(), impl);
-  return domFile.forget();
+  RefPtr<Promise> promise =
+    FileCreatorHelper::CreateFile(global, file, aBag, false, aRv);
+  return promise.forget();
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -676,40 +662,27 @@ BlobImplBase::GetName(nsAString& aName) const
 }
 
 void
-BlobImplBase::GetPath(nsAString& aPath) const
+BlobImplBase::GetDOMPath(nsAString& aPath) const
 {
   MOZ_ASSERT(mIsFile, "Should only be called on files");
   aPath = mPath;
 }
 
 void
-BlobImplBase::SetPath(const nsAString& aPath)
+BlobImplBase::SetDOMPath(const nsAString& aPath)
 {
   MOZ_ASSERT(mIsFile, "Should only be called on files");
   mPath = aPath;
 }
 
 void
-BlobImplBase::GetMozFullPath(nsAString& aFileName, ErrorResult& aRv) const
+BlobImplBase::GetMozFullPath(nsAString& aFileName,
+                             SystemCallerGuarantee /* unused */,
+                             ErrorResult& aRv) const
 {
   MOZ_ASSERT(mIsFile, "Should only be called on files");
 
-  aFileName.Truncate();
-
-  if (NS_IsMainThread()) {
-    if (nsContentUtils::LegacyIsCallerChromeOrNativeCode()) {
-      GetMozFullPathInternal(aFileName, aRv);
-    }
-
-    return;
-  }
-
-  WorkerPrivate* workerPrivate = GetCurrentThreadWorkerPrivate();
-  MOZ_ASSERT(workerPrivate);
-
-  if (workerPrivate->UsesSystemPrincipal()) {
-    GetMozFullPathInternal(aFileName, aRv);
-  }
+  GetMozFullPathInternal(aFileName, aRv);
 }
 
 void

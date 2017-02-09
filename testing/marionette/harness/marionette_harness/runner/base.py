@@ -240,7 +240,11 @@ class MarionetteTextTestRunner(StructuredTestRunner):
 
 
 class BaseMarionetteArguments(ArgumentParser):
-    socket_timeout_default = 65.0
+    # Bug 1336953 - Until we can remove the socket timeout parameter it has to be
+    # set a default value which is larger than the longest timeout as defined by the
+    # WebDriver spec. In that case its 300s for page load. Also add another minute
+    # so that slow builds have enough time to send the timeout error to the client.
+    socket_timeout_default = 360.0
 
     def __init__(self, **kwargs):
         ArgumentParser.__init__(self, **kwargs)

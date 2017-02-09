@@ -40,6 +40,7 @@ const JSON_MALFORMED_URL = EXAMPLE_URL + "html_json-malformed-test-page.html";
 const JSON_CUSTOM_MIME_URL = EXAMPLE_URL + "html_json-custom-mime-test-page.html";
 const JSON_TEXT_MIME_URL = EXAMPLE_URL + "html_json-text-mime-test-page.html";
 const JSON_B64_URL = EXAMPLE_URL + "html_json-b64.html";
+const JSON_BASIC_URL = EXAMPLE_URL + "html_json-basic.html";
 const SORTING_URL = EXAMPLE_URL + "html_sorting-test-page.html";
 const FILTERING_URL = EXAMPLE_URL + "html_filter-test-page.html";
 const INFINITE_GET_URL = EXAMPLE_URL + "html_infinite-get-page.html";
@@ -425,9 +426,13 @@ function testFilterButtonsCustom(aMonitor, aIsChecked) {
     if (aIsChecked[i]) {
       is(button.classList.contains("checked"), true,
         "The " + button.id + " button should have a 'checked' class.");
+      is(button.getAttribute("aria-pressed"), "true",
+        "The " + button.id + " button should set 'aria-pressed' = true.");
     } else {
       is(button.classList.contains("checked"), false,
         "The " + button.id + " button should not have a 'checked' class.");
+      is(button.getAttribute("aria-pressed"), "false",
+        "The " + button.id + " button should set 'aria-pressed' = false.");
     }
   }
 }

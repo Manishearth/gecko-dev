@@ -5,6 +5,7 @@
 package org.mozilla.gecko.home.activitystream.topsites;
 
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.support.v4.widget.TextViewCompat;
 import android.support.v7.widget.RecyclerView;
 import android.view.View;
@@ -63,7 +64,7 @@ import java.util.concurrent.Future;
                         .forTopSite(topSite)
                         .set(ActivityStreamTelemetry.Contract.ACTION_POSITION, absolutePosition);
 
-                ActivityStreamContextMenu.show(v.getContext(),
+                ActivityStreamContextMenu.show(itemView.getContext(),
                         menuButton,
                         extras,
                         ActivityStreamContextMenu.MenuMode.TOPSITE,
@@ -103,8 +104,14 @@ import java.util.concurrent.Future;
                 .build()
                 .execute(this);
 
-        final int pinResourceId = (topSite.isPinned() ? R.drawable.pin : 0);
-        TextViewCompat.setCompoundDrawablesRelativeWithIntrinsicBounds(title, pinResourceId, 0, 0, 0);
+        final Drawable pinDrawable;
+        if (topSite.isPinned()) {
+            pinDrawable = DrawableUtil.tintDrawable(itemView.getContext(), R.drawable.as_pin, itemView.getResources().getColor(R.color.placeholder_grey));
+        } else {
+            pinDrawable = null;
+        }
+        TextViewCompat.setCompoundDrawablesRelativeWithIntrinsicBounds(title, pinDrawable, null, null, null);
+
     }
 
     @Override

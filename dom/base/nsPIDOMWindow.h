@@ -107,7 +107,8 @@ enum class LargeAllocStatus : uint8_t
   // to it.
   NON_GET,
   NON_E10S,
-  NOT_ONLY_TOPLEVEL_IN_TABGROUP
+  NOT_ONLY_TOPLEVEL_IN_TABGROUP,
+  NON_WIN32
 };
 } // namespace dom
 } // namespace mozilla
@@ -897,6 +898,7 @@ protected:
   void RefreshMediaElementsVolume();
   void RefreshMediaElementsSuspend(SuspendTypes aSuspend);
   bool IsDisposableSuspend(SuspendTypes aSuspend) const;
+  void MaybeNotifyMediaResumedFromBlock(SuspendTypes aSuspend);
 
 public:
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_PIDOMWINDOWOUTER_IID)
@@ -961,6 +963,9 @@ public:
 
   float GetAudioVolume() const;
   nsresult SetAudioVolume(float aVolume);
+
+  void NotifyCreatedNewMediaComponent();
+  void MaybeActiveMediaComponents();
 
   void SetServiceWorkersTestingEnabled(bool aEnabled);
   bool GetServiceWorkersTestingEnabled();

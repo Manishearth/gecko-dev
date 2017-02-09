@@ -32,7 +32,6 @@
 #include "platform.h"
 #include "ProfileEntry.h"
 #include "ThreadInfo.h"
-#include "ThreadProfile.h"
 #include "ThreadResponsiveness.h"
 
 // Memory profile
@@ -97,10 +96,9 @@ class SamplerThread
  public:
   // Initialize a Win32 thread object. The thread has an invalid thread
   // handle until it is started.
-  SamplerThread(double interval, Sampler* sampler)
+  explicit SamplerThread(double interval)
     : mStackSize(0)
     , mThread(kNoThread)
-    , mSampler(sampler)
     , mInterval(interval)
   {
     mInterval = floor(interval + 0.5);
@@ -141,12 +139,14 @@ class SamplerThread
     }
   }
 
-  static void StartSampler(Sampler* sampler) {
+  static void StartSampler() {
+    MOZ_RELEASE_ASSERT(NS_IsMainThread());
+
     if (mInstance == NULL) {
-      mInstance = new SamplerThread(sampler->interval(), sampler);
+      mInstance = new SamplerThread(gSampler->interval());
       mInstance->Start();
     } else {
-      ASSERT(mInstance->mInterval == sampler->interval());
+      MOZ_ASSERT(mInstance->mInterval == gSampler->interval());
     }
   }
 
@@ -163,32 +163,31 @@ class SamplerThread
     if (mInterval < 10)
         ::timeBeginPeriod(mInterval);
 
-    while (mSampler->IsActive()) {
-      mSampler->DeleteExpiredMarkers();
+    // XXX: this loop is an off-main-thread use of gSampler
+    while (gSampler->IsActive()) {
+      gSampler->DeleteExpiredMarkers();
 
-      if (!mSampler->IsPaused()) {
-        mozilla::MutexAutoLock lock(*Sampler::sRegisteredThreadsMutex);
-        const std::vector<ThreadInfo*>& threads =
-          mSampler->GetRegisteredThreads();
+      if (!gSampler->IsPaused()) {
+        mozilla::StaticMutexAutoLock lock(Sampler::sRegisteredThreadsMutex);
+
         bool isFirstProfiledThread = true;
-        for (uint32_t i = 0; i < threads.size(); i++) {
-          ThreadInfo* info = threads[i];
+        for (uint32_t i = 0; i < Sampler::sRegisteredThreads->size(); i++) {
+          ThreadInfo* info = (*Sampler::sRegisteredThreads)[i];
 
           // This will be null if we're not interested in profiling this thread.
-          if (!info->Profile() || info->IsPendingDelete())
-            continue;
-
-          PseudoStack::SleepState sleeping = info->Stack()->observeSleeping();
-          if (sleeping == PseudoStack::SLEEPING_AGAIN) {
-            info->Profile()->DuplicateLastSample();
+          if (!info->hasProfile() || info->IsPendingDelete()) {
             continue;
           }
 
-          info->Profile()->GetThreadResponsiveness()->Update();
+          PseudoStack::SleepState sleeping = info->Stack()->observeSleeping();
+          if (sleeping == PseudoStack::SLEEPING_AGAIN) {
+            info->DuplicateLastSample();
+            continue;
+          }
 
-          ThreadProfile* thread_profile = info->Profile();
+          info->UpdateThreadResponsiveness();
 
-          SampleContext(mSampler, thread_profile, isFirstProfiledThread);
+          SampleContext(info, isFirstProfiledThread);
           isFirstProfiledThread = false;
         }
       }
@@ -200,11 +199,9 @@ class SamplerThread
         ::timeEndPeriod(mInterval);
   }
 
-  void SampleContext(Sampler* sampler, ThreadProfile* thread_profile,
-                     bool isFirstProfiledThread)
+  void SampleContext(ThreadInfo* aThreadInfo, bool isFirstProfiledThread)
   {
-    uintptr_t thread = Sampler::GetThreadHandle(
-                               thread_profile->GetPlatformData());
+    uintptr_t thread = Sampler::GetThreadHandle(aThreadInfo->GetPlatformData());
     HANDLE profiled_thread = reinterpret_cast<HANDLE>(thread);
     if (profiled_thread == NULL)
       return;
@@ -218,7 +215,7 @@ class SamplerThread
 
     // Grab the timestamp before pausing the thread, to avoid deadlocks.
     sample->timestamp = mozilla::TimeStamp::Now();
-    sample->threadProfile = thread_profile;
+    sample->threadInfo = aThreadInfo;
 
     // XXX: this is an off-main-thread use of gSampler
     if (isFirstProfiledThread && gSampler->ProfileMemory()) {
@@ -258,7 +255,7 @@ class SamplerThread
     // CanInvokeJS consults an unlocked value in the nsIThread, so we must
     // consult this after suspending the profiled thread to avoid racing
     // against a value change.
-    if (thread_profile->CanInvokeJS()) {
+    if (aThreadInfo->CanInvokeJS()) {
       if (!TryAcquireStackWalkWorkaroundLock()) {
         ResumeThread(profiled_thread);
         return;
@@ -284,7 +281,9 @@ class SamplerThread
 #endif
 
     sample->context = &context;
-    sampler->Tick(sample);
+
+    // XXX: this is an off-main-thread use of gSampler
+    gSampler->Tick(sample);
 
     ResumeThread(profiled_thread);
   }
@@ -294,7 +293,6 @@ private:
   HANDLE mThread;
   Thread::tid_t mThreadId;
 
-  Sampler* mSampler;
   int mInterval; // units: ms
 
   // Protects the process wide state below.
@@ -306,13 +304,13 @@ private:
 SamplerThread* SamplerThread::mInstance = NULL;
 
 void Sampler::Start() {
-  ASSERT(!IsActive());
+  MOZ_ASSERT(!IsActive());
   SetActive(true);
-  SamplerThread::StartSampler(this);
+  SamplerThread::StartSampler();
 }
 
 void Sampler::Stop() {
-  ASSERT(IsActive());
+  MOZ_ASSERT(IsActive());
   SetActive(false);
   SamplerThread::StopSampler();
 }

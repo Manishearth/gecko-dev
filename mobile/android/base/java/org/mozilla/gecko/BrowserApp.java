@@ -667,7 +667,6 @@ public class BrowserApp extends GeckoApp
                         final TabHistoryFragment fragment = TabHistoryFragment.newInstance(historyPageList, toIndex);
                         final FragmentManager fragmentManager = getSupportFragmentManager();
                         GeckoAppShell.vibrateOnHapticFeedbackEnabled(getResources().getIntArray(R.array.long_press_vibrate_msec));
-                        if (BrowserApp.this.isForegrounded())
                         fragment.show(R.id.tab_history_panel, fragmentManager.beginTransaction(), TAB_HISTORY_FRAGMENT_TAG);
                     }
                 });
@@ -1349,14 +1348,9 @@ public class BrowserApp extends GeckoApp
             // This can be selected from either the browser menu or the contextmenu, depending on the size and version (v11+) of the phone.
             Tab tab = Tabs.getInstance().getSelectedTab();
             if (tab != null && tab.hasOpenSearch()) {
-                JSONObject args = new JSONObject();
-                try {
-                    args.put("tabId", tab.getId());
-                } catch (JSONException e) {
-                    Log.e(LOGTAG, "error building json arguments", e);
-                    return true;
-                }
-                GeckoAppShell.notifyObservers("SearchEngines:Add", args.toString());
+                final GeckoBundle args = new GeckoBundle(1);
+                args.putInt("tabId", tab.getId());
+                EventDispatcher.getInstance().dispatch("SearchEngines:Add", args);
             }
             return true;
         }

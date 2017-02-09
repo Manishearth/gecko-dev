@@ -42,13 +42,21 @@ DocAccessibleParent::RecvShowEvent(const ShowEventData& aData,
   // required show events.
   if (!parent) {
     NS_ERROR("adding child to unknown accessible");
+#ifdef DEBUG
     return IPC_FAIL(this, "unknown parent accessible");
+#else
+    return IPC_OK();
+#endif
   }
 
   uint32_t newChildIdx = aData.Idx();
   if (newChildIdx > parent->ChildrenCount()) {
     NS_ERROR("invalid index to add child at");
+#ifdef DEBUG
     return IPC_FAIL(this, "invalid index");
+#else
+    return IPC_OK();
+#endif
   }
 
   uint32_t consumed = AddSubtree(parent, aData.NewTree(), 0, newChildIdx);
@@ -453,11 +461,15 @@ DocAccessibleParent::Destroy()
     return;
   }
 
-  NS_ASSERTION(mChildDocs.IsEmpty(),
-               "why weren't the child docs destroyed already?");
   mShutdown = true;
 
   uint32_t childDocCount = mChildDocs.Length();
+  for (uint32_t i = 0; i < childDocCount; i++) {
+    for (uint32_t j = i + 1; j < childDocCount; j++) {
+      MOZ_DIAGNOSTIC_ASSERT(mChildDocs[i] != mChildDocs[j]);
+    }
+  }
+
   for (uint32_t i = childDocCount - 1; i < childDocCount; i--)
     mChildDocs[i]->Destroy();
 

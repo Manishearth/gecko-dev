@@ -324,7 +324,7 @@ nsUrlClassifierDBServiceWorker::HandlePendingLookups()
       DoLookup(lookup.mKey, lookup.mTables, lookup.mCallback);
     }
     double lookupTime = (TimeStamp::Now() - lookup.mStartTime).ToMilliseconds();
-    Telemetry::Accumulate(Telemetry::URLCLASSIFIER_LOOKUP_TIME,
+    Telemetry::Accumulate(Telemetry::URLCLASSIFIER_LOOKUP_TIME_2,
                           static_cast<uint32_t>(lookupTime));
   }
 
@@ -631,8 +631,11 @@ nsUrlClassifierDBServiceWorker::FinishUpdate()
      mUpdateStatus : NS_ERROR_UC_UPDATE_UNKNOWN;
   }
 
-  Telemetry::Accumulate(Telemetry::URLCLASSIFIER_UPDATE_ERROR, provider,
-                        NS_ERROR_GET_CODE(updateStatus));
+  // Do not record telemetry for testing tables.
+  if (!provider.Equals(TESTING_TABLE_PROVIDER_NAME)) {
+    Telemetry::Accumulate(Telemetry::URLCLASSIFIER_UPDATE_ERROR, provider,
+                          NS_ERROR_GET_CODE(updateStatus));
+  }
 
   mMissCache.Clear();
 
@@ -989,24 +992,15 @@ nsUrlClassifierLookupCallback::LookupComplete(nsTArray<LookupResult>* results)
       // has registered the table. In the second case we should not call
       // complete.
       if ((!gethashUrl.IsEmpty() ||
-           StringBeginsWith(result.mTableName, NS_LITERAL_CSTRING("test-"))) &&
+           StringBeginsWith(result.mTableName, NS_LITERAL_CSTRING("test"))) &&
           mDBService->GetCompleter(result.mTableName,
                                    getter_AddRefs(completer))) {
 
-        // TODO: Figure out how long the partial hash should be sent
-        //       for completion. See Bug 1323953.
+        // Bug 1323953 - Send the first 4 bytes for completion no matter how
+        // long we matched the prefix.
         nsAutoCString partialHash;
-        if (StringEndsWith(result.mTableName, NS_LITERAL_CSTRING("-proto"))) {
-          // We send the complete partial hash for v4 at the moment.
-          partialHash = result.PartialHash();
-        } else {
-          // We always send the first 4 bytes of the partial hash for
-          // non-v4 tables. This matters when we have 32-byte prefix
-          // in "test-xxx-simple" test data.
-          partialHash.Assign(reinterpret_cast<char*>(&result.hash.fixedLengthPrefix),
-                             PREFIX_SIZE);
-        }
-
+        partialHash.Assign(reinterpret_cast<char*>(&result.hash.fixedLengthPrefix),
+                           PREFIX_SIZE);
         nsresult rv = completer->Complete(partialHash,
                                           gethashUrl,
                                           result.mTableName,
@@ -1573,6 +1567,7 @@ nsUrlClassifierDBService::ClassifyLocalWithTables(nsIURI *aURI,
   }
 
   PROFILER_LABEL_FUNC(js::ProfileEntry::Category::OTHER);
+  Telemetry::AutoTimer<Telemetry::URLCLASSIFIER_CLASSIFYLOCAL_TIME> timer;
 
   nsCOMPtr<nsIURI> uri = NS_GetInnermostURI(aURI);
   NS_ENSURE_TRUE(uri, NS_ERROR_FAILURE);
@@ -1889,6 +1884,11 @@ nsUrlClassifierDBService::Observe(nsISupports *aSubject, const char *aTopic,
     Shutdown();
     LOG(("joining background thread"));
     mWorkerProxy = nullptr;
+
+    if (!gDbBackgroundThread) {
+      return NS_OK;
+    }
+
     nsIThread *backgroundThread = gDbBackgroundThread;
     gDbBackgroundThread = nullptr;
     backgroundThread->Shutdown();

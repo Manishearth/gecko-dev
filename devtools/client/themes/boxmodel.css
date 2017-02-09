@@ -226,7 +226,7 @@
 
 .boxmodel-editable {
   border: 1px dashed transparent;
-  -moz-user-select: text;
+  -moz-user-select: none;
 }
 
 .boxmodel-editable:hover {
@@ -248,4 +248,15 @@
 .boxmodel-position-group {
   display: flex;
   align-items: center;
+}
+
+/* Box Model Properties: contains a list of relevant box model properties */
+
+.boxmodel-properties-header {
+  display: flex;
+  padding: 2px 0;
+}
+
+.boxmodel-properties-wrapper {
+  padding: 0 9px;
 }

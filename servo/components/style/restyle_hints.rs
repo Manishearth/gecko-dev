@@ -50,6 +50,14 @@ bitflags! {
     }
 }
 
+impl RestyleHint {
+    /// The subset hints that affect the styling of a single element during the
+    /// traversal.
+    pub fn for_self() -> Self {
+        RESTYLE_SELF | RESTYLE_STYLE_ATTRIBUTE
+    }
+}
+
 #[cfg(feature = "gecko")]
 impl From<nsRestyleHint> for RestyleHint {
     fn from(raw: nsRestyleHint) -> Self {
@@ -219,8 +227,8 @@ impl<'a, E> MatchAttr for ElementWrapper<'a, E>
 impl<'a, E> Element for ElementWrapper<'a, E>
     where E: TElement,
 {
-    fn match_non_ts_pseudo_class(&self, pseudo_class: NonTSPseudoClass) -> bool {
-        let flag = SelectorImpl::pseudo_class_state_flag(&pseudo_class);
+    fn match_non_ts_pseudo_class(&self, pseudo_class: &NonTSPseudoClass) -> bool {
+        let flag = SelectorImpl::pseudo_class_state_flag(pseudo_class);
         if flag == ElementState::empty() {
             self.element.match_non_ts_pseudo_class(pseudo_class)
         } else {

@@ -3946,12 +3946,13 @@
     "n_buckets": 10,
     "description": "Time spent checking for and notifying listeners that the user is idle (ms)"
   },
-  "URLCLASSIFIER_LOOKUP_TIME": {
+  "URLCLASSIFIER_LOOKUP_TIME_2": {
     "alert_emails": ["safebrowsing-telemetry@mozilla.org"],
+    "bug_numbers": [1336376],
     "expires_in_version": "never",
     "kind": "exponential",
-    "high": 500,
-    "n_buckets": 10,
+    "high": 5000,
+    "n_buckets": 30,
     "description": "Time spent per dbservice lookup (ms)"
   },
   "URLCLASSIFIER_SHUTDOWN_TIME": {
@@ -3981,6 +3982,15 @@
     "n_buckets": 30,
     "bug_numbers": [1315893],
     "description": "Time spent per classifier update (ms), keyed by the name of the provider."
+  },
+  "URLCLASSIFIER_CLASSIFYLOCAL_TIME": {
+    "alert_emails": ["safebrowsing-telemetry@mozilla.org"],
+    "bug_numbers": [1334616],
+    "expires_in_version": "never",
+    "kind": "exponential",
+    "high": 60000,
+    "n_buckets": 30,
+    "description": "Time spent inside ClassifyLocalWithTables (ms)"
   },
   "URLCLASSIFIER_PS_FILELOAD_TIME": {
     "alert_emails": ["safebrowsing-telemetry@mozilla.org"],
@@ -4023,6 +4033,15 @@
     "n_buckets": 10,
     "bug_numbers": [1283007],
     "description": "Time spent fallocating Variable-Length PrefixSet (ms)"
+  },
+  "URLCLASSIFIER_VLPS_CONSTRUCT_TIME": {
+    "alert_emails": ["safebrowsing-telemetry@mozilla.org"],
+    "expires_in_version": "60",
+    "kind": "exponential",
+    "high": 5000,
+    "n_buckets": 15,
+    "bug_numbers": [1336865],
+    "description": "Time spent constructing Variable-Length PrefixSet from file (ms)"
   },
   "URLCLASSIFIER_VLPS_LOAD_CORRUPT": {
     "alert_emails": ["safebrowsing-telemetry@mozilla.org"],
@@ -6369,10 +6388,12 @@
     "description": "Has FIPS mode been enabled?"
   },
   "SECURITY_UI": {
+    "alert_emails": ["seceng-telemetry@mozilla.com", "fxprivacyandsecurity@mozilla.com"],
+    "bug_numbers": [767676],
     "expires_in_version": "never",
     "kind": "enumerated",
     "n_values": 100,
-    "description": "Security UI Telemetry"
+    "description": "Security-related UI events (addons, form submission, TLS certs, Safe Browsing, updates and geolocation). See /security/manager/ssl/nsISecurityUITelemetry.idl for the specific values."
   },
   "JS_TELEMETRY_ADDON_EXCEPTIONS" : {
     "expires_in_version" : "never",
@@ -8236,7 +8257,7 @@
     "kind": "enumerated",
     "n_values": 10,
     "releaseChannelCollection": "opt-out",
-    "description": "Measuring the effects of draft-ietf-httpbis-cookie-alone blocking. 0=blocked http setting secure cookie; 1=blocked http downgrading secure cookie; 2=blocked evicting secure cookie; 3=evicting newer insecure cookie; 4=evicting the oldest insecure cookie; 5=evicting the preferred cookie; 6=evicting the secure blocked"
+    "description": "Strict Secure Cookies: 0=blocked secure cookie from http; 1=blocked shadowing secure cookie from http; 2=shadowing secure cookie from https; 3=evicted newer insecure cookie; 4=evicted oldest insecure cookie; 5=evicted secure cookie; 6=evicting secure cookie blocked; 7=blocked downgrading secure cookie from http; 8=downgraded secure cookie from https"
   },
   "NTLM_MODULE_USED_2": {
     "expires_in_version": "never",
@@ -9210,11 +9231,19 @@
   },
   "VIDEO_AS_CONTENT_SOURCE" : {
     "alert_emails": ["ajones@mozilla.com", "kaku@mozilla.com"],
-    "expires_in_version": "56",
+    "expires_in_version": "58",
     "description": "Usage of a {visible / invisible} video element as the source of {drawImage(), createPattern(), createImageBitmap() and captureStream()} APIs. (0 = ALL_VISIBLE, 1 = ALL_INVISIBLE, 2 = drawImage_VISIBLE, 3 = drawImage_INVISIBLE, 4 = createPattern_VISIBLE, 5 = createPattern_INVISIBLE, 6 = createImageBitmap_VISIBLE, 7 = createImageBitmap_INVISIBLE, 8 = captureStream_VISIBLE, 9 = captureStream_INVISIBLE)",
     "kind": "enumerated",
     "n_values": 12,
     "bug_numbers": [1299718]
+  },
+  "VIDEO_AS_CONTENT_SOURCE_IN_TREE_OR_NOT" : {
+    "alert_emails": ["ajones@mozilla.com", "kaku@mozilla.com"],
+    "expires_in_version": "58",
+    "description": "Usage of an invisible {in tree / not in tree} video element as the source of {drawImage(), createPattern(), createImageBitmap() and captureStream()} APIs. (0 = ALL_IN_TREE, 1 = ALL_NOT_IN_TREE, 2 = drawImage_IN_TREE, 3 = drawImage_NOT_IN_TREE, 4 = createPattern_IN_TREE, 5 = createPattern_NOT_IN_TREE, 6 = createImageBitmap_IN_TREE, 7 = createImageBitmap_NOT_IN_TREE, 8 = captureStream_IN_TREE, 9 = captureStream_NOT_IN_TREE)",
+    "kind": "enumerated",
+    "n_values": 12,
+    "bug_numbers": [1337301]
   },
   "VIDEO_UNLOAD_STATE": {
     "alert_emails": ["ajones@mozilla.com"],
@@ -9241,15 +9270,6 @@
     "kind": "enumerated",
     "n_values": 6,
     "description": "Note the type of CDM (0=ClearKey, 1=Primetime, 2=Widevine, 3=unknown) every time we successfully instantiate an EME MediaKeys object.",
-    "releaseChannelCollection": "opt-out"
-  },
-  "VIDEO_CDM_GENERATE_REQUEST_CALLED": {
-    "alert_emails": ["cpearce@mozilla.com"],
-    "expires_in_version": "58",
-    "bug_numbers": [1305552],
-    "kind": "enumerated",
-    "n_values": 6,
-    "description": "Note the type of CDM (0=ClearKey, 1=Primetime, 2=Widevine, 3=unknown) every time we call MediaKeySession.generateRequest().",
     "releaseChannelCollection": "opt-out"
   },
   "MEDIA_CODEC_USED": {
@@ -10052,14 +10072,14 @@
     "description": "Count of scroll actions triggered by different input methods. See gfx/layers/apz/util/ScrollInputMethods.h for a list of possible values and their meanings."
   },
   "TOTAL_SCROLL_Y": {
-    "alert_emails": ["rhunt@mozilla.com"],
+    "alert_emails": ["hkirschner@mozilla.com"],
     "bug_numbers": [1297867],
     "expires_in_version": "58",
     "kind": "count",
     "description": "Count of the total number of CSS pixels scrolled up or down in the vertical axis of the root frame of all the pages visited in a subsession. This doesn't include any scrolling of nested scroll frames such as inputs, iframes, or scrollable divs."
   },
   "PAGE_MAX_SCROLL_Y": {
-    "alert_emails": ["rhunt@mozilla.com"],
+    "alert_emails": ["hkirschner@mozilla.com"],
     "bug_numbers": [1312881],
     "expires_in_version": "58",
     "kind": "exponential",
@@ -10314,6 +10334,16 @@
     "n_buckets": 50,
     "keyed": true,
     "description": "Measures the size of IPC messages by message name"
+  },
+  "IPC_SYNC_LATENCY_MS": {
+    "alert_emails": ["cpearce@mozilla.com"],
+    "bug_numbers": [1333489],
+    "expires_in_version": "60",
+    "kind": "exponential",
+    "high": 2000,
+    "n_buckets": 10,
+    "keyed": true,
+    "description": "Measures the number of milliseconds we spend waiting for sync IPC messages to finish sending, keyed by message name. Note: only messages that wait for more than 500 microseconds are included in this probe."
   },
   "MESSAGE_MANAGER_MESSAGE_SIZE2": {
     "alert_emails": ["wmccloskey@mozilla.com","amccreight@mozilla.com"],
@@ -10745,5 +10775,13 @@
     "bug_numbers": [1335365],
     "releaseChannelCollection": "opt-out",
     "description": "XMLHttpRequest.responseType set to moz-chunked-arraybuffer"
+  },
+  "BUSY_TAB_ABANDONED": {
+    "alert_emails": ["hkirschner@mozilla.com"],
+    "expires_in_version": "60",
+    "kind": "categorical",
+    "bug_numbers": [1307689],
+    "description": "Records a value each time a tab that is showing the loading throbber is interrupted. Desktop only.",
+    "labels": ["stop", "back", "forward", "historyNavigation", "reload", "tabClosed", "newURI"]
   }
 }

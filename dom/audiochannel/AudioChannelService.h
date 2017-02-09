@@ -100,6 +100,8 @@ public:
 
   static bool IsEnableAudioCompeting();
 
+  static bool IsServiceStarted();
+
   /**
    * Any audio channel agent that starts playing should register itself to
    * this service, sharing the AudioChannel.
@@ -197,6 +199,10 @@ public:
   void ChildStatusReceived(uint64_t aChildID, bool aTelephonyChannel,
                            bool aContentOrNormalChannel, bool aAnyChannel);
 
+  void NotifyCreatedNewAgent(AudioChannelAgent* aAgent);
+
+  void NotifyMediaResumedFromBlock(nsPIDOMWindowOuter* aWindow);
+
 private:
   AudioChannelService();
   ~AudioChannelService();
@@ -241,6 +247,7 @@ private:
       : mWindowID(aWindowID)
       , mIsAudioCaptured(false)
       , mOwningAudioFocus(!AudioChannelService::IsEnableAudioCompeting())
+      , mShouldSendBlockStopEvent(false)
     {
       // Workaround for bug1183033, system channel type can always playback.
       mChannels[(int16_t)AudioChannel::System].mMuted = false;
@@ -254,6 +261,8 @@ private:
     void AppendAgent(AudioChannelAgent* aAgent, AudibleState aAudible);
     void RemoveAgent(AudioChannelAgent* aAgent);
 
+    void NotifyMediaBlockStop(nsPIDOMWindowOuter* aWindow);
+
     uint64_t mWindowID;
     bool mIsAudioCaptured;
     AudioChannelConfig mChannels[NUMBER_OF_AUDIO_CHANNELS];
@@ -266,6 +275,9 @@ private:
     // lose audio focus when other windows starts playing.
     bool mOwningAudioFocus;
 
+    // If we've dispatched "blockStart" event, we must dispatch another event
+    // "blockStop" when the window is resumed from suspend-block.
+    bool mShouldSendBlockStopEvent;
   private:
     void AudioCapturedChanged(AudioChannelAgent* aAgent,
                               AudioCaptureState aCapture);
@@ -287,7 +299,7 @@ private:
 
     void NotifyChannelActive(uint64_t aWindowID, AudioChannel aChannel,
                              bool aActive);
-    void MaybeNotifyMediaBlocked(AudioChannelAgent* aAgent);
+    void MaybeNotifyMediaBlockStart(AudioChannelAgent* aAgent);
 
     void RequestAudioFocus(AudioChannelAgent* aAgent);
     void NotifyAudioCompetingChanged(AudioChannelAgent* aAgent, bool aActive);

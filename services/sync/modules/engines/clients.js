@@ -128,12 +128,15 @@ ClientEngine.prototype = {
   /**
    * Obtain information about device types.
    *
-   * Returns a Map of device types to integer counts.
+   * Returns a Map of device types to integer counts. Guaranteed to include
+   * "desktop" (which will have at least 1 - this device) and "mobile" (which
+   * may have zero) counts. It almost certainly will include only these 2.
    */
   get deviceTypes() {
     let counts = new Map();
 
-    counts.set(this.localType, 1);
+    counts.set(this.localType, 1); // currently this must be DEVICE_TYPE_DESKTOP
+    counts.set(DEVICE_TYPE_MOBILE, 0);
 
     for (let id in this._store._remoteClients) {
       let record = this._store._remoteClients[id];
@@ -258,6 +261,12 @@ ClientEngine.prototype = {
     return true;
   },
 
+  _removeClientCommands(clientId) {
+    const allCommands = this._readCommands();
+    delete allCommands[clientId];
+    this._saveCommands(allCommands);
+  },
+
   _syncStartup: function _syncStartup() {
     // Reupload new client record periodically.
     if (Date.now() / 1000 - this.lastRecordUpload > CLIENTS_TTL_REFRESH) {
@@ -379,16 +388,18 @@ ClientEngine.prototype = {
 
   _syncFinish() {
     // Record histograms for our device types, and also write them to a pref
-    // so non-histogram telemetry (eg, UITelemetry) has easy access to them.
+    // so non-histogram telemetry (eg, UITelemetry) and the sync scheduler
+    // has easy access to them, and so they are accurate even before we've
+    // successfully synced the first time after startup.
     for (let [deviceType, count] of this.deviceTypes) {
       let hid;
       let prefName = this.name + ".devices.";
       switch (deviceType) {
-        case "desktop":
+        case DEVICE_TYPE_DESKTOP:
           hid = "WEAVE_DEVICE_COUNT_DESKTOP";
           prefName += "desktop";
           break;
-        case "mobile":
+        case DEVICE_TYPE_MOBILE:
           hid = "WEAVE_DEVICE_COUNT_MOBILE";
           prefName += "mobile";
           break;
@@ -667,6 +678,8 @@ ClientEngine.prototype = {
   _removeRemoteClient(id) {
     delete this._store._remoteClients[id];
     this._tracker.removeChangedID(id);
+    this._removeClientCommands(id);
+    this._modified.delete(id);
   },
 };
 

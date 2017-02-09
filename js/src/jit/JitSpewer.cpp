@@ -19,6 +19,7 @@
 
 #include "jsprf.h"
 
+#include "jit/CacheIRSpewer.h"
 #include "jit/Ion.h"
 #include "jit/MIR.h"
 #include "jit/MIRGenerator.h"
@@ -31,11 +32,11 @@
 
 #ifndef JIT_SPEW_DIR
 # if defined(_WIN32)
-#  define JIT_SPEW_DIR ""
+#  define JIT_SPEW_DIR "."
 # elif defined(__ANDROID__)
-#  define JIT_SPEW_DIR "/data/local/tmp/"
+#  define JIT_SPEW_DIR "/data/local/tmp"
 # else
-#  define JIT_SPEW_DIR "/tmp/"
+#  define JIT_SPEW_DIR "/tmp"
 # endif
 #endif
 
@@ -553,6 +554,9 @@ jit::CheckLogging()
         EnableChannel(JitSpew_BaselineBailouts);
         EnableChannel(JitSpew_BaselineDebugModeOSR);
     }
+
+    if (ContainsFlag(env, "cacheir-logs"))
+        GetCacheIRSpewerSingleton().init();
 
     JitSpewPrinter().init(stderr);
 }

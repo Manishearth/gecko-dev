@@ -881,7 +881,7 @@ public:
   /**
    * Are plugins allowed in this document ?
    */
-  virtual nsresult GetAllowPlugins (bool* aAllowPlugins) = 0;
+  virtual bool GetAllowPlugins () = 0;
 
   /**
    * Set the sub document for aContent to aSubDoc.
@@ -2892,6 +2892,17 @@ public:
   bool IsScriptTracking(const nsACString& aURL) const;
 
   bool PrerenderHref(nsIURI* aHref);
+
+  // For more information on Flash classification, see
+  // toolkit/components/url-classifier/flash-block-lists.rst
+  enum class FlashClassification {
+    Unclassified,   // Denotes a classification that has not yet been computed.
+                    // Allows for lazy classification.
+    Unknown,        // Site is not on the whitelist or blacklist
+    Allowed,        // Site is on the Flash whitelist
+    Denied          // Site is on the Flash blacklist
+  };
+  virtual FlashClassification DocumentFlashClassification() = 0;
 
 protected:
   bool GetUseCounter(mozilla::UseCounter aUseCounter)

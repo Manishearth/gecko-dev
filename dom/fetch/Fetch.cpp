@@ -20,6 +20,7 @@
 #include "nsStringStream.h"
 
 #include "mozilla/ErrorResult.h"
+#include "mozilla/dom/BindingDeclarations.h"
 #include "mozilla/dom/BodyUtil.h"
 #include "mozilla/dom/Exceptions.h"
 #include "mozilla/dom/FetchDriver.h"
@@ -99,7 +100,7 @@ class MainThreadFetchResolver final : public FetchDriverObserver
   RefPtr<Promise> mPromise;
   RefPtr<Response> mResponse;
 
-  nsCOMPtr<nsIDocument> mDocument;
+  nsCOMPtr<nsILoadGroup> mLoadGroup;
 
   NS_DECL_OWNINGTHREAD
 public:
@@ -108,9 +109,9 @@ public:
   void
   OnResponseAvailableInternal(InternalResponse* aResponse) override;
 
-  void SetDocument(nsIDocument* aDocument)
+  void SetLoadGroup(nsILoadGroup* aLoadGroup)
   {
-    mDocument = aDocument;
+    mLoadGroup = aLoadGroup;
   }
 
   virtual void OnResponseEnd() override
@@ -123,7 +124,7 @@ private:
 
   void FlushConsoleReport() override
   {
-    mReporter->FlushConsoleReports(mDocument);
+    mReporter->FlushConsoleReports(mLoadGroup);
   }
 };
 
@@ -176,7 +177,7 @@ public:
 
 already_AddRefed<Promise>
 FetchRequest(nsIGlobalObject* aGlobal, const RequestOrUSVString& aInput,
-             const RequestInit& aInit, ErrorResult& aRv)
+             const RequestInit& aInit, CallerType aCallerType, ErrorResult& aRv)
 {
   RefPtr<Promise> p = Promise::Create(aGlobal, aRv);
   if (NS_WARN_IF(aRv.Failed())) {
@@ -184,12 +185,10 @@ FetchRequest(nsIGlobalObject* aGlobal, const RequestOrUSVString& aInput,
   }
 
   // Double check that we have chrome privileges if the Request's content
-  // policy type has been overridden.  Note, we must do this before
-  // entering the global below.  Otherwise the IsCallerChrome() will
-  // always fail.
+  // policy type has been overridden.
   MOZ_ASSERT_IF(aInput.IsRequest() &&
                 aInput.GetAsRequest().IsContentPolicyTypeOverridden(),
-                nsContentUtils::IsCallerChrome());
+                aCallerType == CallerType::System);
 
   AutoJSAPI jsapi;
   if (!jsapi.Init(aGlobal)) {
@@ -239,7 +238,7 @@ FetchRequest(nsIGlobalObject* aGlobal, const RequestOrUSVString& aInput,
     RefPtr<MainThreadFetchResolver> resolver = new MainThreadFetchResolver(p);
     RefPtr<FetchDriver> fetch = new FetchDriver(r, principal, loadGroup);
     fetch->SetDocument(doc);
-    resolver->SetDocument(doc);
+    resolver->SetLoadGroup(loadGroup);
     aRv = fetch->Fetch(resolver);
     if (NS_WARN_IF(aRv.Failed())) {
       return nullptr;
@@ -454,7 +453,7 @@ WorkerFetchResolver::FlushConsoleReport()
 
   workers::WorkerPrivate* worker = mPromiseProxy->GetWorkerPrivate();
   if (!worker) {
-    mReporter->FlushConsoleReports((nsIDocument*)nullptr);
+    mReporter->FlushReportsToConsole(0);
     return;
   }
 
@@ -462,7 +461,7 @@ WorkerFetchResolver::FlushConsoleReport()
     // Flush to service worker
     RefPtr<ServiceWorkerManager> swm = ServiceWorkerManager::GetInstance();
     if (!swm) {
-      mReporter->FlushConsoleReports((nsIDocument*)nullptr);
+      mReporter->FlushReportsToConsole(0);
       return;
     }
 
@@ -477,7 +476,7 @@ WorkerFetchResolver::FlushConsoleReport()
   }
 
   // Flush to dedicated worker
-  mReporter->FlushConsoleReports(worker->GetDocument());
+  mReporter->FlushConsoleReports(worker->GetLoadGroup());
 }
 
 nsresult

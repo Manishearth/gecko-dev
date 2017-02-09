@@ -19,12 +19,16 @@ for example - use `all_tests.py` instead.
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-from taskgraph.transforms.base import TransformSequence, resolve_keyed_by
+from taskgraph.transforms.base import TransformSequence
+from taskgraph.util.schema import resolve_keyed_by
 from taskgraph.util.treeherder import split_symbol, join_symbol
 from taskgraph.transforms.job.common import (
     docker_worker_support_vcs_checkout,
 )
-from taskgraph.transforms.base import validate_schema, optionally_keyed_by
+from taskgraph.util.schema import (
+    validate_schema,
+    optionally_keyed_by,
+)
 from voluptuous import (
     Any,
     Optional,
@@ -484,10 +488,12 @@ def handle_keyed_by(config, tests):
 
 @transforms.add
 def enable_code_coverage(config, tests):
-    """Enable code coverage for linux64-ccov/opt build-platforms"""
+    """Enable code coverage for the linux64-ccov/opt & linux64-jsdcov/opt build-platforms"""
     for test in tests:
         if test['build-platform'] == 'linux64-ccov/opt':
             test['mozharness'].setdefault('extra-options', []).append('--code-coverage')
+            test['run-on-projects'] = []
+        elif test['build-platform'] == 'linux64-jsdcov/opt':
             test['run-on-projects'] = []
         yield test
 
@@ -568,6 +574,25 @@ def set_retry_exit_status(config, tests):
 
 
 @transforms.add
+def set_profile(config, tests):
+    """Set profiling mode for tests."""
+    for test in tests:
+        if config.config['args'].profile and test['suite'] == 'talos':
+            test['mozharness']['extra-options'].append('--spsProfile')
+        yield test
+
+
+@transforms.add
+def set_tag(config, tests):
+    """Set test for a specific tag."""
+    for test in tests:
+        tag = config.config['args'].tag
+        if tag:
+            test['mozharness']['extra-options'].extend(['--tag', tag])
+        yield test
+
+
+@transforms.add
 def remove_linux_pgo_try_talos(config, tests):
     """linux64-pgo talos tests don't run on try."""
     def predicate(test):
@@ -581,11 +606,11 @@ def remove_linux_pgo_try_talos(config, tests):
 
 
 @transforms.add
-def remove_native_non_try(config, tests):
-    """Remove native-engine jobs if they are not in try branch."""
+def remove_native(config, tests):
+    """Remove native-engine jobs if -w is not given."""
     for test in tests:
         if test['worker-implementation'] != 'native-engine' \
-                or config.params['project'] != 'try':
+                or config.config['args'].taskcluster_worker:
             yield test
 
 

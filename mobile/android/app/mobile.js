@@ -172,6 +172,7 @@ pref("browser.helperApps.deleteTempFileOnExit", false);
 
 /* password manager */
 pref("signon.rememberSignons", true);
+pref("signon.autofillForms.http", true);
 pref("signon.expireMasterPassword", false);
 pref("signon.debug", false);
 
@@ -300,12 +301,6 @@ pref("browser.search.noCurrentEngine", true);
 
 // Control media casting & mirroring features
 pref("browser.casting.enabled", true);
-#ifdef RELEASE_OR_BETA
-// Chromecast mirroring is broken (bug 1131084)
-pref("browser.mirroring.enabled", false);
-#else
-pref("browser.mirroring.enabled", true);
-#endif
 
 // Enable sparse localization by setting a few package locale overrides
 pref("chrome.override_package.global", "browser");
@@ -626,16 +621,15 @@ pref("media.decoder.recycle.enabled", true);
 pref("media.android-media-codec.enabled", true);
 pref("media.android-media-codec.preferred", true);
 // Run decoder in seperate process.
-pref("media.android-remote-codec.enabled", true);
+pref("media.android-remote-codec.enabled", false);
 
 // Enable MSE
 pref("media.mediasource.enabled", true);
 
 pref("media.mediadrm-widevinecdm.visible", true);
 
-// Enable EME(Encrypted media extensions)
+// Enable EME (Encrypted Media Extensions)
 pref("media.eme.enabled", true);
-pref("media.eme.apiVisible", true);
 
 // optimize images memory usage
 pref("image.downscale-during-decode.enabled", true);

@@ -1153,7 +1153,7 @@ QueryInterface(JSContext* cx, unsigned argc, JS::Value* vp)
   // Switch this to UnwrapDOMObjectToISupports once our global objects are
   // using new bindings.
   nsCOMPtr<nsISupports> native;
-  UnwrapArg<nsISupports>(obj, getter_AddRefs(native));
+  UnwrapArg<nsISupports>(cx, obj, getter_AddRefs(native));
   if (!native) {
     return Throw(cx, NS_ERROR_FAILURE);
   }
@@ -1168,7 +1168,7 @@ QueryInterface(JSContext* cx, unsigned argc, JS::Value* vp)
 
   nsCOMPtr<nsIJSID> iid;
   obj = &args[0].toObject();
-  if (NS_FAILED(UnwrapArg<nsIJSID>(obj, getter_AddRefs(iid)))) {
+  if (NS_FAILED(UnwrapArg<nsIJSID>(cx, obj, getter_AddRefs(iid)))) {
     return Throw(cx, NS_ERROR_XPC_BAD_CONVERT_JS);
   }
   MOZ_ASSERT(iid);
@@ -3154,7 +3154,8 @@ CallerSubsumes(JSObject *aObject)
 }
 
 nsresult
-UnwrapArgImpl(JS::Handle<JSObject*> src,
+UnwrapArgImpl(JSContext* cx,
+              JS::Handle<JSObject*> src,
               const nsIID &iid,
               void **ppArg)
 {
@@ -3174,7 +3175,7 @@ UnwrapArgImpl(JS::Handle<JSObject*> src,
   // Only allow XPCWrappedJS stuff in system code.  Ideally we would remove this
   // even there, but that involves converting some things to WebIDL callback
   // interfaces and making some other things builtinclass...
-  if (!nsContentUtils::IsCallerChrome()) {
+  if (!nsContentUtils::IsSystemCaller(cx)) {
     return NS_ERROR_XPC_BAD_CONVERT_JS;
   }
 
@@ -3192,11 +3193,12 @@ UnwrapArgImpl(JS::Handle<JSObject*> src,
 }
 
 nsresult
-UnwrapWindowProxyImpl(JS::Handle<JSObject*> src,
+UnwrapWindowProxyImpl(JSContext* cx,
+                      JS::Handle<JSObject*> src,
                       nsPIDOMWindowOuter** ppArg)
 {
   nsCOMPtr<nsPIDOMWindowInner> inner;
-  nsresult rv = UnwrapArg<nsPIDOMWindowInner>(src, getter_AddRefs(inner));
+  nsresult rv = UnwrapArg<nsPIDOMWindowInner>(cx, src, getter_AddRefs(inner));
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsPIDOMWindowOuter> outer = inner->GetOuterWindow();
@@ -3616,8 +3618,15 @@ DeprecationWarning(JSContext* aCx, JSObject* aObject,
     return;
   }
 
+  DeprecationWarning(global, aOperation);
+}
+
+void
+DeprecationWarning(const GlobalObject& aGlobal,
+                   nsIDocument::DeprecatedOperations aOperation)
+{
   if (NS_IsMainThread()) {
-    nsCOMPtr<nsPIDOMWindowInner> window = do_QueryInterface(global.GetAsSupports());
+    nsCOMPtr<nsPIDOMWindowInner> window = do_QueryInterface(aGlobal.GetAsSupports());
     if (window && window->GetExtantDoc()) {
       window->GetExtantDoc()->WarnOnceAbout(aOperation);
     }
@@ -3625,7 +3634,7 @@ DeprecationWarning(JSContext* aCx, JSObject* aObject,
     return;
   }
 
-  WorkerPrivate* workerPrivate = GetWorkerPrivateFromContext(aCx);
+  WorkerPrivate* workerPrivate = GetWorkerPrivateFromContext(aGlobal.Context());
   if (!workerPrivate) {
     return;
   }

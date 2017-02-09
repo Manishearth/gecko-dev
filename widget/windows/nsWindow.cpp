@@ -455,8 +455,10 @@ private:
                                ::GetCurrentThreadId());
     MOZ_ASSERT(mHook);
 
-    if (!IsWin10OrLater() && !sProcessCaretEventsStub) {
-      // tiptsf loads when STA COM is first initialized, so it should be present
+    // On touchscreen devices, tiptsf.dll will have been loaded when STA COM was
+    // first initialized.
+    if (!IsWin10OrLater() && GetModuleHandle(L"tiptsf.dll") &&
+        !sProcessCaretEventsStub) {
       sTipTsfInterceptor.Init("tiptsf.dll");
       DebugOnly<bool> ok = sTipTsfInterceptor.AddHook("ProcessCaretEvents",
           reinterpret_cast<intptr_t>(&ProcessCaretEventsHook),
@@ -777,6 +779,7 @@ nsWindow::Create(nsIWidget* aParent,
   }
 
   mIsRTL = aInitData->mRTL;
+  mOpeningAnimationSuppressed = aInitData->mIsAnimationSuppressed;
 
   DWORD style = WindowStyle();
   DWORD extendedStyle = WindowExStyle();
@@ -846,6 +849,12 @@ nsWindow::Create(nsIWidget* aParent,
   if (mIsRTL && WinUtils::dwmSetWindowAttributePtr) {
     DWORD dwAttribute = TRUE;    
     WinUtils::dwmSetWindowAttributePtr(mWnd, DWMWA_NONCLIENT_RTL_LAYOUT, &dwAttribute, sizeof dwAttribute);
+  }
+
+  if (mOpeningAnimationSuppressed && WinUtils::dwmSetWindowAttributePtr) {
+    DWORD dwAttribute = TRUE;
+    WinUtils::dwmSetWindowAttributePtr(mWnd, DWMWA_TRANSITIONS_FORCEDISABLED,
+                                       &dwAttribute, sizeof dwAttribute);
   }
 
   if (!IsPlugin() &&
@@ -1622,6 +1631,12 @@ nsWindow::Show(bool bState)
     }
   }
 #endif
+
+  if (mOpeningAnimationSuppressed && WinUtils::dwmSetWindowAttributePtr) {
+    DWORD dwAttribute = FALSE;
+    WinUtils::dwmSetWindowAttributePtr(mWnd, DWMWA_TRANSITIONS_FORCEDISABLED,
+                                       &dwAttribute, sizeof dwAttribute);
+  }
 }
 
 /**************************************************************
@@ -5644,13 +5659,7 @@ nsWindow::ProcessMessage(UINT msg, WPARAM& wParam, LPARAM& lParam,
       // within a ENTERSIZEMOVE to consider this a live resize event.
       if (mResizeState == IN_SIZEMOVE) {
         mResizeState = RESIZING;
-        nsCOMPtr<nsIObserverService> observerService =
-          mozilla::services::GetObserverService();
-
-        if (observerService) {
-          observerService->NotifyObservers(nullptr, "live-resize-start",
-                                           nullptr);
-        }
+        NotifyLiveResizeStarted();
       }
       break;
     }
@@ -5659,13 +5668,16 @@ nsWindow::ProcessMessage(UINT msg, WPARAM& wParam, LPARAM& lParam,
       FinishLiveResizing(MOVING);
       if (WinUtils::IsPerMonitorDPIAware()) {
         // Sometimes, we appear to miss a WM_DPICHANGED message while moving
-        // a window around. Therefore, call ChangedDPI and ResetLayout here,
-        // which causes the prescontext and appshell window management code to
+        // a window around. Therefore, call ChangedDPI and ResetLayout here
+        // if it appears that the window's scaling is not what we expect.
+        // This causes the prescontext and appshell window management code to
         // check the appUnitsPerDevPixel value and current widget size, and
         // refresh them if necessary. If nothing has changed, these calls will
         // return without actually triggering any extra reflow or painting.
-        ChangedDPI();
-        ResetLayout();
+        if (WinUtils::LogToPhysFactor(mWnd) != mDefaultScale) {
+          ChangedDPI();
+          ResetLayout();
+        }
       }
       break;
 
@@ -6077,10 +6089,7 @@ void
 nsWindow::FinishLiveResizing(ResizeState aNewState)
 {
   if (mResizeState == RESIZING) {
-    nsCOMPtr<nsIObserverService> observerService = mozilla::services::GetObserverService();
-    if (observerService) {
-      observerService->NotifyObservers(nullptr, "live-resize-end", nullptr);
-    }
+    NotifyLiveResizeStopped();
   }
   mResizeState = aNewState;
   ForcePresent();

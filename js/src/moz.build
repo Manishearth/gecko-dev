@@ -198,6 +198,7 @@ UNIFIED_SOURCES += [
     'gc/Tracer.cpp',
     'gc/Verifier.cpp',
     'gc/Zone.cpp',
+    'gc/ZoneGroup.cpp',
     'irregexp/NativeRegExpMacroAssembler.cpp',
     'irregexp/RegExpAST.cpp',
     'irregexp/RegExpCharacters.cpp',
@@ -225,6 +226,7 @@ UNIFIED_SOURCES += [
     'jit/C1Spewer.cpp',
     'jit/CacheIR.cpp',
     'jit/CacheIRCompiler.cpp',
+    'jit/CacheIRSpewer.cpp',
     'jit/CodeGenerator.cpp',
     'jit/CompileWrappers.cpp',
     'jit/Disassembler.cpp',
@@ -247,6 +249,7 @@ UNIFIED_SOURCES += [
     'jit/JitFrames.cpp',
     'jit/JitOptions.cpp',
     'jit/JitSpewer.cpp',
+    'jit/JSONPrinter.cpp',
     'jit/JSONSpewer.cpp',
     'jit/LICM.cpp',
     'jit/Linker.cpp',
@@ -260,6 +263,7 @@ UNIFIED_SOURCES += [
     'jit/MoveResolver.cpp',
     'jit/OptimizationTracking.cpp',
     'jit/PerfSpewer.cpp',
+    'jit/ProcessExecutableMemory.cpp',
     'jit/RangeAnalysis.cpp',
     'jit/Recover.cpp',
     'jit/RegisterAllocator.cpp',
@@ -310,6 +314,7 @@ UNIFIED_SOURCES += [
     'proxy/SecurityWrapper.cpp',
     'proxy/Wrapper.cpp',
     'threading/Mutex.cpp',
+    'threading/ProtectedData.cpp',
     'vm/ArgumentsObject.cpp',
     'vm/ArrayBufferObject.cpp',
     'vm/AsyncFunction.cpp',
@@ -587,7 +592,6 @@ elif CONFIG['JS_CODEGEN_MIPS32'] or CONFIG['JS_CODEGEN_MIPS64']:
 
 if CONFIG['OS_ARCH'] == 'WINNT':
     SOURCES += [
-        'jit/ExecutableAllocatorWin.cpp',
         'threading/windows/ConditionVariable.cpp',
         'threading/windows/CpuCount.cpp',
         'threading/windows/MutexImpl.cpp',
@@ -597,7 +601,6 @@ if CONFIG['OS_ARCH'] == 'WINNT':
     DEFINES['_CRT_RAND_S'] = True
 else:
     SOURCES += [
-        'jit/ExecutableAllocatorPosix.cpp',
         'threading/posix/ConditionVariable.cpp',
         'threading/posix/CpuCount.cpp',
         'threading/posix/MutexImpl.cpp',

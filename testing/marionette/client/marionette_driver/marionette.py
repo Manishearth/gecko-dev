@@ -3,7 +3,6 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import base64
-import copy
 import datetime
 import json
 import os
@@ -545,9 +544,14 @@ class Marionette(object):
 
     CONTEXT_CHROME = "chrome"  # non-browser content: windows, dialogs, etc.
     CONTEXT_CONTENT = "content"  # browser content: iframes, divs, etc.
-    DEFAULT_SOCKET_TIMEOUT = 65
     DEFAULT_STARTUP_TIMEOUT = 120
     DEFAULT_SHUTDOWN_TIMEOUT = 65  # Firefox will kill hanging threads after 60s
+
+    # Bug 1336953 - Until we can remove the socket timeout parameter it has to be
+    # set a default value which is larger than the longest timeout as defined by the
+    # WebDriver spec. In that case its 300s for page load. Also add another minute
+    # so that slow builds have enough time to send the timeout error to the client.
+    DEFAULT_SOCKET_TIMEOUT = 360
 
     def __init__(self, host="localhost", port=2828, app=None, bin=None,
                  baseurl=None, socket_timeout=DEFAULT_SOCKET_TIMEOUT,
@@ -1279,25 +1283,7 @@ class Marionette(object):
         self.wait_for_port(timeout=timeout)
         self.protocol, _ = self.client.connect()
 
-        if capabilities is not None:
-            caps = copy.deepcopy(capabilities)
-        else:
-            caps = {}
-
-        # Bug 1322277 - Override some default capabilities which are defined by
-        # the Webdriver spec but which don't really apply to tests executed with
-        # the Marionette client. Using "desiredCapabilities" here will allow tests
-        # to override the settings via "desiredCapabilities" and requiredCapabilities".
-        if "desiredCapabilities" not in caps:
-            caps.update({
-                "desiredCapabilities": {
-                    "timeouts": {
-                        "page load": 60000,  # webdriver specifies 300000ms
-                    }
-                }
-            })
-
-        body = {"capabilities": caps, "sessionId": session_id}
+        body = {"capabilities": capabilities, "sessionId": session_id}
         resp = self._send_message("newSession", body)
 
         self.session_id = resp["sessionId"]
@@ -1559,13 +1545,17 @@ class Marionette(object):
         """
         return Alert(self)
 
-    def switch_to_window(self, window_id):
+    def switch_to_window(self, window_id, focus=True):
         """Switch to the specified window; subsequent commands will be
         directed at the new window.
 
         :param window_id: The id or name of the window to switch to.
+
+        :param focus: A boolean value which determins whether to focus
+            the window that we just switched to.
         """
-        self._send_message("switchToWindow", {"name": window_id})
+        body = {"focus": focus, "name": window_id}
+        self._send_message("switchToWindow", body)
         self.window = window_id
 
     def get_active_frame(self):

@@ -155,6 +155,23 @@ ProxyAccessible::Value(nsString& aValue) const
   aValue = (wchar_t*)resultWrap;
 }
 
+double
+ProxyAccessible::Step()
+{
+  RefPtr<IGeckoCustom> custom = QueryInterface<IGeckoCustom>(this);
+  if (!custom) {
+    return 0;
+  }
+
+  double increment;
+  HRESULT hr = custom->get_minimumIncrement(&increment);
+  if (FAILED(hr)) {
+    return 0;
+  }
+
+  return increment;
+}
+
 void
 ProxyAccessible::Description(nsString& aDesc) const
 {
@@ -176,18 +193,17 @@ ProxyAccessible::Description(nsString& aDesc) const
 uint64_t
 ProxyAccessible::State() const
 {
-  uint64_t state = 0;
-  RefPtr<IAccessible> acc;
-  if (!GetCOMInterface((void**)getter_AddRefs(acc))) {
-    return state;
+  RefPtr<IGeckoCustom> custom = QueryInterface<IGeckoCustom>(this);
+  if (!custom) {
+    return 0;
   }
 
-  VARIANT varState;
-  HRESULT hr = acc->get_accState(kChildIdSelf, &varState);
+  uint64_t state;
+  HRESULT hr = custom->get_mozState(&state);
   if (FAILED(hr)) {
-    return state;
+    return 0;
   }
-  return uint64_t(varState.lVal);
+  return state;
 }
 
 nsIntRect

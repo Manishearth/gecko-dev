@@ -112,10 +112,11 @@ Structure:
 .. code-block:: js
 
     "processes" : {
-      ... other processes ...
+      // ... other processes ...
       "parent": {
         scalars: {...},
         keyedScalars: {...},
+        events: {...},
       },
       "content": {
         scalars: {...},
@@ -124,7 +125,7 @@ Structure:
         keyedHistograms: {...},
       },
       "gpu": {
-        ...
+        // ...
       }
     }
 
@@ -136,7 +137,13 @@ This format was adopted in Firefox 51 via bug 1218576.
 
 scalars and keyedScalars
 ~~~~~~~~~~~~~~~~~~~~~~~~
-This section contains the :doc:`../collection/scalars` that are valid for the current platform. Scalars are only submitted if if data was added to them, and are only reported with subsession pings. The record scalars are described in the `Scalars.yaml <https://dxr.mozilla.org/mozilla-central/source/toolkit/components/telemetry/Scalars.yaml>`_ file. The ``info.revision`` field indicates the revision of the file that describes the reported scalars.
+This section contains the :doc:`../collection/scalars` that are valid for the current platform. Scalars are only submitted if data was added to them, and are only reported with subsession pings. The recorded scalars are described in the `Scalars.yaml <https://dxr.mozilla.org/mozilla-central/source/toolkit/components/telemetry/Scalars.yaml>`_ file. The ``info.revision`` field indicates the revision of the file that describes the reported scalars.
+
+events
+~~~~~~
+This section contains the :ref:`eventtelemetry` that are recorded for the current subsession. Events are not always recorded, recording has to be enabled first for the Firefox session.
+
+The recorded events are defined in the `Events.yaml <https://dxr.mozilla.org/mozilla-central/source/toolkit/components/telemetry/Events.yaml>`_. The ``info.revision`` field indicates the revision of the file that describes the reported events.
 
 childPayloads
 -------------
@@ -282,7 +289,12 @@ Structure:
 
 capturedStacks
 --------------
-Contains information about stacks captured on demand via Telemetry API. This is similar to `chromeHangs`, but only stacks captured on the main thread of the parent process are reported. It reports precise C++ stacks are reported and is only available on Windows, either in Firefox Nightly or in builds using "--enable-profiling" switch.
+Contains information about stacks captured on demand via Telemetry API. For more
+information see :doc:`stack capture <../collection/stack-capture>`.
+
+This is similar to :ref:`chromeHangs`, but only Precise C++ stacks on the main thread of
+the parent process are reported. This data is only available on Windows, either
+in Firefox Nightly or in builds using ``--enable-profiling`` switch.
 
 Limits for captured stacks are the same as for chromeHangs (see below). Furthermore:
 
@@ -312,6 +324,8 @@ Structure:
       ],
       "captures": [["string-key", stack-index, count], ... ]
     }
+
+.. _chromeHangs:
 
 chromeHangs
 -----------

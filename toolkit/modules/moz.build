@@ -10,8 +10,8 @@ MOCHITEST_MANIFESTS += ['tests/mochitest/mochitest.ini']
 MOCHITEST_CHROME_MANIFESTS += ['tests/chrome/chrome.ini']
 
 TESTING_JS_MODULES += [
-    'tests/MockDocument.jsm',
-    'tests/PromiseTestUtils.jsm',
+    'tests/modules/MockDocument.jsm',
+    'tests/modules/PromiseTestUtils.jsm',
     'tests/xpcshell/TestIntegration.jsm',
 ]
 
@@ -101,7 +101,10 @@ EXTRA_JS_MODULES += [
     'ZipUtils.jsm',
 ]
 EXTRA_JS_MODULES.third_party.jsesc += ['third_party/jsesc/jsesc.js']
-EXTRA_JS_MODULES.sessionstore += ['sessionstore/Utils.jsm']
+EXTRA_JS_MODULES.sessionstore += [
+    'sessionstore/PrivacyLevel.jsm',
+    'sessionstore/Utils.jsm',
+]
 
 DEFINES['INSTALL_COMPACT_THEMES'] = 1
 if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('windows', 'cocoa'):

@@ -53,25 +53,28 @@ namespace dom {
 template<typename DataType> class MozMap;
 
 nsresult
-UnwrapArgImpl(JS::Handle<JSObject*> src, const nsIID& iid, void** ppArg);
+UnwrapArgImpl(JSContext* cx, JS::Handle<JSObject*> src, const nsIID& iid,
+              void** ppArg);
 
 nsresult
-UnwrapWindowProxyImpl(JS::Handle<JSObject*> src, nsPIDOMWindowOuter** ppArg);
+UnwrapWindowProxyImpl(JSContext* cx, JS::Handle<JSObject*> src,
+                      nsPIDOMWindowOuter** ppArg);
 
 /** Convert a jsval to an XPCOM pointer. */
 template <class Interface>
 inline nsresult
-UnwrapArg(JS::Handle<JSObject*> src, Interface** ppArg)
+UnwrapArg(JSContext* cx, JS::Handle<JSObject*> src, Interface** ppArg)
 {
-  return UnwrapArgImpl(src, NS_GET_TEMPLATE_IID(Interface),
+  return UnwrapArgImpl(cx, src, NS_GET_TEMPLATE_IID(Interface),
                        reinterpret_cast<void**>(ppArg));
 }
 
 template <>
 inline nsresult
-UnwrapArg<nsPIDOMWindowOuter>(JS::Handle<JSObject*> src, nsPIDOMWindowOuter** ppArg)
+UnwrapArg<nsPIDOMWindowOuter>(JSContext* cx, JS::Handle<JSObject*> src,
+                              nsPIDOMWindowOuter** ppArg)
 {
-  return UnwrapWindowProxyImpl(src, ppArg);
+  return UnwrapWindowProxyImpl(cx, src, ppArg);
 }
 
 bool
@@ -3190,6 +3193,10 @@ SetDocumentAndPageUseCounter(JSContext* aCx, JSObject* aObject,
 // Warnings
 void
 DeprecationWarning(JSContext* aCx, JSObject* aObject,
+                   nsIDocument::DeprecatedOperations aOperation);
+
+void
+DeprecationWarning(const GlobalObject& aGlobal,
                    nsIDocument::DeprecatedOperations aOperation);
 
 // A callback to perform funToString on an interface object

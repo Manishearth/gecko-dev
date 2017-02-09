@@ -602,12 +602,6 @@ Element::ClassList()
 }
 
 void
-Element::GetClassList(nsISupports** aClassList)
-{
-  NS_ADDREF(*aClassList = ClassList());
-}
-
-void
 Element::GetAttributeNames(nsTArray<nsString>& aResult)
 {
   uint32_t count = mAttrsAndChildren.AttrCount();
@@ -621,13 +615,6 @@ already_AddRefed<nsIHTMLCollection>
 Element::GetElementsByTagName(const nsAString& aLocalName)
 {
   return NS_GetContentList(this, kNameSpaceID_Unknown, aLocalName);
-}
-
-void
-Element::GetElementsByTagName(const nsAString& aLocalName,
-                              nsIDOMHTMLCollection** aResult)
-{
-  *aResult = GetElementsByTagName(aLocalName).take();
 }
 
 nsIFrame*
@@ -1416,21 +1403,6 @@ Element::GetElementsByTagNameNS(const nsAString& aNamespaceURI,
   return NS_GetContentList(this, nameSpaceId, aLocalName);
 }
 
-nsresult
-Element::GetElementsByTagNameNS(const nsAString& namespaceURI,
-                                const nsAString& localName,
-                                nsIDOMHTMLCollection** aResult)
-{
-  mozilla::ErrorResult rv;
-  nsCOMPtr<nsIHTMLCollection> list =
-    GetElementsByTagNameNS(namespaceURI, localName, rv);
-  if (rv.Failed()) {
-    return rv.StealNSResult();
-  }
-  list.forget(aResult);
-  return NS_OK;
-}
-
 bool
 Element::HasAttributeNS(const nsAString& aNamespaceURI,
                         const nsAString& aLocalName) const
@@ -1452,15 +1424,6 @@ already_AddRefed<nsIHTMLCollection>
 Element::GetElementsByClassName(const nsAString& aClassNames)
 {
   return nsContentUtils::GetElementsByClassName(this, aClassNames);
-}
-
-nsresult
-Element::GetElementsByClassName(const nsAString& aClassNames,
-                                nsIDOMHTMLCollection** aResult)
-{
-  *aResult =
-    nsContentUtils::GetElementsByClassName(this, aClassNames).take();
-  return NS_OK;
 }
 
 /**
@@ -2021,6 +1984,12 @@ Element::GetInlineStyleDeclaration() const
   }
 
   return nullptr;
+}
+
+const nsMappedAttributes*
+Element::GetMappedAttributes() const
+{
+  return mAttrsAndChildren.GetMapped();
 }
 
 nsresult
@@ -3315,9 +3284,9 @@ Element::AttrValueToCORSMode(const nsAttrValue* aValue)
 }
 
 static const char*
-GetFullScreenError(nsIDocument* aDoc)
+GetFullScreenError(CallerType aCallerType)
 {
-  if (!nsContentUtils::IsRequestFullScreenAllowed()) {
+  if (!nsContentUtils::IsRequestFullScreenAllowed(aCallerType)) {
     return "FullscreenDeniedNotInputDriven";
   }
 
@@ -3334,7 +3303,7 @@ Element::RequestFullscreen(CallerType aCallerType, ErrorResult& aError)
   // spoof the browser chrome/window and phish logins etc.
   // Note that requests for fullscreen inside a web app's origin are exempt
   // from this restriction.
-  if (const char* error = GetFullScreenError(OwnerDoc())) {
+  if (const char* error = GetFullScreenError(aCallerType)) {
     OwnerDoc()->DispatchFullscreenError(error);
     return;
   }

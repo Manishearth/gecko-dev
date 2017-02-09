@@ -192,6 +192,8 @@ bool
 ICStub::makesGCCalls() const
 {
     switch (kind()) {
+      case CacheIR_Regular:
+        return toCacheIR_Regular()->stubInfo()->makesGCCalls();
       case CacheIR_Monitored:
         return toCacheIR_Monitored()->stubInfo()->makesGCCalls();
       case CacheIR_Updated:
@@ -312,43 +314,6 @@ ICStub::trace(JSTracer* trc)
         TraceEdge(trc, &updateStub->group(), "baseline-update-group");
         break;
       }
-      case ICStub::In_Native: {
-        ICIn_Native* inStub = toIn_Native();
-        TraceEdge(trc, &inStub->shape(), "baseline-innative-stub-shape");
-        TraceEdge(trc, &inStub->name(), "baseline-innative-stub-name");
-        break;
-      }
-      case ICStub::In_NativePrototype: {
-        ICIn_NativePrototype* inStub = toIn_NativePrototype();
-        TraceEdge(trc, &inStub->shape(), "baseline-innativeproto-stub-shape");
-        TraceEdge(trc, &inStub->name(), "baseline-innativeproto-stub-name");
-        TraceEdge(trc, &inStub->holder(), "baseline-innativeproto-stub-holder");
-        TraceEdge(trc, &inStub->holderShape(), "baseline-innativeproto-stub-holdershape");
-        break;
-      }
-      case ICStub::In_NativeDoesNotExist: {
-        ICIn_NativeDoesNotExist* inStub = toIn_NativeDoesNotExist();
-        TraceEdge(trc, &inStub->name(), "baseline-innativedoesnotexist-stub-name");
-        JS_STATIC_ASSERT(ICIn_NativeDoesNotExist::MAX_PROTO_CHAIN_DEPTH == 8);
-        switch (inStub->protoChainDepth()) {
-          case 0: inStub->toImpl<0>()->traceShapes(trc); break;
-          case 1: inStub->toImpl<1>()->traceShapes(trc); break;
-          case 2: inStub->toImpl<2>()->traceShapes(trc); break;
-          case 3: inStub->toImpl<3>()->traceShapes(trc); break;
-          case 4: inStub->toImpl<4>()->traceShapes(trc); break;
-          case 5: inStub->toImpl<5>()->traceShapes(trc); break;
-          case 6: inStub->toImpl<6>()->traceShapes(trc); break;
-          case 7: inStub->toImpl<7>()->traceShapes(trc); break;
-          case 8: inStub->toImpl<8>()->traceShapes(trc); break;
-          default: MOZ_CRASH("Invalid proto stub.");
-        }
-        break;
-      }
-      case ICStub::In_Dense: {
-        ICIn_Dense* inStub = toIn_Dense();
-        TraceEdge(trc, &inStub->shape(), "baseline-in-dense-shape");
-        break;
-      }
       case ICStub::GetIntrinsic_Constant: {
         ICGetIntrinsic_Constant* constantStub = toGetIntrinsic_Constant();
         TraceEdge(trc, &constantStub->value(), "baseline-getintrinsic-constant-value");
@@ -376,6 +341,9 @@ ICStub::trace(JSTracer* trc)
         TraceEdge(trc, &stub->templateObject(), "baseline-rest-template");
         break;
       }
+      case ICStub::CacheIR_Regular:
+        TraceCacheIRStub(trc, this, toCacheIR_Regular()->stubInfo());
+        break;
       case ICStub::CacheIR_Monitored:
         TraceCacheIRStub(trc, this, toCacheIR_Monitored()->stubInfo());
         break;
@@ -694,7 +662,7 @@ ICStubCompiler::PushStubPayload(MacroAssembler& masm, Register scratch)
 void
 BaselineEmitPostWriteBarrierSlot(MacroAssembler& masm, Register obj, ValueOperand val,
                                  Register scratch, LiveGeneralRegisterSet saveRegs,
-                                 JSRuntime* rt)
+                                 JSContext* cx)
 {
     Label skipBarrier;
     masm.branchPtrInNurseryChunk(Assembler::Equal, obj, scratch, &skipBarrier);
@@ -707,7 +675,7 @@ BaselineEmitPostWriteBarrierSlot(MacroAssembler& masm, Register obj, ValueOperan
     saveRegs.set() = GeneralRegisterSet::Intersect(saveRegs.set(), GeneralRegisterSet::Volatile());
     masm.PushRegsInMask(saveRegs);
     masm.setupUnalignedABICall(scratch);
-    masm.movePtr(ImmPtr(rt), scratch);
+    masm.movePtr(ImmPtr(cx->runtime()), scratch);
     masm.passABIArg(scratch);
     masm.passABIArg(obj);
     masm.callWithABI(JS_FUNC_TO_DATA_PTR(void*, PostWriteBarrier));
@@ -1935,7 +1903,9 @@ StripPreliminaryObjectStubs(JSContext* cx, ICFallbackStub* stub)
     // stub which isn't on a preliminary object.
 
     for (ICStubIterator iter = stub->beginChain(); !iter.atEnd(); iter++) {
-        if (iter->isCacheIR_Monitored() && iter->toCacheIR_Monitored()->hasPreliminaryObject())
+        if (iter->isCacheIR_Regular() && iter->toCacheIR_Regular()->hasPreliminaryObject())
+            iter.unlink(cx);
+        else if (iter->isCacheIR_Monitored() && iter->toCacheIR_Monitored()->hasPreliminaryObject())
             iter.unlink(cx);
         else if (iter->isCacheIR_Updated() && iter->toCacheIR_Updated()->hasPreliminaryObject())
             iter.unlink(cx);
@@ -2175,8 +2145,8 @@ DoGetPropFallback(JSContext* cx, void* payload, ICGetProp_Fallback* stub_,
 
     if (!attached && !JitOptions.disableCacheIR) {
         RootedValue idVal(cx, StringValue(name));
-        GetPropIRGenerator gen(cx, pc, CacheKind::GetProp, engine, &isTemporarilyUnoptimizable,
-                               val, idVal, CanAttachGetter::Yes);
+        GetPropIRGenerator gen(cx, script, pc, CacheKind::GetProp, engine,
+                               &isTemporarilyUnoptimizable, val, idVal, CanAttachGetter::Yes);
         if (gen.tryAttachStub()) {
             ICStub* newStub = AttachBaselineCacheIRStub(cx, gen.writerRef(), gen.cacheKind(),
                                                         engine, info.outerScript(cx), stub);

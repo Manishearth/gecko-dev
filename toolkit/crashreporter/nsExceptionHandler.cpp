@@ -32,18 +32,18 @@
 #include "nsXULAppAPI.h"
 #include "nsIXULAppInfo.h"
 #include "nsIWindowsRegKey.h"
-#include "client/windows/crash_generation/client_info.h"
-#include "client/windows/crash_generation/crash_generation_server.h"
-#include "client/windows/handler/exception_handler.h"
+#include "breakpad-client/windows/crash_generation/client_info.h"
+#include "breakpad-client/windows/crash_generation/crash_generation_server.h"
+#include "breakpad-client/windows/handler/exception_handler.h"
 #include <dbghelp.h>
 #include <string.h>
 #include "nsDirectoryServiceUtils.h"
 
 #include "nsWindowsDllInterceptor.h"
 #elif defined(XP_MACOSX)
-#include "client/mac/crash_generation/client_info.h"
-#include "client/mac/crash_generation/crash_generation_server.h"
-#include "client/mac/handler/exception_handler.h"
+#include "breakpad-client/mac/crash_generation/client_info.h"
+#include "breakpad-client/mac/crash_generation/crash_generation_server.h"
+#include "breakpad-client/mac/handler/exception_handler.h"
 #include <string>
 #include <Carbon/Carbon.h>
 #include <CoreFoundation/CoreFoundation.h>
@@ -58,18 +58,13 @@
 #include "nsIINIParser.h"
 #include "common/linux/linux_libc_support.h"
 #include "third_party/lss/linux_syscall_support.h"
-#include "client/linux/crash_generation/client_info.h"
-#include "client/linux/crash_generation/crash_generation_server.h"
-#include "client/linux/handler/exception_handler.h"
+#include "breakpad-client/linux/crash_generation/client_info.h"
+#include "breakpad-client/linux/crash_generation/crash_generation_server.h"
+#include "breakpad-client/linux/handler/exception_handler.h"
 #include "common/linux/eintr_wrapper.h"
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <unistd.h>
-#elif defined(XP_SOLARIS)
-#include "client/solaris/handler/exception_handler.h"
-#include <fcntl.h>
-#include <sys/types.h>
 #include <unistd.h>
 #else
 #error "Not yet implemented for this platform"
@@ -255,6 +250,8 @@ static bool isSafeToDump = false;
 
 // OOP crash reporting
 static CrashGenerationServer* crashServer; // chrome process has this
+
+static std::terminate_handler oldTerminateHandler = nullptr;
 
 #if (defined(XP_MACOSX) || defined(XP_WIN))
 // This field is valid in both chrome and content processes.
@@ -1505,6 +1502,15 @@ MINIDUMP_TYPE GetMinidumpType()
           (major == 6 && minor == 1 && revision >= 7600)) {
         minidump_type = MiniDumpWithFullMemoryInfo;
       }
+#ifdef NIGHTLY_BUILD
+      // TODO: Remove the NIGHTLY_BUILD wrapping if the increased size is
+      // accetable.
+      if (major > 5 || (major == 5 && minor > 1)) {
+        minidump_type = static_cast<MINIDUMP_TYPE>(minidump_type |
+            MiniDumpWithUnloadedModules |
+            MiniDumpWithProcessThreadData);
+      }
+#endif
     }
   }
 
@@ -1550,6 +1556,11 @@ ChildFilter(void* context)
     PrepareChildExceptionTimeAnnotations();
   }
   return result;
+}
+
+void TerminateHandler()
+{
+  MOZ_CRASH("Unhandled exception");
 }
 
 #if !defined(MOZ_WIDGET_ANDROID)
@@ -1819,6 +1830,8 @@ nsresult SetExceptionHandler(nsIFile* aXREDirectory,
 #endif
 
   mozalloc_set_oom_abort_handler(AnnotateOOMAllocationSize);
+
+  oldTerminateHandler = std::set_terminate(&TerminateHandler);
 
   return NS_OK;
 }
@@ -2156,6 +2169,8 @@ nsresult UnsetExceptionHandler()
 
   delete dumpSafetyLock;
   dumpSafetyLock = nullptr;
+
+  std::set_terminate(oldTerminateHandler);
 
   return NS_OK;
 }
@@ -3775,6 +3790,8 @@ SetRemoteExceptionHandler(const nsACString& crashPipe)
 
   mozalloc_set_oom_abort_handler(AnnotateOOMAllocationSize);
 
+  oldTerminateHandler = std::set_terminate(&TerminateHandler);
+
   // we either do remote or nothing, no fallback to regular crash reporting
   return gExceptionHandler->IsOutOfProcess();
 }
@@ -3826,6 +3843,8 @@ SetRemoteExceptionHandler()
 
   mozalloc_set_oom_abort_handler(AnnotateOOMAllocationSize);
 
+  oldTerminateHandler = std::set_terminate(&TerminateHandler);
+
   // we either do remote or nothing, no fallback to regular crash reporting
   return gExceptionHandler->IsOutOfProcess();
 }
@@ -3851,6 +3870,8 @@ SetRemoteExceptionHandler(const nsACString& crashPipe)
                      crashPipe.BeginReading());
 
   mozalloc_set_oom_abort_handler(AnnotateOOMAllocationSize);
+
+  oldTerminateHandler = std::set_terminate(&TerminateHandler);
 
   // we either do remote or nothing, no fallback to regular crash reporting
   return gExceptionHandler->IsOutOfProcess();
@@ -4167,6 +4188,7 @@ CreateAdditionalChildMinidump(ProcessHandle childPid,
 bool
 UnsetRemoteExceptionHandler()
 {
+  std::set_terminate(oldTerminateHandler);
   delete gExceptionHandler;
   gExceptionHandler = nullptr;
   return true;

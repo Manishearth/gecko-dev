@@ -11,6 +11,8 @@
 #include "jit/SharedICHelpers.h"
 #include "proxy/Proxy.h"
 
+#include "jscntxtinlines.h"
+
 #include "jit/MacroAssembler-inl.h"
 
 using namespace js;
@@ -19,6 +21,13 @@ using namespace js::jit;
 using mozilla::Maybe;
 
 class AutoStubFrame;
+
+Address
+CacheRegisterAllocator::addressOf(MacroAssembler& masm, BaselineFrameSlot slot) const
+{
+    uint32_t offset = stackPushed_ + ICStackValueOffset + slot.slot() * sizeof(JS::Value);
+    return Address(masm.getStackPointer(), offset);
+}
 
 // BaselineCacheIRCompiler compiles CacheIR to BaselineIC native code.
 class MOZ_RAII BaselineCacheIRCompiler : public CacheIRCompiler
@@ -38,7 +47,7 @@ class MOZ_RAII BaselineCacheIRCompiler : public CacheIRCompiler
                                        Register scratch, LiveGeneralRegisterSet saveRegs);
 
     MOZ_MUST_USE bool emitStoreSlotShared(bool isFixed);
-    MOZ_MUST_USE bool emitAddAndStoreSlotShared(bool isFixed);
+    MOZ_MUST_USE bool emitAddAndStoreSlotShared(CacheOp op);
 
   public:
     friend class AutoStubFrame;
@@ -148,7 +157,7 @@ BaselineCacheIRCompiler::callVM(MacroAssembler& masm, const VMFunction& fun)
 {
     MOZ_ASSERT(inStubFrame_);
 
-    JitCode* code = cx_->jitRuntime()->getVMWrapper(fun);
+    JitCode* code = cx_->runtime()->jitRuntime()->getVMWrapper(fun);
     if (!code)
         return false;
 
@@ -753,7 +762,7 @@ BaselineCacheIRCompiler::emitStoreSlotShared(bool isFixed)
         masm.storeValue(val, slot);
     }
 
-    if (cx_->gc.nursery.exists())
+    if (cx_->nursery().exists())
         BaselineEmitPostWriteBarrierSlot(masm, obj, val, scratch, LiveGeneralRegisterSet(), cx_);
     return true;
 }
@@ -771,7 +780,7 @@ BaselineCacheIRCompiler::emitStoreDynamicSlot()
 }
 
 bool
-BaselineCacheIRCompiler::emitAddAndStoreSlotShared(bool isFixed)
+BaselineCacheIRCompiler::emitAddAndStoreSlotShared(CacheOp op)
 {
     ObjOperandId objId = reader.objOperandId();
     Address offsetAddr = stubAddress(reader.stubOffset());
@@ -786,6 +795,42 @@ BaselineCacheIRCompiler::emitAddAndStoreSlotShared(bool isFixed)
     bool changeGroup = reader.readBool();
     Address newGroupAddr = stubAddress(reader.stubOffset());
     Address newShapeAddr = stubAddress(reader.stubOffset());
+
+    if (op == CacheOp::AllocateAndStoreDynamicSlot) {
+        // We have to (re)allocate dynamic slots. Do this first, as it's the
+        // only fallible operation here. This simplifies the callTypeUpdateIC
+        // call below: it does not have to worry about saving registers used by
+        // failure paths.
+        Address numNewSlotsAddr = stubAddress(reader.stubOffset());
+
+        FailurePath* failure;
+        if (!addFailurePath(&failure))
+            return false;
+
+        AllocatableRegisterSet regs(RegisterSet::Volatile());
+        LiveRegisterSet save(regs.asLiveSet());
+
+        // Use ICStubReg as second scratch.
+        if (!save.has(ICStubReg))
+            save.add(ICStubReg);
+
+        masm.PushRegsInMask(save);
+
+        masm.setupUnalignedABICall(scratch);
+        masm.loadJSContext(scratch);
+        masm.passABIArg(scratch);
+        masm.passABIArg(obj);
+        masm.load32(numNewSlotsAddr, ICStubReg);
+        masm.passABIArg(ICStubReg);
+        masm.callWithABI(JS_FUNC_TO_DATA_PTR(void*, NativeObject::growSlotsDontReportOOM));
+        masm.mov(ReturnReg, scratch);
+
+        LiveRegisterSet ignore;
+        ignore.add(scratch);
+        masm.PopRegsInMaskIgnore(save, ignore);
+
+        masm.branchIfFalseBool(scratch, failure->label());
+    }
 
     LiveGeneralRegisterSet saveRegs;
     saveRegs.add(obj);
@@ -823,10 +868,12 @@ BaselineCacheIRCompiler::emitAddAndStoreSlotShared(bool isFixed)
     // Perform the store. No pre-barrier required since this is a new
     // initialization.
     masm.load32(offsetAddr, scratch);
-    if (isFixed) {
+    if (op == CacheOp::AddAndStoreFixedSlot) {
         BaseIndex slot(obj, scratch, TimesOne);
         masm.storeValue(val, slot);
     } else {
+        MOZ_ASSERT(op == CacheOp::AddAndStoreDynamicSlot ||
+                   op == CacheOp::AllocateAndStoreDynamicSlot);
         // To avoid running out of registers on x86, use ICStubReg as scratch.
         // We don't need it anymore.
         Register slots = ICStubReg;
@@ -835,7 +882,7 @@ BaselineCacheIRCompiler::emitAddAndStoreSlotShared(bool isFixed)
         masm.storeValue(val, slot);
     }
 
-    if (cx_->gc.nursery.exists())
+    if (cx_->nursery().exists())
         BaselineEmitPostWriteBarrierSlot(masm, obj, val, scratch, LiveGeneralRegisterSet(), cx_);
     return true;
 }
@@ -843,13 +890,19 @@ BaselineCacheIRCompiler::emitAddAndStoreSlotShared(bool isFixed)
 bool
 BaselineCacheIRCompiler::emitAddAndStoreFixedSlot()
 {
-    return emitAddAndStoreSlotShared(true);
+    return emitAddAndStoreSlotShared(CacheOp::AddAndStoreFixedSlot);
 }
 
 bool
 BaselineCacheIRCompiler::emitAddAndStoreDynamicSlot()
 {
-    return emitAddAndStoreSlotShared(false);
+    return emitAddAndStoreSlotShared(CacheOp::AddAndStoreDynamicSlot);
+}
+
+bool
+BaselineCacheIRCompiler::emitAllocateAndStoreDynamicSlot()
+{
+    return emitAddAndStoreSlotShared(CacheOp::AllocateAndStoreDynamicSlot);
 }
 
 bool
@@ -1213,7 +1266,11 @@ BaselineCacheIRCompiler::init(CacheKind kind)
     allowDoubleResult_.emplace(true);
 
     size_t numInputs = writer_.numInputOperands();
-    AllocatableGeneralRegisterSet available(ICStubCompiler::availableGeneralRegs(numInputs));
+
+    // Baseline passes the first 2 inputs in R0/R1, other Values are stored on
+    // the stack.
+    size_t numInputsInRegs = std::min(numInputs, size_t(2));
+    AllocatableGeneralRegisterSet available(ICStubCompiler::availableGeneralRegs(numInputsInRegs));
 
     switch (kind) {
       case CacheKind::GetProp:
@@ -1222,9 +1279,16 @@ BaselineCacheIRCompiler::init(CacheKind kind)
         break;
       case CacheKind::GetElem:
       case CacheKind::SetProp:
+      case CacheKind::In:
         MOZ_ASSERT(numInputs == 2);
         allocator.initInputLocation(0, R0);
         allocator.initInputLocation(1, R1);
+        break;
+      case CacheKind::SetElem:
+        MOZ_ASSERT(numInputs == 3);
+        allocator.initInputLocation(0, R0);
+        allocator.initInputLocation(1, R1);
+        allocator.initInputLocation(2, BaselineFrameSlot(0));
         break;
       case CacheKind::GetName:
         MOZ_ASSERT(numInputs == 1);
@@ -1260,11 +1324,15 @@ jit::AttachBaselineCacheIRStub(JSContext* cx, const CacheIRWriter& writer,
     // unlimited number of stubs.
     MOZ_ASSERT(stub->numOptimizedStubs() < MaxOptimizedCacheIRStubs);
 
-    enum class CacheIRStubKind { Monitored, Updated };
+    enum class CacheIRStubKind { Regular, Monitored, Updated };
 
     uint32_t stubDataOffset;
     CacheIRStubKind stubKind;
     switch (kind) {
+      case CacheKind::In:
+        stubDataOffset = sizeof(ICCacheIR_Regular);
+        stubKind = CacheIRStubKind::Regular;
+        break;
       case CacheKind::GetProp:
       case CacheKind::GetElem:
       case CacheKind::GetName:
@@ -1272,6 +1340,7 @@ jit::AttachBaselineCacheIRStub(JSContext* cx, const CacheIRWriter& writer,
         stubKind = CacheIRStubKind::Monitored;
         break;
       case CacheKind::SetProp:
+      case CacheKind::SetElem:
         stubDataOffset = sizeof(ICCacheIR_Updated);
         stubKind = CacheIRStubKind::Updated;
         break;
@@ -1316,6 +1385,16 @@ jit::AttachBaselineCacheIRStub(JSContext* cx, const CacheIRWriter& writer,
     // conditions.
     for (ICStubConstIterator iter = stub->beginChainConst(); !iter.atEnd(); iter++) {
         switch (stubKind) {
+          case CacheIRStubKind::Regular: {
+            if (!iter->isCacheIR_Regular())
+                continue;
+            auto otherStub = iter->toCacheIR_Regular();
+            if (otherStub->stubInfo() != stubInfo)
+                continue;
+            if (!writer.stubDataEqualsMaybeUpdate(otherStub->stubDataStart()))
+                continue;
+            break;
+          }
           case CacheIRStubKind::Monitored: {
             if (!iter->isCacheIR_Monitored())
                 continue;
@@ -1355,6 +1434,12 @@ jit::AttachBaselineCacheIRStub(JSContext* cx, const CacheIRWriter& writer,
         return nullptr;
 
     switch (stubKind) {
+      case CacheIRStubKind::Regular: {
+        auto newStub = new(newStubMem) ICCacheIR_Regular(code, stubInfo);
+        writer.copyStubData(newStub->stubDataStart());
+        stub->addNewStub(newStub);
+        return newStub;
+      }
       case CacheIRStubKind::Monitored: {
         ICStub* monitorStub =
             stub->toMonitoredFallbackStub()->fallbackMonitorStub()->firstMonitorStub();
@@ -1376,6 +1461,12 @@ jit::AttachBaselineCacheIRStub(JSContext* cx, const CacheIRWriter& writer,
     }
 
     MOZ_CRASH("Invalid kind");
+}
+
+uint8_t*
+ICCacheIR_Regular::stubDataStart()
+{
+    return reinterpret_cast<uint8_t*>(this) + stubInfo_->stubDataOffset();
 }
 
 uint8_t*

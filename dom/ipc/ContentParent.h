@@ -63,6 +63,8 @@ class SandboxBroker;
 class SandboxBrokerPolicyFactory;
 #endif
 
+class PreallocatedProcessManagerImpl;
+
 namespace embedding {
 class PrintingParent;
 }
@@ -116,9 +118,16 @@ class ContentParent final : public PContentParent
   typedef mozilla::ipc::PrincipalInfo PrincipalInfo;
   typedef mozilla::dom::ClonedMessageData ClonedMessageData;
 
+  friend class mozilla::PreallocatedProcessManagerImpl;
+
 public:
 
   virtual bool IsContentParent() const override { return true; }
+
+  /**
+   * Create a subprocess suitable for use later as a content process.
+   */
+  static already_AddRefed<ContentParent> PreallocateProcess();
 
   /**
    * Start up the content-process machinery.  This might include
@@ -137,6 +146,22 @@ public:
    */
   static void JoinAllSubprocesses();
 
+  static uint32_t GetPoolSize(const nsAString& aContentProcessType);
+
+  static uint32_t GetMaxProcessCount(const nsAString& aContentProcessType);
+
+  static bool IsMaxProcessCountReached(const nsAString& aContentProcessType);
+
+  /**
+   * Picks a random content parent from |aContentParents| with a given |aOpener|
+   * respecting the index limit set by |aMaxContentParents|.
+   * Returns null if non available.
+   */
+  static already_AddRefed<ContentParent>
+  RandomSelect(const nsTArray<ContentParent*>& aContentParents,
+               ContentParent* aOpener,
+               int32_t maxContentParents);
+
   /**
    * Get or create a content process for:
    * 1. browser iframe
@@ -148,7 +173,8 @@ public:
                              hal::ProcessPriority aPriority =
                              hal::ProcessPriority::PROCESS_PRIORITY_FOREGROUND,
                              ContentParent* aOpener = nullptr,
-                             bool aLargeAllocationProcess = false);
+                             bool aLargeAllocationProcess = false,
+                             bool* anew = nullptr);
 
   /**
    * Get or create a content process for the given TabContext.  aFrameElement
@@ -252,7 +278,8 @@ public:
                                                          bool* aIsForBrowser,
                                                          TabId* aTabId) override;
 
-  virtual mozilla::ipc::IPCResult RecvBridgeToChildProcess(const ContentParentId& aCpId) override;
+  virtual mozilla::ipc::IPCResult RecvBridgeToChildProcess(const ContentParentId& aCpId,
+                                                           Endpoint<PContentBridgeParent>* aEndpoint) override;
 
   virtual mozilla::ipc::IPCResult RecvCreateGMPService() override;
 
@@ -712,25 +739,12 @@ private:
                                   TabParent* aTopLevel, const TabId& aTabId,
                                   uint64_t* aId);
 
+  /**
+   * Get or create the corresponding content parent array to |aContentProcessType|.
+   */
+  static nsTArray<ContentParent*>& GetOrCreatePool(const nsAString& aContentProcessType);
+
   virtual mozilla::ipc::IPCResult RecvInitBackground(Endpoint<mozilla::ipc::PBackgroundParent>&& aEndpoint) override;
-
-  virtual mozilla::ipc::IPCResult RecvGetProcessAttributes(ContentParentId* aCpId,
-                                                           bool* aIsForBrowser) override;
-
-  virtual mozilla::ipc::IPCResult
-  RecvGetXPCOMProcessAttributes(bool* aIsOffline,
-                                bool* aIsConnected,
-                                int32_t* aCaptivePortalState,
-                                bool* aIsLangRTL,
-                                bool* aHaveBidiKeyboards,
-                                InfallibleTArray<nsString>* dictionaries,
-                                ClipboardCapabilities* clipboardCaps,
-                                DomainPolicyClone* domainPolicy,
-                                StructuredCloneData* initialData,
-                                InfallibleTArray<FontFamilyListEntry>* fontFamilies,
-                                OptionalURIParams* aUserContentSheetURL,
-                                nsTArray<LookAndFeelInt>* aLookAndFeelIntCache) override;
-
 
   mozilla::ipc::IPCResult RecvAddMemoryReport(const MemoryReport& aReport) override;
   mozilla::ipc::IPCResult RecvFinishMemoryReport(const uint32_t& aGeneration) override;
@@ -866,7 +880,6 @@ private:
   virtual bool
   DeallocPWebBrowserPersistDocumentParent(PWebBrowserPersistDocumentParent* aActor) override;
 
-  virtual mozilla::ipc::IPCResult RecvReadPrefsArray(InfallibleTArray<PrefSetting>* aPrefs) override;
   virtual mozilla::ipc::IPCResult RecvGetGfxVars(InfallibleTArray<GfxVarUpdate>* aVars) override;
 
   virtual mozilla::ipc::IPCResult RecvReadFontList(InfallibleTArray<FontListEntry>* retValue) override;
@@ -963,6 +976,8 @@ private:
                                                   const nsCString& aCategory) override;
 
   virtual mozilla::ipc::IPCResult RecvPrivateDocShellsExist(const bool& aExist) override;
+
+  virtual mozilla::ipc::IPCResult RecvFirstIdle() override;
 
   virtual mozilla::ipc::IPCResult RecvAudioChannelChangeDefVolChannel(const int32_t& aChannel,
                                                                       const bool& aHidden) override;
@@ -1072,6 +1087,13 @@ private:
                                                       const bool& aRecursiveFlag) override;
 
   virtual mozilla::ipc::IPCResult RecvDeleteGetFilesRequest(const nsID& aID) override;
+
+  virtual mozilla::ipc::IPCResult
+  RecvFileCreationRequest(const nsID& aID, const nsString& aFullPath,
+                          const nsString& aType, const nsString& aName,
+                          const bool& aLastModifiedPassed,
+                          const int64_t& aLastModified,
+                          const bool& aIsFromNsIFile) override;
 
   virtual mozilla::ipc::IPCResult RecvAccumulateChildHistogram(
     InfallibleTArray<Accumulation>&& aAccumulations) override;
