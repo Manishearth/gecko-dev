@@ -122,20 +122,37 @@ impl Cursor {
     }
 
     /// Return the number of template arguments used by this cursor's referent,
-    /// if the referent is either a template specialization or
-    /// declaration. Returns -1 otherwise.
+    /// if the referent is either a template specialization or declaration.
+    /// Returns `None` otherwise.
     ///
     /// NOTE: This may not return `Some` for some non-fully specialized
     /// templates, see #193 and #194.
     pub fn num_template_args(&self) -> Option<u32> {
-        let n: c_int = unsafe { clang_Cursor_getNumTemplateArguments(self.x) };
+        // XXX: `clang_Type_getNumTemplateArguments` is sort of reliable, while
+        // `clang_Cursor_getNumTemplateArguments` is totally unreliable.
+        // Therefore, try former first, and only fallback to the latter if we
+        // have to.
+        self.cur_type().num_template_args()
+            .or_else(|| {
+                let n: c_int = unsafe {
+                    clang_Cursor_getNumTemplateArguments(self.x)
+                };
 
-        if n >= 0 {
-            Some(n as u32)
-        } else {
-            debug_assert_eq!(n, -1);
-            None
-        }
+                if n >= 0 {
+                    Some(n as u32)
+                } else {
+                    debug_assert_eq!(n, -1);
+                    None
+                }
+            })
+            .or_else(|| {
+                let canonical = self.canonical();
+                if canonical != *self {
+                    canonical.num_template_args()
+                } else {
+                    None
+                }
+            })
     }
 
     /// Get a cursor pointing to this referent's containing translation unit.
@@ -201,14 +218,15 @@ impl Cursor {
     }
 
     /// Is the referent a template specialization?
-    pub fn is_template(&self) -> bool {
+    pub fn is_template_specialization(&self) -> bool {
         self.specialized().is_some()
     }
 
     /// Is the referent a fully specialized template specialization without any
     /// remaining free template arguments?
     pub fn is_fully_specialized_template(&self) -> bool {
-        self.is_template() && self.num_template_args().unwrap_or(0) > 0
+        self.is_template_specialization() &&
+        self.num_template_args().unwrap_or(0) > 0
     }
 
     /// Is the referent a template specialization that still has remaining free
@@ -217,9 +235,17 @@ impl Cursor {
         if self.is_toplevel() {
             return false;
         }
+
         let parent = self.semantic_parent();
-        (parent.is_template() && !parent.is_fully_specialized_template()) ||
-        parent.is_in_non_fully_specialized_template()
+        if parent.is_fully_specialized_template() {
+            return false;
+        }
+
+        if !parent.is_template_like() {
+            return parent.is_in_non_fully_specialized_template();
+        }
+
+        return true;
     }
 
     /// Is this cursor pointing a valid referent?
@@ -341,13 +367,11 @@ impl Cursor {
     pub fn contains_cursor(&self, kind: CXCursorKind) -> bool {
         let mut found = false;
 
-        self.visit(|c| {
-            if c.kind() == kind {
-                found = true;
-                CXChildVisit_Break
-            } else {
-                CXChildVisit_Continue
-            }
+        self.visit(|c| if c.kind() == kind {
+            found = true;
+            CXChildVisit_Break
+        } else {
+            CXChildVisit_Continue
         });
 
         found
@@ -665,20 +689,26 @@ impl Type {
         Ok(Layout::new(size, align))
     }
 
-    /// If this type is a class template specialization, return its
-    /// template arguments. Otherwise, return None.
-    pub fn template_args(&self) -> Option<TypeTemplateArgIterator> {
+    /// Get the number of template arguments this type has, or `None` if it is
+    /// not some kind of template.
+    pub fn num_template_args(&self) -> Option<u32> {
         let n = unsafe { clang_Type_getNumTemplateArguments(self.x) };
         if n >= 0 {
-            Some(TypeTemplateArgIterator {
-                x: self.x,
-                length: n as u32,
-                index: 0,
-            })
+            Some(n as u32)
         } else {
             debug_assert_eq!(n, -1);
             None
         }
+    }
+
+    /// If this type is a class template specialization, return its
+    /// template arguments. Otherwise, return None.
+    pub fn template_args(&self) -> Option<TypeTemplateArgIterator> {
+        self.num_template_args().map(|n| TypeTemplateArgIterator {
+            x: self.x,
+            length: n,
+            index: 0,
+        })
     }
 
     /// Given that this type is a pointer type, return the type that it points
@@ -688,7 +718,8 @@ impl Type {
             CXType_Pointer |
             CXType_RValueReference |
             CXType_LValueReference |
-            CXType_MemberPointer => {
+            CXType_MemberPointer |
+            CXType_ObjCObjectPointer => {
                 let ret = Type {
                     x: unsafe { clang_getPointeeType(self.x) },
                 };
@@ -778,12 +809,14 @@ impl Type {
         // Yep, the spelling of this containing type-parameter is extremely
         // nasty... But can happen in <type_traits>. Unfortunately I couldn't
         // reduce it enough :(
-        !self.spelling().contains("type-parameter") &&
-        self.template_args()
-            .map_or(false, |mut args| {
-                args.len() > 0 &&
-                !args.any(|t| t.spelling().contains("type-parameter"))
-            })
+        self.template_args().map_or(false, |args| {
+            args.len() > 0
+        }) && match self.declaration().kind() {
+            CXCursor_ClassTemplatePartialSpecialization |
+            CXCursor_TypeAliasTemplateDecl |
+            CXCursor_TemplateTemplateParameter => false,
+            _ => true,
+        }
     }
 }
 
@@ -837,8 +870,8 @@ impl SourceLocation {
                                       &mut col,
                                       &mut off);
             (File {
-                x: file,
-            },
+                 x: file,
+             },
              line as usize,
              col as usize,
              off as usize)
@@ -1264,21 +1297,185 @@ pub fn type_to_str(x: CXTypeKind) -> String {
 
 /// Dump the Clang AST to stdout for debugging purposes.
 pub fn ast_dump(c: &Cursor, depth: isize) -> CXChildVisitResult {
-    fn print_indent(depth: isize, s: &str) {
+    fn print_indent<S: AsRef<str>>(depth: isize, s: S) {
         for _ in 0..depth {
-            print!("\t");
+            print!("    ");
         }
-        println!("{}", s);
+        println!("{}", s.as_ref());
     }
 
-    print_indent(depth,
-                 &format!("(kind: {}, spelling: {}, type: {}",
-                          kind_to_str(c.kind()),
-                          c.spelling(),
-                          type_to_str(c.cur_type().kind())));
+    fn print_cursor<S: AsRef<str>>(depth: isize, prefix: S, c: &Cursor) {
+        let prefix = prefix.as_ref();
+        print_indent(depth,
+                     format!(" {}kind = {}", prefix, kind_to_str(c.kind())));
+        print_indent(depth,
+                     format!(" {}spelling = \"{}\"", prefix, c.spelling()));
+        print_indent(depth, format!(" {}location = {}", prefix, c.location()));
+        print_indent(depth,
+                     format!(" {}is-definition? {}",
+                             prefix,
+                             c.is_definition()));
+        print_indent(depth,
+                     format!(" {}is-declaration? {}",
+                             prefix,
+                             c.is_declaration()));
+        print_indent(depth,
+                     format!(" {}is-anonymous? {}", prefix, c.is_anonymous()));
+        print_indent(depth,
+                     format!(" {}is-inlined-function? {}",
+                             prefix,
+                             c.is_inlined_function()));
+
+        let templ_kind = c.template_kind();
+        if templ_kind != CXCursor_NoDeclFound {
+            print_indent(depth,
+                         format!(" {}template-kind = {}",
+                                 prefix,
+                                 kind_to_str(templ_kind)));
+        }
+        if let Some(usr) = c.usr() {
+            print_indent(depth, format!(" {}usr = \"{}\"", prefix, usr));
+        }
+        if let Ok(num) = c.num_args() {
+            print_indent(depth, format!(" {}number-of-args = {}", prefix, num));
+        }
+        if let Some(num) = c.num_template_args() {
+            print_indent(depth,
+                         format!(" {}number-of-template-args = {}",
+                                 prefix,
+                                 num));
+        }
+        if let Some(width) = c.bit_width() {
+            print_indent(depth, format!(" {}bit-width = {}", prefix, width));
+        }
+        if let Some(ty) = c.enum_type() {
+            print_indent(depth,
+                         format!(" {}enum-type = {}",
+                                 prefix,
+                                 type_to_str(ty.kind())));
+        }
+        if let Some(val) = c.enum_val_signed() {
+            print_indent(depth, format!(" {}enum-val = {}", prefix, val));
+        }
+        if let Some(ty) = c.typedef_type() {
+            print_indent(depth,
+                         format!(" {}typedef-type = {}",
+                                 prefix,
+                                 type_to_str(ty.kind())));
+        }
+
+        if let Some(refd) = c.referenced() {
+            if refd != *c {
+                println!("");
+                print_cursor(depth,
+                             String::from(prefix) + "referenced.",
+                             &refd);
+                print_cursor(depth, String::from(prefix) + "referenced.", &refd);
+            }
+        }
+
+        let canonical = c.canonical();
+        if canonical != *c {
+            println!("");
+            print_cursor(depth,
+                         String::from(prefix) + "canonical.",
+                         &canonical);
+            print_cursor(depth, String::from(prefix) + "canonical.", &canonical);
+        }
+
+        if let Some(specialized) = c.specialized() {
+            if specialized != *c {
+                println!("");
+                print_cursor(depth,
+                             String::from(prefix) + "specialized.",
+                             &specialized);
+                print_cursor(depth, String::from(prefix) + "specialized.", &specialized);
+            }
+        }
+    }
+
+    fn print_type<S: AsRef<str>>(depth: isize, prefix: S, ty: &Type) {
+        let prefix = prefix.as_ref();
+
+        let kind = ty.kind();
+        print_indent(depth, format!(" {}kind = {}", prefix, type_to_str(kind)));
+        if kind == CXType_Invalid {
+            return;
+        }
+
+        print_indent(depth,
+                     format!(" {}spelling = \"{}\"", prefix, ty.spelling()));
+        let num_template_args =
+            unsafe { clang_Type_getNumTemplateArguments(ty.x) };
+        if num_template_args >= 0 {
+            print_indent(depth,
+                         format!(" {}number-of-template-args = {}",
+                                 prefix,
+                                 num_template_args));
+        }
+        if let Some(num) = ty.num_elements() {
+            print_indent(depth,
+                         format!(" {}number-of-elements = {}", prefix, num));
+        }
+        print_indent(depth,
+                     format!(" {}is-variadic? {}", prefix, ty.is_variadic()));
+
+        let canonical = ty.canonical_type();
+        if canonical != *ty {
+            println!("");
+            print_type(depth, String::from(prefix) + "canonical.", &canonical);
+        }
+
+        if let Some(pointee) = ty.pointee_type() {
+            if pointee != *ty {
+                println!("");
+                print_type(depth, String::from(prefix) + "pointee.", &pointee);
+            }
+        }
+
+        if let Some(elem) = ty.elem_type() {
+            if elem != *ty {
+                println!("");
+                print_type(depth, String::from(prefix) + "elements.", &elem);
+            }
+        }
+
+        if let Some(ret) = ty.ret_type() {
+            if ret != *ty {
+                println!("");
+                print_type(depth, String::from(prefix) + "return.", &ret);
+            }
+        }
+
+        let named = ty.named();
+        if named != *ty && named.is_valid() {
+            println!("");
+            print_type(depth, String::from(prefix) + "named.", &named);
+        }
+    }
+
+    print_indent(depth, "(");
+    print_cursor(depth, "", c);
+
+    println!("");
+    let ty = c.cur_type();
+    print_type(depth, "type.", &ty);
+
+    let declaration = ty.declaration();
+    if declaration != *c && declaration.kind() != CXCursor_NoDeclFound {
+        println!("");
+        print_cursor(depth, "type.declaration.", &declaration);
+    }
 
     // Recurse.
-    c.visit(|s| ast_dump(&s, depth + 1));
+    let mut found_children = false;
+    c.visit(|s| {
+        if !found_children {
+            println!("");
+            found_children = true;
+        }
+        ast_dump(&s, depth + 1)
+    });
 
     print_indent(depth, ")");
 
@@ -1312,14 +1509,12 @@ impl EvalResult {
         // unexposed type. Our solution is to just flat out ban all
         // `CXType_Unexposed` from evaluation.
         let mut found_cant_eval = false;
-        cursor.visit(|c| {
-            if c.kind() == CXCursor_TypeRef &&
-               c.cur_type().kind() == CXType_Unexposed {
-                found_cant_eval = true;
-                CXChildVisit_Break
-            } else {
-                CXChildVisit_Recurse
-            }
+        cursor.visit(|c| if c.kind() == CXCursor_TypeRef &&
+                            c.cur_type().kind() == CXType_Unexposed {
+            found_cant_eval = true;
+            CXChildVisit_Break
+        } else {
+            CXChildVisit_Recurse
         });
         if found_cant_eval {
             return None;

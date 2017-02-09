@@ -10,7 +10,7 @@ To use this crate, add `walkdir` as a dependency to your project's
 
 ```ignore
 [dependencies]
-walkdir = "0.1"
+walkdir = "1"
 ```
 
 # From the top
@@ -88,6 +88,7 @@ for entry in walker.filter_entry(|e| !is_hidden(e)) {
 #[cfg(windows)] extern crate winapi;
 #[cfg(test)] extern crate quickcheck;
 #[cfg(test)] extern crate rand;
+extern crate same_file;
 
 use std::cmp::{Ordering, min};
 use std::error;
@@ -100,9 +101,8 @@ use std::path::{Path, PathBuf};
 use std::result;
 use std::vec;
 
-use same_file::is_same_file;
+pub use same_file::is_same_file;
 
-mod same_file;
 #[cfg(test)] mod tests;
 
 /// Like try, but for iterators that return `Option<Result<_, _>>`.
@@ -198,7 +198,8 @@ impl WalkDir {
     /// Create a builder for a recursive directory iterator starting at the
     /// file path `root`. If `root` is a directory, then it is the first item
     /// yielded by the iterator. If `root` is a file, then it is the first
-    /// and only item yielded by the iterator.
+    /// and only item yielded by the iterator. If `root` is a symlink, then it
+    /// is always followed.
     pub fn new<P: AsRef<Path>>(root: P) -> Self {
         WalkDir {
             opts: WalkDirOptions {
@@ -251,12 +252,6 @@ impl WalkDir {
     /// When enabled, the yielded `DirEntry` values represent the target of
     /// the link while the path corresponds to the link. See the `DirEntry`
     /// type for more details.
-    ///
-    /// # Warning: bug with junctions on Window
-    ///
-    /// There [is a bug](https://github.com/rust-lang/rust/issues/28528)
-    /// that may affect following symbolic links on Windows when using
-    /// junctions.
     pub fn follow_links(mut self, yes: bool) -> Self {
         self.opts.follow_links = yes;
         self
@@ -494,6 +489,9 @@ pub struct DirEntry {
     follow_link: bool,
     /// The depth at which this entry was generated relative to the root.
     depth: usize,
+    /// The underlying inode number (Unix only).
+    #[cfg(unix)]
+    ino: u64,
 }
 
 impl Iterator for Iter {
@@ -501,7 +499,7 @@ impl Iterator for Iter {
 
     fn next(&mut self) -> Option<Result<DirEntry>> {
         if let Some(start) = self.start.take() {
-            let dent = itry!(DirEntry::from_path(0, start));
+            let dent = itry!(DirEntry::from_link(0, start));
             if let Some(result) = self.handle_entry(dent) {
                 return Some(result);
             }
@@ -728,6 +726,14 @@ impl DirEntry {
         self.depth
     }
 
+    /// Returns the underlying `d_ino` field in the contained `dirent`
+    /// structure.
+    #[cfg(unix)]
+    pub fn ino(&self) -> u64 {
+        self.ino
+    }
+
+    #[cfg(not(unix))]
     fn from_entry(depth: usize, ent: &fs::DirEntry) -> Result<DirEntry> {
         let ty = try!(ent.file_type().map_err(|err| {
             Error::from_path(depth, ent.path(), err)
@@ -740,6 +746,23 @@ impl DirEntry {
         })
     }
 
+    #[cfg(unix)]
+    fn from_entry(depth: usize, ent: &fs::DirEntry) -> Result<DirEntry> {
+        use std::os::unix::fs::DirEntryExt;
+
+        let ty = try!(ent.file_type().map_err(|err| {
+            Error::from_path(depth, ent.path(), err)
+        }));
+        Ok(DirEntry {
+            path: ent.path(),
+            ty: ty,
+            follow_link: false,
+            depth: depth,
+            ino: ent.ino(),
+        })
+    }
+
+    #[cfg(not(unix))]
     fn from_link(depth: usize, pb: PathBuf) -> Result<DirEntry> {
         let md = try!(fs::metadata(&pb).map_err(|err| {
             Error::from_path(depth, pb.clone(), err)
@@ -752,26 +775,42 @@ impl DirEntry {
         })
     }
 
-    fn from_path(depth: usize, pb: PathBuf) -> Result<DirEntry> {
-        let md = try!(fs::symlink_metadata(&pb).map_err(|err| {
+    #[cfg(unix)]
+    fn from_link(depth: usize, pb: PathBuf) -> Result<DirEntry> {
+        use std::os::unix::fs::MetadataExt;
+
+        let md = try!(fs::metadata(&pb).map_err(|err| {
             Error::from_path(depth, pb.clone(), err)
         }));
         Ok(DirEntry {
             path: pb,
             ty: md.file_type(),
-            follow_link: false,
+            follow_link: true,
             depth: depth,
+            ino: md.ino(),
         })
     }
 }
 
 impl Clone for DirEntry {
+    #[cfg(not(unix))]
     fn clone(&self) -> DirEntry {
         DirEntry {
             path: self.path.clone(),
             ty: self.ty,
             follow_link: self.follow_link,
             depth: self.depth,
+        }
+    }
+
+    #[cfg(unix)]
+    fn clone(&self) -> DirEntry {
+        DirEntry {
+            path: self.path.clone(),
+            ty: self.ty,
+            follow_link: self.follow_link,
+            depth: self.depth,
+            ino: self.ino,
         }
     }
 }

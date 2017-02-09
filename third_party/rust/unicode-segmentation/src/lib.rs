@@ -46,7 +46,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! unicode-segmentation = "1.0.1"
+//! unicode-segmentation = "1.1.0"
 //! ```
 
 #![deny(missing_docs, unsafe_code)]
@@ -58,6 +58,10 @@
 #[cfg(test)]
 #[macro_use]
 extern crate std;
+
+#[cfg(test)]
+#[macro_use]
+extern crate quickcheck;
 
 pub use grapheme::{Graphemes, GraphemeIndices};
 pub use tables::UNICODE_VERSION;

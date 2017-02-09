@@ -1,6 +1,6 @@
 [package]
 name = "aho-corasick"
-version = "0.6.1"  #:version
+version = "0.6.2"  #:version
 authors = ["Andrew Gallant <jamslam@gmail.com>"]
 description = "Fast multiple substring searching with finite state machines."
 documentation = "http://burntsushi.net/rustdoc/aho_corasick/"
@@ -9,6 +9,7 @@ repository = "https://github.com/BurntSushi/aho-corasick"
 readme = "README.md"
 keywords = ["string", "search", "text", "aho", "corasick"]
 license = "Unlicense/MIT"
+exclude = ["benches/sherlock.txt"]
 
 [lib]
 name = "aho_corasick"

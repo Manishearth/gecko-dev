@@ -1,3 +1,33 @@
+<a name="v2.20.3"></a>
+### v2.20.3 (2017-02-03)
+
+
+#### Documentation
+
+* **Macros:**  adds a warning about changing values in Cargo.toml not triggering a rebuild automatically ([112aea3e](https://github.com/kbknapp/clap-rs/commit/112aea3e42ae9e0c0a2d33ebad89496dbdd95e5d), closes [#838](https://github.com/kbknapp/clap-rs/issues/838))
+
+#### Bug Fixes
+
+*   fixes a println->debugln typo ([279aa62e](https://github.com/kbknapp/clap-rs/commit/279aa62eaf08f56ce090ba16b937bc763cbb45be))
+*   fixes bash completions for commands that have an underscore in the name ([7f5cfa72](https://github.com/kbknapp/clap-rs/commit/7f5cfa724f0ac4e098f5fe466c903febddb2d994), closes [#581](https://github.com/kbknapp/clap-rs/issues/581))
+*   fixes a bug where ZSH completions would panic if the binary name had an underscore in it ([891a2a00](https://github.com/kbknapp/clap-rs/commit/891a2a006f775e92c556dda48bb32fac9807c4fb), closes [#581](https://github.com/kbknapp/clap-rs/issues/581))
+*   allow final word to be wrapped in wrap_help ([564c5f0f](https://github.com/kbknapp/clap-rs/commit/564c5f0f1730f4a2c1cdd128664f1a981c31dcd4), closes [#828](https://github.com/kbknapp/clap-rs/issues/828))
+* fixes a bug where global args weren't included in the generated completion scripts ([9a1e006e](https://github.com/kbknapp/clap-rs/commit/9a1e006eb75ad5a6057ebd119aa90f7e06c0ace8), closes [#841](https://github.com/kbknapp/clap-rs/issues/841))
+
+
+
+<a name="v2.20.2"></a>
+### v2.20.2 (2017-02-03)
+
+#### Bug Fixes
+
+*   fixes a critical bug where subcommand settings were being propogated too far ([74648c94](https://github.com/kbknapp/clap-rs/commit/74648c94b893df542bfa5bb595e68c7bb8167e36), closes [#832](https://github.com/kbknapp/clap-rs/issues/832))
+
+
+#### Improvements
+
+*   adds ArgGroup::multiple to the supported YAML fields for building ArgGroups from YAML ([d8590037](https://github.com/kbknapp/clap-rs/commit/d8590037ce07dafd8cd5b26928aa4a9fd3018288), closes [#840](https://github.com/kbknapp/clap-rs/issues/840))
+
 <a name="v2.20.1"></a>
 ### v2.20.1 (2017-01-31)
 

@@ -1,12 +1,12 @@
 //! Intermediate representation for C/C++ functions and methods.
 
-use clang;
-use clang_sys::CXCallingConv;
-use parse::{ClangItemParser, ClangSubItemParser, ParseError, ParseResult};
 use super::context::{BindgenContext, ItemId};
 use super::item::Item;
 use super::ty::TypeKind;
 use super::type_collector::{ItemSet, TypeCollector};
+use clang;
+use clang_sys::CXCallingConv;
+use parse::{ClangItemParser, ClangSubItemParser, ParseError, ParseResult};
 use syntax::abi;
 
 /// A function declaration, with a signature, arguments, and argument names.
@@ -93,7 +93,7 @@ fn get_abi(cc: CXCallingConv) -> abi::Abi {
 pub fn cursor_mangling(cursor: &clang::Cursor) -> Option<String> {
     // We early return here because libclang may crash in some case
     // if we pass in a variable inside a partial specialized template.
-    // See servo/rust-bindgen#67.
+    // See servo/rust-bindgen#67, and servo/rust-bindgen#462.
     if cursor.is_in_non_fully_specialized_template() {
         return None;
     }
@@ -165,7 +165,8 @@ impl FunctionSig {
                         let name = arg.spelling();
                         let name =
                             if name.is_empty() { None } else { Some(name) };
-                        let ty = Item::from_ty_or_ref(arg_ty, Some(*arg), None, ctx);
+                        let ty =
+                            Item::from_ty_or_ref(arg_ty, Some(*arg), None, ctx);
                         (name, ty)
                     })
                     .collect()
@@ -176,8 +177,10 @@ impl FunctionSig {
                 let mut args = vec![];
                 cursor.visit(|c| {
                     if c.kind() == CXCursor_ParmDecl {
-                        let ty =
-                            Item::from_ty_or_ref(c.cur_type(), Some(c), None, ctx);
+                        let ty = Item::from_ty_or_ref(c.cur_type(),
+                                                      Some(c),
+                                                      None,
+                                                      ctx);
                         let name = c.spelling();
                         let name =
                             if name.is_empty() { None } else { Some(name) };
@@ -275,7 +278,8 @@ impl ClangSubItemParser for Function {
         }
 
         let linkage = cursor.linkage();
-        if linkage != CXLinkage_External && linkage != CXLinkage_UniqueExternal {
+        if linkage != CXLinkage_External &&
+           linkage != CXLinkage_UniqueExternal {
             return Err(ParseError::Continue);
         }
 
