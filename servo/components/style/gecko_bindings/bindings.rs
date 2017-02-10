@@ -701,6 +701,10 @@ extern "C" {
      -> *mut StyleBasicShape;
 }
 extern "C" {
+    pub fn Gecko_StyleClipPath_SetURLValue(clip: *mut StyleClipPath,
+                                           uri: ServoBundledURI);
+}
+extern "C" {
     pub fn Gecko_ResetFilters(effects: *mut nsStyleEffects, new_len: usize);
 }
 extern "C" {
