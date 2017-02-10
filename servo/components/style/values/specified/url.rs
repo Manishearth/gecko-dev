@@ -172,20 +172,19 @@ impl SpecifiedUrl {
 
     /// Create a bundled URI suitable for sending to Gecko
     /// to be constructed into a css::URLValue
-    pub fn for_ffi(&self) -> ServoBundledURI {
-        use std::ptr;
+    pub fn for_ffi(&self) -> Option<ServoBundledURI> {
         let extra_data = self.extra_data();
         let (ptr, len) = match self.as_slice_components() {
             Ok(value) => value,
-            Err(_) => (ptr::null(), 0),
+            Err(_) => return None,
         };
-        ServoBundledURI {
+        Some(ServoBundledURI {
             mURLString: ptr,
             mURLStringLength: len as u32,
             mBaseURI: extra_data.base.get(),
             mReferrer: extra_data.referrer.get(),
             mPrincipal: extra_data.principal.get(),
-        }
+        })
     }
 }
 
