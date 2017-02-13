@@ -961,9 +961,9 @@ fails == 412352-2.html 412352-2.html
 == 413027-1.html 413027-1.html
 == 413027-2.html 413027-2.html
 == 413027-3.html 413027-3.html
-fails == 413286-1a.html 413286-1a.html
-fails == 413286-1b.html 413286-1b.html
-fails == 413286-1c.html 413286-1c.html
+== 413286-1a.html 413286-1a.html
+== 413286-1b.html 413286-1b.html
+== 413286-1c.html 413286-1c.html
 fails == 413286-2a.html 413286-2a.html
 fails == 413286-2b.html 413286-2b.html
 fails == 413286-2c.html 413286-2c.html
@@ -1859,7 +1859,7 @@ test-pref(layout.testing.overlay-scrollbars.always-visible,false) == 1081072-1.h
 == 1081185-1.html 1081185-1.html
 == 1097437-1.html 1097437-1.html
 == 1103258-1.html 1103258-1.html
-fails == 1105137-1.html 1105137-1.html
+== 1105137-1.html 1105137-1.html
 fails == 1116480-1-fakeitalic-overflow.html 1116480-1-fakeitalic-overflow.html
 # == 1111753-1.html 1111753-1.html
 fails == 1114526-1.html 1114526-1.html
