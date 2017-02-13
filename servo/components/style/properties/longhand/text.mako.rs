@@ -121,6 +121,16 @@ ${helpers.single_keyword("unicode-bidi",
         pub overline: bool,
         pub line_through: bool,
         pub blink: bool,
+        % if product == "gecko":
+            /// Only set by presentation attributes
+            ///
+            /// Setting this will mean that text-decorations use the color
+            /// specified by `color` in quirks mode.
+            ///
+            /// For example, this gives <a href=foo><font color="red">text</font></a>
+            /// a red text decoration
+            pub color_override: bool,
+        % endif
     }
 
     impl ToCss for SpecifiedValue {
@@ -151,7 +161,10 @@ ${helpers.single_keyword("unicode-bidi",
         pub type T = super::SpecifiedValue;
         #[allow(non_upper_case_globals)]
         pub const none: T = super::SpecifiedValue {
-            underline: false, overline: false, line_through: false, blink: false
+            underline: false, overline: false, line_through: false, blink: false,
+            % if product == "gecko":
+                color_override: false,
+            % endif
         };
     }
     #[inline] pub fn get_initial_value() -> computed_value::T {
@@ -160,7 +173,10 @@ ${helpers.single_keyword("unicode-bidi",
     /// none | [ underline || overline || line-through || blink ]
     pub fn parse(_context: &ParserContext, input: &mut Parser) -> Result<SpecifiedValue, ()> {
         let mut result = SpecifiedValue {
-            underline: false, overline: false, line_through: false, blink: false
+            underline: false, overline: false, line_through: false, blink: false,
+            % if product == "gecko":
+                color_override: false,
+            % endif
         };
         if input.try(|input| input.expect_ident_matching("none")).is_ok() {
             return Ok(result)

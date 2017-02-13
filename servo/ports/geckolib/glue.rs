@@ -1226,9 +1226,16 @@ pub extern "C" fn Servo_DeclarationBlock_SetFontFamily(declarations:
 }
 
 #[no_mangle]
-pub extern "C" fn Servo_DeclarationBlock_SetTextDecorationColorOverride(_:
-                                                        RawServoDeclarationBlockBorrowed) {
-    error!("stylo: Don't know how to handle quirks-mode text-decoration color overrides");
+pub extern "C" fn Servo_DeclarationBlock_SetTextDecorationColorOverride(declarations:
+                                                                RawServoDeclarationBlockBorrowed) {
+    use style::properties::{DeclaredValue, PropertyDeclaration};
+    use style::properties::longhands::text_decoration_line;
+
+    let declarations = RwLock::<PropertyDeclarationBlock>::as_arc(&declarations);
+    let mut decoration = text_decoration_line::computed_value::none;
+    decoration.color_override = true;
+    let decl = PropertyDeclaration::TextDecorationLine(DeclaredValue::Value(decoration));
+    declarations.write().declarations.push((decl, Default::default()));
 }
 
 #[no_mangle]
