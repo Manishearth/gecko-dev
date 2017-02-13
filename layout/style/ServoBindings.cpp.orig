@@ -1203,9 +1203,10 @@ Gecko_CSSValue_Drop(nsCSSValueBorrowedMut aCSSValue)
 }
 
 void
-Gecko_nsStyleFont_SetLang(nsStyleFont* aFont, nsIAtom* atom)
+Gecko_nsStyleFont_SetLang(nsStyleFont* aFont, nsString& aString)
 {
-  aFont->mLanguage = atom;
+  nsContentUtils::ASCIIToLower(aString);
+  aFont->mLanguage = NS_Atomize(aString);
   aFont->mExplicitLanguage = true;
 }
 
