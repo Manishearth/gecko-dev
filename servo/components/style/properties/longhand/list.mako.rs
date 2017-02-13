@@ -25,6 +25,7 @@ ${helpers.single_keyword("list-style-type", """
                            cjk-heavenly-stem lower-greek hiragana hiragana-iroha katakana
                            katakana-iroha lower-alpha upper-alpha""",
     gecko_constant_prefix="NS_STYLE_LIST_STYLE",
+    needs_conversion="True",
     animatable=False,
     spec="https://drafts.csswg.org/css-lists/#propdef-list-style-type")}
 
