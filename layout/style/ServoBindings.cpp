@@ -789,6 +789,15 @@ ServoBundledURI::IntoCssUrl()
   return urlValue.forget();
 }
 
+GeckoParserExtraData::GeckoParserExtraData(nsIURI* aBaseURI,
+                                           nsIURI* aReferrer,
+                                           nsIPrincipal* aPrincipal)
+    : mBaseURI(new ThreadSafeURIHolder(aBaseURI)),
+      mReferrer(new ThreadSafeURIHolder(aReferrer)),
+      mPrincipal(new ThreadSafePrincipalHolder(aPrincipal))
+{
+}
+
 void
 Gecko_SetNullImageValue(nsStyleImage* aImage)
 {

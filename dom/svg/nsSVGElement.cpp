@@ -1252,9 +1252,13 @@ MappedAttrParser::ParseMappedAttrValue(nsIAtom* aMappedAttrName,
                             mElement->NodePrincipal(), mDecl->AsGecko(), &changed, false, true);
     } else {
       NS_ConvertUTF16toUTF8 value(aMappedAttrValue);
-      // TODO pass in the base/principal, update CSSOM to do this as well
+      // FIXME (bug 1343964): Figure out a better solution for sending the base uri to servo
+      nsCString baseString;
+      GeckoParserExtraData data(mBaseURI, mDocURI, mElement->NodePrincipal());
+      mBaseURI->GetSpec(baseString);
       // FIXME (bug 1342559): Set SVG parsing mode for lengths
-      changed = Servo_DeclarationBlock_SetPropertyById(mDecl->AsServo()->Raw(), propertyID, &value, false);
+      changed = Servo_DeclarationBlock_SetPropertyById(mDecl->AsServo()->Raw(), propertyID,
+                                                       &value, false, &baseString, &data);
     }
 
     if (changed) {
