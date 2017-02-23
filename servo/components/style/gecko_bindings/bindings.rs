@@ -1459,7 +1459,8 @@ extern "C" {
                                                   RawServoDeclarationBlockBorrowed,
                                               property:
                                                   *const nsACString_internal,
-                                              value: *mut nsACString_internal,
+                                              value:
+                                                  *const nsACString_internal,
                                               is_important: bool) -> bool;
 }
 extern "C" {
@@ -1467,7 +1468,7 @@ extern "C" {
                                                       RawServoDeclarationBlockBorrowed,
                                                   property: nsCSSPropertyID,
                                                   value:
-                                                      *mut nsACString_internal,
+                                                      *const nsACString_internal,
                                                   is_important: bool) -> bool;
 }
 extern "C" {

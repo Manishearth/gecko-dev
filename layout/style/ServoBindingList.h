@@ -167,11 +167,11 @@ SERVO_BINDING_FUNC(Servo_DeclarationBlock_GetPropertyIsImportant, bool,
 SERVO_BINDING_FUNC(Servo_DeclarationBlock_SetProperty, bool,
                    RawServoDeclarationBlockBorrowed declarations,
                    const nsACString* property,
-                   nsACString* value, bool is_important)
+                   const nsACString* value, bool is_important)
 SERVO_BINDING_FUNC(Servo_DeclarationBlock_SetPropertyById, bool,
                    RawServoDeclarationBlockBorrowed declarations,
                    nsCSSPropertyID property,
-                   nsACString* value, bool is_important)
+                   const nsACString* value, bool is_important)
 SERVO_BINDING_FUNC(Servo_DeclarationBlock_RemoveProperty, void,
                    RawServoDeclarationBlockBorrowed declarations,
                    const nsACString* property)
