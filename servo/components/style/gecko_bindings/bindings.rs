@@ -56,6 +56,12 @@ unsafe impl Sync for nsStyleColumn {}
 use gecko_bindings::structs::nsStyleContent;
 unsafe impl Send for nsStyleContent {}
 unsafe impl Sync for nsStyleContent {}
+use gecko_bindings::structs::nsStyleContentData;
+unsafe impl Send for nsStyleContentData {}
+unsafe impl Sync for nsStyleContentData {}
+use gecko_bindings::structs::nsStyleContentType;
+unsafe impl Send for nsStyleContentType {}
+unsafe impl Sync for nsStyleContentType {}
 use gecko_bindings::structs::nsStyleContext;
 unsafe impl Send for nsStyleContext {}
 unsafe impl Sync for nsStyleContext {}
@@ -644,6 +650,14 @@ extern "C" {
                                      src: *const nsStyleUserInterface);
 }
 extern "C" {
+    pub fn Gecko_SetContentDataImage(content_data: *mut nsStyleContentData,
+                                     uri: ServoBundledURI);
+}
+extern "C" {
+    pub fn Gecko_SetContentDataArray(content_data: *mut nsStyleContentData,
+                                     type_: nsStyleContentType, len: u32);
+}
+extern "C" {
     pub fn Gecko_GetNodeFlags(node: RawGeckoNodeBorrowed) -> u32;
 }
 extern "C" {
@@ -870,7 +884,7 @@ extern "C" {
 }
 extern "C" {
     pub fn Gecko_CSSValue_SetString(css_value: nsCSSValueBorrowedMut,
-                                    string: nsString);
+                                    string: *const u8, len: u32);
 }
 extern "C" {
     pub fn Gecko_CSSValue_SetArray(css_value: nsCSSValueBorrowedMut,

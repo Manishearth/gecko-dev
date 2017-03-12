@@ -3761,6 +3761,14 @@ nsStyleContent::Destroy(nsPresContext* aContext)
   aContext->PresShell()->FreeByObjectID(eArenaObjectID_nsStyleContent, this);
 }
 
+void
+nsStyleContent::FinishStyle(nsPresContext* aPresContext)
+{
+  for (nsStyleContentData& data : mContents) {
+    data.Resolve(aPresContext);
+  }
+}
+
 nsStyleContent::nsStyleContent(const nsStyleContent& aSource)
   : mContents(aSource.mContents)
   , mIncrements(aSource.mIncrements)
