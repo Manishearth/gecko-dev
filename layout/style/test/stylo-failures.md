@@ -108,7 +108,7 @@ Any line which doesn't follow the format above would be ignored like comment.
 * test_bug798843_pref.html: conditional opentype svg support [7]
 * test_computed_style.html `gradient`: -moz-prefixed radient value [9]
 * url value in style attribute bug 1310886
-  * test_computed_style.html `url` [12]
+  * test_computed_style.html `url` [11]
   * test_parse_url.html [4]
   * test_value_storage.html `url` [92]
   * test_shorthand_property_getters.html `background shorthand` [1]
@@ -352,7 +352,7 @@ Any line which doesn't follow the format above would be ignored like comment.
     * test_value_storage.html `background-repeat` [14]
     * ... `mask-repeat` [24]
   * lack glue for function values of content property bug 1296477
-    * test_rule_insertion.html `decimal counter` [3]
+    * test_rule_insertion.html `decimal counter` [1]
     * test_value_storage.html `'content` [40]
   * SVG-in-OpenType values not supported servo/servo#15211
     * test_value_storage.html `context-` [2]
@@ -464,7 +464,7 @@ Any line which doesn't follow the format above would be ignored like comment.
   * test_units_length.html [5]
   * test_units_time.html [1]
 * insertRule / deleteRule don't work bug 1336863
-  * test_rule_insertion.html [16]
+  * test_rule_insertion.html [17]
 * @-moz-document support
   * test_rule_serialization.html [2]
   * test_moz_document_rules.html [13]
