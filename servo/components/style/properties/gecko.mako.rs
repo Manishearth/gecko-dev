@@ -394,11 +394,7 @@ fn color_to_nscolor_zero_currentcolor(color: Color) -> structs::nscolor {
             }
             SVGPaintKind::PaintServer(url) => {
                 unsafe {
-                    if let Some(ffi) = url.for_ffi() {
-                        bindings::Gecko_nsStyleSVGPaint_SetURLValue(paint, ffi);
-                    } else {
-                        return;
-                    }
+                    bindings::Gecko_nsStyleSVGPaint_SetURLValue(paint, url.for_ffi());
                 }
             }
             SVGPaintKind::Color(color) => {
@@ -518,13 +514,8 @@ fn color_to_nscolor_zero_currentcolor(color: Color) -> structs::nscolor {
         match v {
             Either::First(url) => {
                 let refptr = unsafe {
-                    if let Some(ffi) = url.for_ffi() {
-                        let ptr = bindings::Gecko_NewURLValue(ffi);
-                        RefPtr::from_addrefed(ptr)
-                    } else {
-                        self.gecko.${gecko_ffi_name}.clear();
-                        return;
-                    }
+                    let ptr = bindings::Gecko_NewURLValue(url.for_ffi());
+                    RefPtr::from_addrefed(ptr)
                 };
                 self.gecko.${gecko_ffi_name}.set_move(refptr)
             }
@@ -2276,12 +2267,8 @@ fn static_assert() {
             }
             Either::First(ref url) => {
                 unsafe {
-                    if let Some(ffi) = url.for_ffi() {
-                        Gecko_SetListStyleImage(&mut self.gecko,
-                                            ffi);
-                    } else {
-                        Gecko_SetListStyleImageNone(&mut self.gecko);
-                    }
+                    Gecko_SetListStyleImage(&mut self.gecko,
+                                            url.for_ffi());
                 }
                 // We don't need to record this struct as uncacheable, like when setting
                 // background-image to a url() value, since only properties in reset structs
@@ -2570,9 +2557,7 @@ fn static_assert() {
                 }
                 Url(ref url) => {
                     unsafe {
-                        if let Some(ffi) = url.for_ffi() {
-                            bindings::Gecko_nsStyleFilter_SetURLValue(gecko_filter, ffi);
-                        }
+                        bindings::Gecko_nsStyleFilter_SetURLValue(gecko_filter, url.for_ffi());
                     }
                 }
             }
@@ -2935,9 +2920,7 @@ clip-path
         match v {
             ShapeSource::Url(ref url) => {
                 unsafe {
-                    if let Some(ffi) = url.for_ffi() {
-                       bindings::Gecko_StyleClipPath_SetURLValue(clip_path, ffi);
-                    }
+                    bindings::Gecko_StyleClipPath_SetURLValue(clip_path, url.for_ffi());
                 }
             }
             ShapeSource::None => {} // don't change the type
@@ -3145,16 +3128,8 @@ clip-path
         }
         for i in 0..v.images.len() {
             let image = &v.images[i];
-            let extra_data = image.url.extra_data();
-            let (ptr, len) = match image.url.as_slice_components() {
-                Ok(value) | Err(value) => value,
-            };
             unsafe {
-                Gecko_SetCursorImage(&mut self.gecko.mCursorImages[i],
-                                     ptr, len as u32,
-                                     extra_data.base.get(),
-                                     extra_data.referrer.get(),
-                                     extra_data.principal.get());
+                Gecko_SetCursorImage(&mut self.gecko.mCursorImages[i], image.url.for_ffi());
             }
             // We don't need to record this struct as uncacheable, like when setting
             // background-image to a url() value, since only properties in reset structs
