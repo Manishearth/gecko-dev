@@ -1444,6 +1444,192 @@ pub mod root {
             pub type LinkedListElementTraits_ConstRawType<T> = *mut T;
             pub type LinkedListElementTraits_ClientType<T> = *mut T;
             pub type LinkedListElementTraits_ConstClientType<T> = *mut T;
+            #[repr(C)]
+            #[derive(Debug, Copy)]
+            pub struct nsStringRepr {
+                pub mData: *mut root::mozilla::detail::nsStringRepr_char_type,
+                pub mLength: root::mozilla::detail::nsStringRepr_size_type,
+                pub mFlags: u32,
+            }
+            pub type nsStringRepr_fallible_t = root::mozilla::fallible_t;
+            pub type nsStringRepr_char_type = u16;
+            pub type nsStringRepr_self_type =
+                root::mozilla::detail::nsStringRepr;
+            pub type nsStringRepr_base_string_type =
+                root::mozilla::detail::nsStringRepr_self_type;
+            pub type nsStringRepr_substring_type = root::nsAString_internal;
+            pub type nsStringRepr_substring_tuple_type =
+                root::nsSubstringTuple;
+            pub type nsStringRepr_string_type = ::nsstring::nsStringRepr;
+            pub type nsStringRepr_const_iterator =
+                root::nsReadingIterator<u16>;
+            pub type nsStringRepr_iterator = root::nsWritingIterator<u16>;
+            pub type nsStringRepr_comparator_type = root::nsStringComparator;
+            pub type nsStringRepr_char_iterator =
+                *mut root::mozilla::detail::nsStringRepr_char_type;
+            pub type nsStringRepr_const_char_iterator =
+                *const root::mozilla::detail::nsStringRepr_char_type;
+            pub type nsStringRepr_index_type = u32;
+            pub type nsStringRepr_size_type = u32;
+            pub const nsStringRepr_F_NONE:
+                      root::mozilla::detail::nsStringRepr__bindgen_ty_1 =
+                nsStringRepr__bindgen_ty_1::F_NONE;
+            pub const nsStringRepr_F_TERMINATED:
+                      root::mozilla::detail::nsStringRepr__bindgen_ty_1 =
+                nsStringRepr__bindgen_ty_1::F_TERMINATED;
+            pub const nsStringRepr_F_VOIDED:
+                      root::mozilla::detail::nsStringRepr__bindgen_ty_1 =
+                nsStringRepr__bindgen_ty_1::F_VOIDED;
+            pub const nsStringRepr_F_SHARED:
+                      root::mozilla::detail::nsStringRepr__bindgen_ty_1 =
+                nsStringRepr__bindgen_ty_1::F_SHARED;
+            pub const nsStringRepr_F_OWNED:
+                      root::mozilla::detail::nsStringRepr__bindgen_ty_1 =
+                nsStringRepr__bindgen_ty_1::F_OWNED;
+            pub const nsStringRepr_F_FIXED:
+                      root::mozilla::detail::nsStringRepr__bindgen_ty_1 =
+                nsStringRepr__bindgen_ty_1::F_FIXED;
+            pub const nsStringRepr_F_LITERAL:
+                      root::mozilla::detail::nsStringRepr__bindgen_ty_1 =
+                nsStringRepr__bindgen_ty_1::F_LITERAL;
+            pub const nsStringRepr_F_CLASS_FIXED:
+                      root::mozilla::detail::nsStringRepr__bindgen_ty_1 =
+                nsStringRepr__bindgen_ty_1::F_CLASS_FIXED;
+            #[repr(u32)]
+            #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+            pub enum nsStringRepr__bindgen_ty_1 {
+                F_NONE = 0,
+                F_TERMINATED = 1,
+                F_VOIDED = 2,
+                F_SHARED = 4,
+                F_OWNED = 8,
+                F_FIXED = 16,
+                F_LITERAL = 32,
+                F_CLASS_FIXED = 65536,
+            }
+            #[test]
+            fn bindgen_test_layout_nsStringRepr() {
+                assert_eq!(::std::mem::size_of::<nsStringRepr>() , 16usize ,
+                           concat ! (
+                           "Size of: " , stringify ! ( nsStringRepr ) ));
+                assert_eq! (::std::mem::align_of::<nsStringRepr>() , 8usize ,
+                            concat ! (
+                            "Alignment of " , stringify ! ( nsStringRepr ) ));
+                assert_eq! (unsafe {
+                            & ( * ( 0 as * const nsStringRepr ) ) . mData as *
+                            const _ as usize } , 0usize , concat ! (
+                            "Alignment of field: " , stringify ! (
+                            nsStringRepr ) , "::" , stringify ! ( mData ) ));
+                assert_eq! (unsafe {
+                            & ( * ( 0 as * const nsStringRepr ) ) . mLength as
+                            * const _ as usize } , 8usize , concat ! (
+                            "Alignment of field: " , stringify ! (
+                            nsStringRepr ) , "::" , stringify ! ( mLength )
+                            ));
+                assert_eq! (unsafe {
+                            & ( * ( 0 as * const nsStringRepr ) ) . mFlags as
+                            * const _ as usize } , 12usize , concat ! (
+                            "Alignment of field: " , stringify ! (
+                            nsStringRepr ) , "::" , stringify ! ( mFlags ) ));
+            }
+            impl Clone for nsStringRepr {
+                fn clone(&self) -> Self { *self }
+            }
+            #[repr(C)]
+            #[derive(Debug, Copy)]
+            pub struct nsCStringRepr {
+                pub mData: *mut root::mozilla::detail::nsCStringRepr_char_type,
+                pub mLength: root::mozilla::detail::nsCStringRepr_size_type,
+                pub mFlags: u32,
+            }
+            pub type nsCStringRepr_fallible_t = root::mozilla::fallible_t;
+            pub type nsCStringRepr_char_type = ::std::os::raw::c_char;
+            pub type nsCStringRepr_self_type =
+                root::mozilla::detail::nsCStringRepr;
+            pub type nsCStringRepr_base_string_type =
+                root::mozilla::detail::nsCStringRepr_self_type;
+            pub type nsCStringRepr_substring_type = root::nsACString_internal;
+            pub type nsCStringRepr_substring_tuple_type =
+                root::nsCSubstringTuple;
+            pub type nsCStringRepr_string_type = root::nsCString;
+            pub type nsCStringRepr_const_iterator =
+                root::nsReadingIterator<::std::os::raw::c_char>;
+            pub type nsCStringRepr_iterator =
+                root::nsWritingIterator<::std::os::raw::c_char>;
+            pub type nsCStringRepr_comparator_type =
+                root::nsCStringComparator;
+            pub type nsCStringRepr_char_iterator =
+                *mut root::mozilla::detail::nsCStringRepr_char_type;
+            pub type nsCStringRepr_const_char_iterator =
+                *const root::mozilla::detail::nsCStringRepr_char_type;
+            pub type nsCStringRepr_index_type = u32;
+            pub type nsCStringRepr_size_type = u32;
+            pub const nsCStringRepr_F_NONE:
+                      root::mozilla::detail::nsCStringRepr__bindgen_ty_1 =
+                nsCStringRepr__bindgen_ty_1::F_NONE;
+            pub const nsCStringRepr_F_TERMINATED:
+                      root::mozilla::detail::nsCStringRepr__bindgen_ty_1 =
+                nsCStringRepr__bindgen_ty_1::F_TERMINATED;
+            pub const nsCStringRepr_F_VOIDED:
+                      root::mozilla::detail::nsCStringRepr__bindgen_ty_1 =
+                nsCStringRepr__bindgen_ty_1::F_VOIDED;
+            pub const nsCStringRepr_F_SHARED:
+                      root::mozilla::detail::nsCStringRepr__bindgen_ty_1 =
+                nsCStringRepr__bindgen_ty_1::F_SHARED;
+            pub const nsCStringRepr_F_OWNED:
+                      root::mozilla::detail::nsCStringRepr__bindgen_ty_1 =
+                nsCStringRepr__bindgen_ty_1::F_OWNED;
+            pub const nsCStringRepr_F_FIXED:
+                      root::mozilla::detail::nsCStringRepr__bindgen_ty_1 =
+                nsCStringRepr__bindgen_ty_1::F_FIXED;
+            pub const nsCStringRepr_F_LITERAL:
+                      root::mozilla::detail::nsCStringRepr__bindgen_ty_1 =
+                nsCStringRepr__bindgen_ty_1::F_LITERAL;
+            pub const nsCStringRepr_F_CLASS_FIXED:
+                      root::mozilla::detail::nsCStringRepr__bindgen_ty_1 =
+                nsCStringRepr__bindgen_ty_1::F_CLASS_FIXED;
+            #[repr(u32)]
+            #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+            pub enum nsCStringRepr__bindgen_ty_1 {
+                F_NONE = 0,
+                F_TERMINATED = 1,
+                F_VOIDED = 2,
+                F_SHARED = 4,
+                F_OWNED = 8,
+                F_FIXED = 16,
+                F_LITERAL = 32,
+                F_CLASS_FIXED = 65536,
+            }
+            #[test]
+            fn bindgen_test_layout_nsCStringRepr() {
+                assert_eq!(::std::mem::size_of::<nsCStringRepr>() , 16usize ,
+                           concat ! (
+                           "Size of: " , stringify ! ( nsCStringRepr ) ));
+                assert_eq! (::std::mem::align_of::<nsCStringRepr>() , 8usize ,
+                            concat ! (
+                            "Alignment of " , stringify ! ( nsCStringRepr )
+                            ));
+                assert_eq! (unsafe {
+                            & ( * ( 0 as * const nsCStringRepr ) ) . mData as
+                            * const _ as usize } , 0usize , concat ! (
+                            "Alignment of field: " , stringify ! (
+                            nsCStringRepr ) , "::" , stringify ! ( mData ) ));
+                assert_eq! (unsafe {
+                            & ( * ( 0 as * const nsCStringRepr ) ) . mLength
+                            as * const _ as usize } , 8usize , concat ! (
+                            "Alignment of field: " , stringify ! (
+                            nsCStringRepr ) , "::" , stringify ! ( mLength )
+                            ));
+                assert_eq! (unsafe {
+                            & ( * ( 0 as * const nsCStringRepr ) ) . mFlags as
+                            * const _ as usize } , 12usize , concat ! (
+                            "Alignment of field: " , stringify ! (
+                            nsCStringRepr ) , "::" , stringify ! ( mFlags )
+                            ));
+            }
+            impl Clone for nsCStringRepr {
+                fn clone(&self) -> Self { *self }
+            }
         }
         pub type MallocSizeOf =
             ::std::option::Option<unsafe extern "C" fn(p:
@@ -1991,10 +2177,10 @@ pub mod root {
                 }
                 #[repr(C)]
                 pub struct FakeString {
-                    pub mData: *mut root::nsAString_internal_char_type,
-                    pub mLength: root::nsAString_internal_size_type,
+                    pub mData: *mut root::mozilla::detail::nsStringRepr_char_type,
+                    pub mLength: root::mozilla::detail::nsStringRepr_size_type,
                     pub mFlags: u32,
-                    pub mInlineStorage: [root::nsAString_internal_char_type; 64usize],
+                    pub mInlineStorage: [root::mozilla::detail::nsStringRepr_char_type; 64usize],
                 }
                 #[repr(C)]
                 #[derive(Debug)]
@@ -9524,66 +9710,9 @@ pub mod root {
     #[repr(C)]
     #[derive(Debug)]
     pub struct nsAString_internal {
-        pub mData: *mut root::nsAString_internal_char_type,
-        pub mLength: root::nsAString_internal_size_type,
-        pub mFlags: u32,
+        pub _base: root::mozilla::detail::nsStringRepr,
     }
-    pub type nsAString_internal_fallible_t = root::mozilla::fallible_t;
-    pub type nsAString_internal_char_type = u16;
     pub type nsAString_internal_self_type = root::nsAString_internal;
-    pub type nsAString_internal_abstract_string_type =
-        root::nsAString_internal_self_type;
-    pub type nsAString_internal_base_string_type =
-        root::nsAString_internal_self_type;
-    pub type nsAString_internal_substring_type =
-        root::nsAString_internal_self_type;
-    pub type nsAString_internal_substring_tuple_type = root::nsSubstringTuple;
-    pub type nsAString_internal_string_type = ::nsstring::nsStringRepr;
-    pub type nsAString_internal_const_iterator = root::nsReadingIterator<u16>;
-    pub type nsAString_internal_iterator = root::nsWritingIterator<u16>;
-    pub type nsAString_internal_comparator_type = root::nsStringComparator;
-    pub type nsAString_internal_char_iterator =
-        *mut root::nsAString_internal_char_type;
-    pub type nsAString_internal_const_char_iterator =
-        *const root::nsAString_internal_char_type;
-    pub type nsAString_internal_size_type = u32;
-    pub type nsAString_internal_index_type = u32;
-    pub const nsAString_internal_F_NONE:
-              root::nsAString_internal__bindgen_ty_1 =
-        nsAString_internal__bindgen_ty_1::F_NONE;
-    pub const nsAString_internal_F_TERMINATED:
-              root::nsAString_internal__bindgen_ty_1 =
-        nsAString_internal__bindgen_ty_1::F_TERMINATED;
-    pub const nsAString_internal_F_VOIDED:
-              root::nsAString_internal__bindgen_ty_1 =
-        nsAString_internal__bindgen_ty_1::F_VOIDED;
-    pub const nsAString_internal_F_SHARED:
-              root::nsAString_internal__bindgen_ty_1 =
-        nsAString_internal__bindgen_ty_1::F_SHARED;
-    pub const nsAString_internal_F_OWNED:
-              root::nsAString_internal__bindgen_ty_1 =
-        nsAString_internal__bindgen_ty_1::F_OWNED;
-    pub const nsAString_internal_F_FIXED:
-              root::nsAString_internal__bindgen_ty_1 =
-        nsAString_internal__bindgen_ty_1::F_FIXED;
-    pub const nsAString_internal_F_LITERAL:
-              root::nsAString_internal__bindgen_ty_1 =
-        nsAString_internal__bindgen_ty_1::F_LITERAL;
-    pub const nsAString_internal_F_CLASS_FIXED:
-              root::nsAString_internal__bindgen_ty_1 =
-        nsAString_internal__bindgen_ty_1::F_CLASS_FIXED;
-    #[repr(u32)]
-    #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-    pub enum nsAString_internal__bindgen_ty_1 {
-        F_NONE = 0,
-        F_TERMINATED = 1,
-        F_VOIDED = 2,
-        F_SHARED = 4,
-        F_OWNED = 8,
-        F_FIXED = 16,
-        F_LITERAL = 32,
-        F_CLASS_FIXED = 65536,
-    }
     #[test]
     fn bindgen_test_layout_nsAString_internal() {
         assert_eq!(::std::mem::size_of::<nsAString_internal>() , 16usize ,
@@ -9592,21 +9721,6 @@ pub mod root {
         assert_eq! (::std::mem::align_of::<nsAString_internal>() , 8usize ,
                     concat ! (
                     "Alignment of " , stringify ! ( nsAString_internal ) ));
-        assert_eq! (unsafe {
-                    & ( * ( 0 as * const nsAString_internal ) ) . mData as *
-                    const _ as usize } , 0usize , concat ! (
-                    "Alignment of field: " , stringify ! ( nsAString_internal
-                    ) , "::" , stringify ! ( mData ) ));
-        assert_eq! (unsafe {
-                    & ( * ( 0 as * const nsAString_internal ) ) . mLength as *
-                    const _ as usize } , 8usize , concat ! (
-                    "Alignment of field: " , stringify ! ( nsAString_internal
-                    ) , "::" , stringify ! ( mLength ) ));
-        assert_eq! (unsafe {
-                    & ( * ( 0 as * const nsAString_internal ) ) . mFlags as *
-                    const _ as usize } , 12usize , concat ! (
-                    "Alignment of field: " , stringify ! ( nsAString_internal
-                    ) , "::" , stringify ! ( mFlags ) ));
     }
     #[repr(C)]
     #[derive(Debug, Copy)]
@@ -9617,8 +9731,8 @@ pub mod root {
     }
     pub type nsSubstringTuple_char_type = u16;
     pub type nsSubstringTuple_self_type = root::nsSubstringTuple;
-    pub type nsSubstringTuple_substring_type = root::nsAString_internal;
-    pub type nsSubstringTuple_base_string_type = root::nsAString_internal;
+    pub type nsSubstringTuple_base_string_type =
+        root::mozilla::detail::nsStringRepr;
     pub type nsSubstringTuple_size_type = u32;
     #[test]
     fn bindgen_test_layout_nsSubstringTuple() {
@@ -9650,7 +9764,7 @@ pub mod root {
     #[repr(C)]
     pub struct nsAutoString {
         pub _base: root::nsFixedString,
-        pub mStorage: [root::nsAString_internal_char_type; 64usize],
+        pub mStorage: [root::mozilla::detail::nsStringRepr_char_type; 64usize],
     }
     pub type nsAutoString_self_type = root::nsAutoString;
     pub const nsAutoString_kDefaultStorageSize:
@@ -9710,69 +9824,9 @@ pub mod root {
     #[repr(C)]
     #[derive(Debug)]
     pub struct nsACString_internal {
-        pub mData: *mut root::nsACString_internal_char_type,
-        pub mLength: root::nsACString_internal_size_type,
-        pub mFlags: u32,
+        pub _base: root::mozilla::detail::nsCStringRepr,
     }
-    pub type nsACString_internal_fallible_t = root::mozilla::fallible_t;
-    pub type nsACString_internal_char_type = ::std::os::raw::c_char;
     pub type nsACString_internal_self_type = root::nsACString_internal;
-    pub type nsACString_internal_abstract_string_type =
-        root::nsACString_internal_self_type;
-    pub type nsACString_internal_base_string_type =
-        root::nsACString_internal_self_type;
-    pub type nsACString_internal_substring_type =
-        root::nsACString_internal_self_type;
-    pub type nsACString_internal_substring_tuple_type =
-        root::nsCSubstringTuple;
-    pub type nsACString_internal_string_type = root::nsCString;
-    pub type nsACString_internal_const_iterator =
-        root::nsReadingIterator<::std::os::raw::c_char>;
-    pub type nsACString_internal_iterator =
-        root::nsWritingIterator<::std::os::raw::c_char>;
-    pub type nsACString_internal_comparator_type = root::nsCStringComparator;
-    pub type nsACString_internal_char_iterator =
-        *mut root::nsACString_internal_char_type;
-    pub type nsACString_internal_const_char_iterator =
-        *const root::nsACString_internal_char_type;
-    pub type nsACString_internal_size_type = u32;
-    pub type nsACString_internal_index_type = u32;
-    pub const nsACString_internal_F_NONE:
-              root::nsACString_internal__bindgen_ty_1 =
-        nsACString_internal__bindgen_ty_1::F_NONE;
-    pub const nsACString_internal_F_TERMINATED:
-              root::nsACString_internal__bindgen_ty_1 =
-        nsACString_internal__bindgen_ty_1::F_TERMINATED;
-    pub const nsACString_internal_F_VOIDED:
-              root::nsACString_internal__bindgen_ty_1 =
-        nsACString_internal__bindgen_ty_1::F_VOIDED;
-    pub const nsACString_internal_F_SHARED:
-              root::nsACString_internal__bindgen_ty_1 =
-        nsACString_internal__bindgen_ty_1::F_SHARED;
-    pub const nsACString_internal_F_OWNED:
-              root::nsACString_internal__bindgen_ty_1 =
-        nsACString_internal__bindgen_ty_1::F_OWNED;
-    pub const nsACString_internal_F_FIXED:
-              root::nsACString_internal__bindgen_ty_1 =
-        nsACString_internal__bindgen_ty_1::F_FIXED;
-    pub const nsACString_internal_F_LITERAL:
-              root::nsACString_internal__bindgen_ty_1 =
-        nsACString_internal__bindgen_ty_1::F_LITERAL;
-    pub const nsACString_internal_F_CLASS_FIXED:
-              root::nsACString_internal__bindgen_ty_1 =
-        nsACString_internal__bindgen_ty_1::F_CLASS_FIXED;
-    #[repr(u32)]
-    #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-    pub enum nsACString_internal__bindgen_ty_1 {
-        F_NONE = 0,
-        F_TERMINATED = 1,
-        F_VOIDED = 2,
-        F_SHARED = 4,
-        F_OWNED = 8,
-        F_FIXED = 16,
-        F_LITERAL = 32,
-        F_CLASS_FIXED = 65536,
-    }
     #[test]
     fn bindgen_test_layout_nsACString_internal() {
         assert_eq!(::std::mem::size_of::<nsACString_internal>() , 16usize ,
@@ -9781,21 +9835,6 @@ pub mod root {
         assert_eq! (::std::mem::align_of::<nsACString_internal>() , 8usize ,
                     concat ! (
                     "Alignment of " , stringify ! ( nsACString_internal ) ));
-        assert_eq! (unsafe {
-                    & ( * ( 0 as * const nsACString_internal ) ) . mData as *
-                    const _ as usize } , 0usize , concat ! (
-                    "Alignment of field: " , stringify ! ( nsACString_internal
-                    ) , "::" , stringify ! ( mData ) ));
-        assert_eq! (unsafe {
-                    & ( * ( 0 as * const nsACString_internal ) ) . mLength as
-                    * const _ as usize } , 8usize , concat ! (
-                    "Alignment of field: " , stringify ! ( nsACString_internal
-                    ) , "::" , stringify ! ( mLength ) ));
-        assert_eq! (unsafe {
-                    & ( * ( 0 as * const nsACString_internal ) ) . mFlags as *
-                    const _ as usize } , 12usize , concat ! (
-                    "Alignment of field: " , stringify ! ( nsACString_internal
-                    ) , "::" , stringify ! ( mFlags ) ));
     }
     #[repr(C)]
     #[derive(Debug, Copy)]
@@ -9806,8 +9845,8 @@ pub mod root {
     }
     pub type nsCSubstringTuple_char_type = ::std::os::raw::c_char;
     pub type nsCSubstringTuple_self_type = root::nsCSubstringTuple;
-    pub type nsCSubstringTuple_substring_type = root::nsACString_internal;
-    pub type nsCSubstringTuple_base_string_type = root::nsACString_internal;
+    pub type nsCSubstringTuple_base_string_type =
+        root::mozilla::detail::nsCStringRepr;
     pub type nsCSubstringTuple_size_type = u32;
     #[test]
     fn bindgen_test_layout_nsCSubstringTuple() {
@@ -10060,9 +10099,9 @@ pub mod root {
         pub mDelim: root::nsSubstringSplitter_char_type,
     }
     pub type nsSubstringSplitter_size_type =
-        root::nsAString_internal_size_type;
+        root::mozilla::detail::nsStringRepr_size_type;
     pub type nsSubstringSplitter_char_type =
-        root::nsAString_internal_char_type;
+        root::mozilla::detail::nsStringRepr_char_type;
     #[repr(C)]
     #[derive(Debug, Copy)]
     pub struct nsSubstringSplitter_nsTSubstringSplit_Iter {
@@ -10138,9 +10177,9 @@ pub mod root {
         pub mDelim: root::nsCSubstringSplitter_char_type,
     }
     pub type nsCSubstringSplitter_size_type =
-        root::nsACString_internal_size_type;
+        root::mozilla::detail::nsCStringRepr_size_type;
     pub type nsCSubstringSplitter_char_type =
-        root::nsACString_internal_char_type;
+        root::mozilla::detail::nsCStringRepr_char_type;
     #[repr(C)]
     #[derive(Debug, Copy)]
     pub struct nsCSubstringSplitter_nsTSubstringSplit_Iter {
@@ -10211,8 +10250,8 @@ pub mod root {
     #[derive(Debug)]
     pub struct nsFixedString {
         pub _base: ::nsstring::nsStringRepr,
-        pub mFixedCapacity: root::nsAString_internal_size_type,
-        pub mFixedBuf: *mut root::nsAString_internal_char_type,
+        pub mFixedCapacity: root::mozilla::detail::nsStringRepr_size_type,
+        pub mFixedBuf: *mut root::mozilla::detail::nsStringRepr_char_type,
     }
     pub type nsFixedString_self_type = root::nsFixedString;
     pub type nsFixedString_fixed_string_type = root::nsFixedString;
