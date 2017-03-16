@@ -994,6 +994,19 @@ nsGenericDOMDataNode::AppendText(const char16_t* aBuffer,
 bool
 nsGenericDOMDataNode::TextIsOnlyWhitespace()
 {
+  if (!TextIsOnlyWhitespaceConst()) {
+    UnsetFlags(NS_TEXT_IS_ONLY_WHITESPACE);
+    SetFlags(NS_CACHED_TEXT_IS_ONLY_WHITESPACE);
+    return false;
+  }
+
+  SetFlags(NS_CACHED_TEXT_IS_ONLY_WHITESPACE | NS_TEXT_IS_ONLY_WHITESPACE);
+  return true;
+}
+
+bool
+nsGenericDOMDataNode::ThreadSafeTextIsOnlyWhitespace() const
+{
   // FIXME: should this method take content language into account?
   if (mText.Is2b()) {
     // The fragment contains non-8bit characters and such characters
@@ -1012,15 +1025,12 @@ nsGenericDOMDataNode::TextIsOnlyWhitespace()
     char ch = *cp;
 
     if (!dom::IsSpaceCharacter(ch)) {
-      UnsetFlags(NS_TEXT_IS_ONLY_WHITESPACE);
-      SetFlags(NS_CACHED_TEXT_IS_ONLY_WHITESPACE);
       return false;
     }
 
     ++cp;
   }
 
-  SetFlags(NS_CACHED_TEXT_IS_ONLY_WHITESPACE | NS_TEXT_IS_ONLY_WHITESPACE);
   return true;
 }
 

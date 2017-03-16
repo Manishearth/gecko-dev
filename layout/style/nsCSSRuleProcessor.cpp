@@ -1684,7 +1684,7 @@ nsCSSRuleProcessor::StringPseudoMatches(const mozilla::dom::Element* aElement,
     case CSSPseudoClassType::mozEmptyExceptChildrenWithLocalname:
       {
         NS_ASSERTION(aString, "Must have string!");
-        nsIContent *child = nullptr;
+        const nsIContent *child = nullptr;
         int32_t index = -1;
 
         if (aForStyling) {
@@ -1698,7 +1698,7 @@ nsCSSRuleProcessor::StringPseudoMatches(const mozilla::dom::Element* aElement,
         do {
           child = aElement->GetChildAt(++index);
         } while (child &&
-                  (!IsSignificantChild(child, true, false) ||
+                  (!nsStyleUtil::ThreadSafeIsSignificantChild(child, true, false) ||
                   (child->GetNameSpaceID() == aElement->GetNameSpaceID() &&
                     child->NodeInfo()->NameAtom()->Equals(nsDependentString(aString)))));
         if (child) {
