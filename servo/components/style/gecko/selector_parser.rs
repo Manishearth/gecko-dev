@@ -150,7 +150,7 @@ macro_rules! pseudo_class_name {
             )*
             $(
                 #[doc = $s_css]
-                $s_name(Box<str>),
+                $s_name(Box<[u16]>),
             )*
         }
     }
@@ -165,7 +165,7 @@ impl ToCss for NonTSPseudoClass {
                 match *self {
                     $(NonTSPseudoClass::$name => concat!(":", $css),)*
                     $(NonTSPseudoClass::$s_name(ref s) => {
-                        return dest.write_str(&format!(":{}({})", $s_css, s))
+                        return dest.write_str(&format!(":{}({})", $s_css, String::from_utf16(&s).unwrap()))
                     }, )*
                 }
             }
@@ -290,8 +290,11 @@ impl<'a> ::selectors::Parser for SelectorParser<'a> {
              string: [$(($s_css:expr, $s_name:ident, $s_gecko_type:tt, $s_state:tt, $s_flags:tt),)*]) => {
                 match_ignore_ascii_case! { &name,
                     $($s_css => {
-                        let name = String::from(parser.expect_ident_or_string()?).into_boxed_str();
-                        NonTSPseudoClass::$s_name(name)
+                        let name = parser.expect_ident_or_string()?;
+                        // convert to null terminated utf16 string
+                        // since that's what Gecko deals with
+                        let utf16: Vec<u16> = name.encode_utf16().chain(Some(0u16)).collect();
+                        NonTSPseudoClass::$s_name(utf16.into_boxed_slice())
                     }, )*
                     _ => return Err(())
                 }

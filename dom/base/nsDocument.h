@@ -978,7 +978,13 @@ public:
 
   virtual nsISupports* GetCurrentContentSink() override;
 
-  virtual mozilla::EventStates GetDocumentState() override;
+  virtual mozilla::EventStates GetDocumentState() final override;
+  // GetDocumentState() mutates the state due to lazy resolution;
+  // and can't be used during parallel traversal. Use this instead,
+  // and ensure UpdatePossiblyStaleDocumentState() has been called first.
+  // This will assert if the state is stale.
+  virtual mozilla::EventStates GetPossiblyStaleDocumentState() const final override;
+  virtual void UpdatePossiblyStaleDocumentState() final override;
 
   // Only BlockOnload should call this!
   void AsyncBlockOnload();

@@ -496,6 +496,19 @@ nscolor Gecko_GetLookAndFeelSystemColor(int32_t aId,
   return result;
 }
 
+bool
+Gecko_MatchStringArgPseudo(RawGeckoElementBorrowed aElement,
+                           CSSPseudoClassType aType,
+                           const char16_t* aIdent,
+                           RawGeckoDocumentBorrowed aDocument,
+                           bool* aSetSlowSelectorFlag)
+{
+  EventStates dummyMask; // mask is never read because we pass aDependence=nullptr
+  return nsCSSRuleProcessor::StringPseudoMatches(aElement, aType, aIdent,
+                                                 aDocument, true,
+                                                 dummyMask, nullptr, aSetSlowSelectorFlag);
+}
+
 template <typename Implementor>
 static nsIAtom*
 AtomAttrValue(Implementor* aElement, nsIAtom* aName)

@@ -1639,19 +1639,20 @@ StateSelectorMatches(Element* aElement,
 
 /* static */
 bool
-nsCSSRuleProcessor::StringPseudoMatches(mozilla::dom::Element* aElement,
+nsCSSRuleProcessor::StringPseudoMatches(const mozilla::dom::Element* aElement,
                                         CSSPseudoClassType aPseudo,
-                                        char16_t* aString,
-                                        nsIDocument* aDocument,
+                                        const char16_t* aString,
+                                        const nsIDocument* aDocument,
                                         bool aForStyling,
                                         EventStates aStateMask,
+                                        bool* aSetSlowSelectorFlag,
                                         bool* const aDependence)
 {
   switch (aPseudo) {
     case CSSPseudoClassType::mozLocaleDir:
       {
         bool docIsRTL =
-          aDocument->GetDocumentState().
+          aDocument->GetPossiblyStaleDocumentState().
             HasState(NS_DOCUMENT_STATE_RTL_LOCALE);
 
         nsDependentString dirString(aString);
@@ -1692,7 +1693,7 @@ nsCSSRuleProcessor::StringPseudoMatches(mozilla::dom::Element* aElement,
           //   :-moz-empty-except-children-with-localname() ~ E
           // because we don't know to restyle the grandparent of the
           // inserted/removed element (as in bug 534804 for :empty).
-          aElement->SetFlags(NODE_HAS_SLOW_SELECTOR);
+          *aSetSlowSelectorFlag = true;
         }
         do {
           child = aElement->GetChildAt(++index);
@@ -2142,13 +2143,19 @@ static bool SelectorMatches(Element* aElement,
     default:
       {
         MOZ_ASSERT(nsCSSPseudoClasses::HasStringArg(pseudoClass->mType));
+        bool setSlowSelectorFlag = false;
+        aTreeMatchContext.mDocument->UpdatePossiblyStaleDocumentState();
         bool result = nsCSSRuleProcessor::StringPseudoMatches(aElement,
                                                               pseudoClass->mType,
                                                               pseudoClass->u.mString,
                                                               aTreeMatchContext.mDocument,
                                                               aTreeMatchContext.mForStyling,
                                                               aNodeMatchContext.mStateMask,
+                                                              &setSlowSelectorFlag,
                                                               aDependence);
+        if (setSlowSelectorFlag) {
+          aElement->SetFlags(NODE_HAS_SLOW_SELECTOR);
+        }
 
         // Did we find a pseudo successfully?
         if (!result) {

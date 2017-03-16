@@ -183,6 +183,10 @@ ServoStyleSet::PreTraverse()
 {
   ResolveMappedAttrDeclarationBlocks();
 
+  // This is lazily computed and pseudo matching needs to access
+  // it so force computation early.
+  mPresContext->Document()->UpdatePossiblyStaleDocumentState();
+
   // Process animation stuff that we should avoid doing during the parallel
   // traversal.
   mPresContext->EffectCompositor()->PreTraverse();

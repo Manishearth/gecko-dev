@@ -156,12 +156,13 @@ public:
    * @param aDependence Pointer to be set to true if we ignored a state due to
    *                    aStateMask. Can be null.
    */
-  static mozilla::Maybe<bool> StringPseudoMatches(mozilla::dom::Element* aElement,
+  static bool StringPseudoMatches(const mozilla::dom::Element* aElement,
                                                   mozilla::CSSPseudoClassType aPseudo,
-                                                  char16_t* aString,
-                                                  nsIDocument* aDocument,
+                                                  const char16_t* aString,
+                                                  const nsIDocument* aDocument,
                                                   bool aForStyling,
                                                   mozilla::EventStates aStateMask,
+                                                  bool* aSetSlowSelectorFlag,
                                                   bool* const aDependence = nullptr);
 
   // static mozilla::Maybe<bool> StringPseudoMatches(mozilla::dom::Element* aElement,
