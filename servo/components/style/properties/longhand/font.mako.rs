@@ -461,6 +461,12 @@ ${helpers.single_keyword("font-variant-caps",
         }
     }
 
+    impl Default for KeywordSize {
+        fn default() -> Self {
+            Medium
+        }
+    }
+
     impl ToCss for KeywordSize {
         fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
             dest.write_str(match *self {
@@ -563,6 +569,11 @@ ${helpers.single_keyword("font-variant-caps",
             })
         }
     }
+
+    pub static MEDIUM_DECLARATION: PropertyDeclaration =
+        PropertyDeclaration::FontSize(DeclaredValue::Value(
+            SpecifiedValue::Keyword(Medium)
+    ));
 
     #[inline]
     #[allow(missing_docs)]
