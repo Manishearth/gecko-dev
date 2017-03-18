@@ -1469,6 +1469,13 @@ Gecko_nsStyleFont_CopyLangFrom(nsStyleFont* aFont, const nsStyleFont* aSource)
   aFont->mLanguage = aSource->mLanguage;
 }
 
+int32_t
+Gecko_nsStyleFont_GetBaseSize(const nsStyleFont* aFont, RawGeckoPresContextBorrowed aPresContext)
+{
+  return (int32_t) aPresContext->GetDefaultFont(aFont->mGenericID,
+                                                aFont->mLanguage)->size;
+}
+
 void
 Gecko_LoadStyleSheet(css::Loader* aLoader,
                      ServoStyleSheet* aParent,
