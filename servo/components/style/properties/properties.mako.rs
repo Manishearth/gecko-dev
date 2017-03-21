@@ -1948,6 +1948,7 @@ pub fn apply_declarations<'a, F, I>(device: &Device,
             // introducing more iterations
             let mut font_size = None;
             let mut font_family = None;
+            let mut float = None;
         % endif
         for declaration in iter_declarations() {
             let longhand_id = match declaration.id() {
@@ -2006,6 +2007,10 @@ pub fn apply_declarations<'a, F, I>(device: &Device,
                     font_family = Some(declaration);
                     continue;
                 }
+                if LonghandId::Float == longhand_id {
+                    float = Some(declaration);
+                    continue;
+                }
             % endif
 
             let discriminant = longhand_id as usize;
@@ -2058,6 +2063,17 @@ pub fn apply_declarations<'a, F, I>(device: &Device,
                     longhands::font_size::SpecifiedValue::Keyword(kw)
                 ));
                 (CASCADE_PROPERTY[discriminant])(&size,
+                                                 inherited_style,
+                                                 default_style,
+                                                 &mut context,
+                                                 &mut cacheable,
+                                                 &mut cascade_info,
+                                                 error_reporter);
+            }
+            // float must be computed after position, but before display
+            if let Some(declaration) = float {
+                let discriminant = LonghandId::Float as usize;
+                (CASCADE_PROPERTY[discriminant])(declaration,
                                                  inherited_style,
                                                  default_style,
                                                  &mut context,
