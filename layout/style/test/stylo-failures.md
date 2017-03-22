@@ -232,7 +232,7 @@ Any line which doesn't follow the format above would be ignored like comment.
     * test_inherit_storage.html `font-variant` [36]
     * test_initial_computation.html `font-variant` [10]
     * test_initial_storage.html `font-variant` [18]
-    * test_value_storage.html `font-variant` [332]
+    * test_value_storage.html `font-variant` [316]
   * initial-letter property
     * test_compute_data_with_start_struct.html `initial-letter` [2]
     * test_inherit_computation.html `initial-letter` [2]
@@ -409,10 +409,10 @@ Any line which doesn't follow the format above would be ignored like comment.
   * :placeholder-shown
     * test_selectors.html `TypeError` [1]
 * issues arround font shorthand servo/servo#15032 servo/servo#15036
-  * test_bug377947.html [2]
-  * test_value_storage.html `'font'` [144]
+  * test_bug377947.html [1]
+  * test_value_storage.html `'font'` [112]
   * test_shorthand_property_getters.html `font shorthand` [2]
-  * test_system_font_serialization.html [10]
+  * test_system_font_serialization.html [6]
 * test_value_storage.html `font-size: calc(`: clamp negative value servo/servo#15296 [3]
 * rounding issue
   * test_value_storage.html `33.5833px` [2]
