@@ -37,7 +37,7 @@
                      % for name in SYSTEM_FONT_LONGHANDS:
                          ${name}: ${name}::SpecifiedValue::system_font(sys),
                      % endfor
-                     % for name in "font_variant font_weight font_size_adjust line_height".split():
+                     % for name in "font_variant font_size_adjust line_height".split():
                         ${name}: ${name}::get_initial_specified_value(),
                      % endfor
                  })
