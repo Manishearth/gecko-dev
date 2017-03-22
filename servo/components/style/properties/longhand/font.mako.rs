@@ -3,22 +3,24 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 <%namespace name="helpers" file="/helpers.mako.rs" />
-<% from data import Method %>
+<% from data import Method, to_camel_case, to_rust_ident %>
 
 <% data.new_style_struct("Font",
                          inherited=True) %>
 <%helpers:longhand name="font-family" animatable="False" need_index="True"
                    spec="https://drafts.csswg.org/css-fonts/#propdef-font-family">
+    use properties::longhands::system_font::SystemFont;
     use self::computed_value::{FontFamily, FamilyName};
+    use std::fmt;
+    use style_traits::ToCss;
     use values::HasViewportPercentage;
     use values::computed::ComputedValueAsSpecified;
-    pub use self::computed_value::T as SpecifiedValue;
 
-    impl ComputedValueAsSpecified for SpecifiedValue {}
     no_viewport_percentage!(SpecifiedValue);
 
     pub mod computed_value {
         use cssparser::{CssStringWriter, Parser};
+        use properties::longhands::system_font::SystemFont;
         use std::fmt::{self, Write};
         use Atom;
         use style_traits::ToCss;
@@ -181,9 +183,57 @@
         SpecifiedValue::parse(input)
     }
 
+    #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+    pub enum SpecifiedValue {
+        Values(Vec<FontFamily>),
+        System(SystemFont),
+    }
+
+    impl ToComputedValue for SpecifiedValue {
+        type ComputedValue = computed_value::T;
+        fn to_computed_value(&self, cx: &Context) -> Self::ComputedValue {
+            match *self {
+                SpecifiedValue::Values(ref v) => computed_value::T(v.clone()),
+                SpecifiedValue::System(_) => cx.style.cached_system_font.as_ref().unwrap().font_family.clone(),
+            }
+        }
+        fn from_computed_value(other: &computed_value::T) -> Self {
+            SpecifiedValue::Values(other.0.clone())
+        }
+    }
+
     impl SpecifiedValue {
+        pub fn system_font(f: SystemFont) -> Self {
+            SpecifiedValue::System(f)
+        }
+        pub fn get_system(&self) -> Option<SystemFont> {
+            if let SpecifiedValue::System(s) = *self {
+                Some(s)
+            } else {
+                None
+            }
+        }
+
         pub fn parse(input: &mut Parser) -> Result<Self, ()> {
-            input.parse_comma_separated(|input| FontFamily::parse(input)).map(SpecifiedValue)
+            input.parse_comma_separated(|input| FontFamily::parse(input)).map(SpecifiedValue::Values)
+        }
+    }
+
+
+    impl ToCss for SpecifiedValue {
+        fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
+            match *self {
+                SpecifiedValue::Values(ref v) => {
+                    let mut iter = v.iter();
+                    try!(iter.next().unwrap().to_css(dest));
+                    for family in iter {
+                        try!(dest.write_str(", "));
+                        try!(family.to_css(dest));
+                    }
+                    Ok(())
+                }
+                _ => Ok(())
+            }
         }
     }
 
@@ -397,12 +447,14 @@ ${helpers.single_keyword("font-variant-caps",
     use style_traits::ToCss;
     use values::{FONT_MEDIUM_PX, HasViewportPercentage};
     use values::specified::{LengthOrPercentage, Length, NoCalcLength, Percentage};
+    use properties::longhands::system_font::SystemFont;
 
     impl ToCss for SpecifiedValue {
         fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
             match *self {
                 SpecifiedValue::Length(ref lop) => lop.to_css(dest),
                 SpecifiedValue::Keyword(kw) => kw.to_css(dest),
+                SpecifiedValue::System(_) => Ok(()),
             }
         }
     }
@@ -421,6 +473,7 @@ ${helpers.single_keyword("font-variant-caps",
     pub enum SpecifiedValue {
         Length(specified::LengthOrPercentage),
         Keyword(KeywordSize),
+        System(SystemFont)
     }
 
     pub mod computed_value {
@@ -614,6 +667,9 @@ ${helpers.single_keyword("font-variant-caps",
                 SpecifiedValue::Keyword(ref key) => {
                     key.to_computed_value(context)
                 }
+                SpecifiedValue::System(_) => {
+                    context.style.cached_system_font.as_ref().unwrap().font_size
+                }
             }
         }
 
@@ -638,6 +694,18 @@ ${helpers.single_keyword("font-variant-caps",
                 _ => return Err(())
             };
             Ok(SpecifiedValue::Length(NoCalcLength::FontRelative(ret).into()))
+        }
+    }
+    impl SpecifiedValue {
+        pub fn system_font(f: SystemFont) -> Self {
+            SpecifiedValue::System(f)
+        }
+        pub fn get_system(&self) -> Option<SystemFont> {
+            if let SpecifiedValue::System(s) = *self {
+                Some(s)
+            } else {
+                None
+            }
         }
     }
 </%helpers:longhand>
@@ -995,3 +1063,129 @@ ${helpers.single_keyword("font-variant-position",
         Err(())
     }
 </%helpers:longhand>
+
+% if product == "gecko":
+    pub mod system_font {
+        use app_units::Au;
+        use cssparser::Parser;
+        use properties::longhands;
+        use values::computed::{ToComputedValue, Context};
+        <%
+            system_fonts = """caption icon menu message-box small-caption status-bar
+                              -moz-window -moz-document -moz-workspace -moz-desktop
+                              -moz-info -moz-dialog -moz-button -moz-pull-down-menu
+                              -moz-list -moz-field""".split()
+        %>
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+        pub enum SystemFont {
+            % for font in system_fonts:
+                ${to_camel_case(font)},
+            % endfor
+        }
+
+        impl ToComputedValue for SystemFont {
+            type ComputedValue = ComputedSystemFont;
+
+            fn to_computed_value(&self, cx: &Context) -> Self::ComputedValue {
+                use gecko_bindings::bindings;
+                use gecko_bindings::structs::{LookAndFeel_FontID, nsFont};
+                use std::mem;
+
+                let mut system: nsFont = unsafe { mem::uninitialized() };
+                let id = match *self {
+                    % for font in system_fonts:
+                        SystemFont::${to_camel_case(font)} => {
+                            LookAndFeel_FontID::eFont_${to_camel_case(font.replace("-moz-", ""))}
+                    }
+                    % endfor
+                };
+                unsafe {
+                    bindings::Gecko_nsFont_InitSystem(&mut system, id as i32,
+                                            cx.style.get_font().gecko(),
+                                            &*cx.device.pres_context)
+                }
+                let family = system.fontlist.mFontlist.iter().map(|font| {
+                    use properties::longhands::font_family::computed_value::*;
+                    FontFamily::FamilyName(FamilyName((&*font.mName).into()))
+                }).collect::<Vec<_>>();
+                let ret = ComputedSystemFont {
+                    font_family: longhands::font_family::computed_value::T(family),
+                    font_size: Au(system.size),
+                    system_font: *self,
+                };
+                unsafe { bindings::Gecko_nsFont_Destroy(&mut system); }
+                ret
+            }
+
+            fn from_computed_value(_: &ComputedSystemFont) -> Self {
+                unreachable!()
+            }
+        }
+
+        #[inline]
+        /// Compute and cache a system font
+        ///
+        /// Must be called before attempting to compute a system font
+        /// specified value
+        pub fn resolve_system_font(system: SystemFont, context: &mut Context) {
+            if context.style.cached_system_font.is_none() {
+                let computed = system.to_computed_value(context);
+                context.style.cached_system_font = Some(computed);
+            }
+            debug_assert!(system == context.style.cached_system_font.as_ref().unwrap().system_font)
+        }
+
+        #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+        pub struct ComputedSystemFont {
+            pub font_family: longhands::font_family::computed_value::T,
+            pub font_size: longhands::font_size::computed_value::T,
+            pub system_font: SystemFont,
+        }
+
+        impl SystemFont {
+            pub fn parse(input: &mut Parser) -> Result<Self, ()> {
+                Ok(match_ignore_ascii_case! { &*input.expect_ident()?,
+                    % for font in system_fonts:
+                        "${font}" => SystemFont::${to_camel_case(font)},
+                    % endfor
+                    _ => return Err(())
+                })
+            }
+        }
+    }
+% else:
+    pub mod system_font {
+        use cssparser::Parser;
+        use properties::longhands;
+        use values::computed::Context;
+
+        // We don't parse system fonts, but in the interest of not littering
+        // a lot of code with `if product == gecko` conditionals, we have a
+        // dummy system font module that does nothing
+
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+        #[cfg_attr(feature = "servo", derive(HeapSizeOf))]
+        /// void enum for system font, can never exist
+        pub enum SystemFont {}
+        impl SystemFont {
+            pub fn parse(_: &mut Parser) -> Result<Self, ()> {
+                Err(())
+            }
+        }
+
+        #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+        pub struct ComputedSystemFont {
+            pub font_family: longhands::font_family::computed_value::T,
+            pub font_size: longhands::font_size::computed_value::T,
+        }
+
+        #[inline]
+        /// Compute and cache a system font
+        ///
+        /// Must be called before attempting to compute a system font
+        /// specified value
+        pub fn resolve_system_font(_: SystemFont, _: &mut Context) {
+            // do nothing, servo does not parse system fonts
+        }
+    }
+% endif

@@ -1415,6 +1415,8 @@ pub struct ComputedValues {
     pub root_font_size: Au,
     /// The keyword behind the current font-size property, if any
     pub font_size_keyword: Option<longhands::font_size::KeywordSize>,
+    /// The cached computed system font. Always None in Servo, we don't parse system fonts
+    pub cached_system_font: Option<longhands::system_font::ComputedSystemFont>,
 }
 
 #[cfg(feature = "servo")]
@@ -1435,6 +1437,8 @@ impl ComputedValues {
             writing_mode: writing_mode,
             root_font_size: root_font_size,
             font_size_keyword: font_size_keyword,
+            // Servo doesn't support system fonts
+            cached_system_font: None,
         % for style_struct in data.active_style_structs():
             ${style_struct.ident}: ${style_struct.ident},
         % endfor
@@ -1756,6 +1760,7 @@ mod lazy_static_module {
             writing_mode: WritingMode::empty(),
             root_font_size: longhands::font_size::get_initial_value(),
             font_size_keyword: Some(Default::default()),
+            cached_system_font: None,
         };
     }
 }
@@ -1980,6 +1985,7 @@ pub fn apply_declarations<'a, F, I>(device: &Device,
                     | LonghandId::TextOrientation
                     | LonghandId::AnimationName
                     | LonghandId::TransitionProperty
+                    | LonghandId::XLang
                 % endif
             );
             if

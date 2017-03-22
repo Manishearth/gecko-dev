@@ -8,9 +8,11 @@
 
 use gecko_bindings::bindings::Gecko_AddRefAtom;
 use gecko_bindings::bindings::Gecko_Atomize;
+use gecko_bindings::bindings::Gecko_Atomize16;
 use gecko_bindings::bindings::Gecko_ReleaseAtom;
 use gecko_bindings::structs::nsIAtom;
 use heapsize::HeapSizeOf;
+use nsstring::nsAString;
 use std::borrow::{Cow, Borrow};
 use std::char::{self, DecodeUtf16};
 use std::fmt::{self, Write};
@@ -264,6 +266,17 @@ impl<'a> From<&'a str> for Atom {
         unsafe {
             Atom(WeakAtom::new(
                 Gecko_Atomize(string.as_ptr() as *const _, string.len() as u32)
+            ))
+        }
+    }
+}
+
+impl<'a> From<&'a nsAString> for Atom {
+    #[inline]
+    fn from(string: &nsAString) -> Atom {
+        unsafe {
+            Atom(WeakAtom::new(
+                Gecko_Atomize16(string)
             ))
         }
     }

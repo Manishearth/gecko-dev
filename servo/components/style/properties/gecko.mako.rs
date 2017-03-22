@@ -81,6 +81,7 @@ pub struct ComputedValues {
     pub writing_mode: WritingMode,
     pub root_font_size: Au,
     pub font_size_keyword: Option<longhands::font_size::KeywordSize>,
+    pub cached_system_font: Option<longhands::system_font::ComputedSystemFont>,
 }
 
 impl ComputedValues {
@@ -91,6 +92,7 @@ impl ComputedValues {
             writing_mode: parent.writing_mode,
             root_font_size: parent.root_font_size,
             font_size_keyword: parent.font_size_keyword,
+            cached_system_font: None,
             % for style_struct in data.style_structs:
             % if style_struct.inherited:
             ${style_struct.ident}: parent.${style_struct.ident}.clone(),
@@ -115,6 +117,7 @@ impl ComputedValues {
             shareable: shareable,
             writing_mode: writing_mode,
             root_font_size: root_font_size,
+            cached_system_font: None,
             font_size_keyword: font_size_keyword,
             % for style_struct in data.style_structs:
             ${style_struct.ident}: ${style_struct.ident},
@@ -129,6 +132,7 @@ impl ComputedValues {
             writing_mode: WritingMode::empty(), // FIXME(bz): This seems dubious
             root_font_size: longhands::font_size::get_initial_value(), // FIXME(bz): Also seems dubious?
             font_size_keyword: Some(Default::default()),
+            cached_system_font: None,
             % for style_struct in data.style_structs:
                 ${style_struct.ident}: style_structs::${style_struct.name}::default(pres_context),
             % endfor

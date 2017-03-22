@@ -462,7 +462,7 @@ impl LayoutElementHelpers for LayoutJS<Element> {
             hints.push(from_declaration(
                 PropertyDeclaration::FontFamily(
                     DeclaredValue::Value(
-                        font_family::computed_value::T(vec![
+                        font_family::SpecifiedValue::Values(vec![
                             font_family::computed_value::FontFamily::from_atom(
                                 font_family)])))));
         }
