@@ -4,6 +4,8 @@
 
 <%namespace name="helpers" file="/helpers.mako.rs" />
 
+<% from data import SYSTEM_FONT_LONGHANDS %>
+
 use app_units::Au;
 use cssparser::{Color as CSSParserColor, Parser, RGBA};
 use euclid::{Point2D, Size2D};
@@ -297,7 +299,7 @@ impl AnimationValue {
     }
 
     /// Construct an AnimationValue from a property declaration
-    pub fn from_declaration(decl: &PropertyDeclaration, context: &Context, initial: &ComputedValues) -> Option<Self> {
+    pub fn from_declaration(decl: &PropertyDeclaration, context: &mut Context, initial: &ComputedValues) -> Option<Self> {
         match *decl {
             % for prop in data.longhands:
                 % if prop.animatable:
@@ -305,7 +307,14 @@ impl AnimationValue {
                         let computed = match *val {
                             // https://bugzilla.mozilla.org/show_bug.cgi?id=1326131
                             DeclaredValue::WithVariables(_) => unimplemented!(),
-                            DeclaredValue::Value(ref val) => val.to_computed_value(context),
+                            DeclaredValue::Value(ref val) => {
+                                % if prop.ident in SYSTEM_FONT_LONGHANDS:
+                                    if let Some(sf) = val.get_system() {
+                                        longhands::system_font::resolve_system_font(sf, context);
+                                    }
+                                % endif
+                                val.to_computed_value(context)
+                            }
                             DeclaredValue::CSSWideKeyword(keyword) => match keyword {
                                 % if not prop.style_struct.inherited:
                                     CSSWideKeyword::Unset |

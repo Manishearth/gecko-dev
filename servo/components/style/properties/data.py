@@ -13,6 +13,9 @@ LOGICAL_SIZES = ["block-size", "inline-size"]
 ALL_SIDES = [(side, False) for side in PHYSICAL_SIDES] + [(side, True) for side in LOGICAL_SIDES]
 ALL_SIZES = [(size, False) for size in PHYSICAL_SIZES] + [(size, True) for size in LOGICAL_SIZES]
 
+SYSTEM_FONT_LONGHANDS = """font_family font_size font_style
+                           font_variant_caps font_stretch font_kerning
+                           font_variant_position""".split()
 
 def maybe_moz_logical_alias(product, side, prop):
     if product == "gecko" and side[1]:
