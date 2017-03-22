@@ -34,12 +34,13 @@
         % if product == "gecko":
             if let Ok(sys) = input.try(SystemFont::parse) {
                 return Ok(Longhands {
-                     % for name in SYSTEM_FONT_LONGHANDS:
-                         ${name}: ${name}::SpecifiedValue::system_font(sys),
-                     % endfor
-                     % for name in "font_variant line_height".split():
-                        ${name}: ${name}::get_initial_specified_value(),
-                     % endfor
+                    % for name in SYSTEM_FONT_LONGHANDS:
+                        ${name}: ${name}::SpecifiedValue::system_font(sys),
+                    % endfor
+                    // font_variant is not a real font longhand (FIXME #16089)
+                    font_variant: font_variant::get_initial_specified_value(),
+                    // line-height is just reset to initial
+                    line_height: line_height::get_initial_specified_value(),
                  })
             }
         % endif
@@ -108,9 +109,43 @@
         })
     }
 
+    % if product == "gecko":
+        impl<'a> LonghandsToSerialize<'a> {
+            /// 
+            fn all_system(&self) -> Option<SystemFont> {
+                let sys = self.font_family.get_system();
+                let sys = if let Some(sys) = sys {
+                    sys
+                } else {
+                    return None
+                };
+
+                % for prop in SYSTEM_FONT_LONGHANDS:
+                    if let Some(s) = self.${prop}.get_system() {
+                        if s != sys {
+                            return None
+                        }
+                    }
+                % endfor
+                if self.font_variant != &font_variant::get_initial_specified_value() {
+                    return None
+                }
+                if self.line_height != &line_height::get_initial_specified_value() {
+                    return None
+                }
+                Some(sys) 
+            }
+        }
+    % endif
+
     // This may be a bit off, unsure, possibly needs changes
     impl<'a> ToCss for LonghandsToSerialize<'a>  {
         fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
+            % if product == "gecko":
+                if let Some(sys) = self.all_system() {
+                    return sys.to_css(dest);
+                }
+            % endif
             self.font_style.to_css(dest)?;
             dest.write_str(" ")?;
             self.font_variant.to_css(dest)?;
