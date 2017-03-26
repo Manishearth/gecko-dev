@@ -32,6 +32,7 @@ use gecko_bindings::bindings::{Gecko_SetNodeFlags, Gecko_UnsetNodeFlags};
 use gecko_bindings::bindings::Gecko_ClassOrClassList;
 use gecko_bindings::bindings::Gecko_ElementHasCSSAnimations;
 use gecko_bindings::bindings::Gecko_GetAnimationRule;
+use gecko_bindings::bindings::Gecko_GetExtraContentStyleRules;
 use gecko_bindings::bindings::Gecko_GetHTMLPresentationAttrDeclarationBlock;
 use gecko_bindings::bindings::Gecko_GetStyleAttrDeclarationBlock;
 use gecko_bindings::bindings::Gecko_GetStyleContext;
@@ -591,6 +592,13 @@ impl<'le> PresentationalHintsSynthetizer for GeckoElement<'le> {
         where V: Push<ApplicableDeclarationBlock>,
     {
         let declarations = unsafe { Gecko_GetHTMLPresentationAttrDeclarationBlock(self.0) };
+        let declarations = declarations.and_then(|s| s.as_arc_opt());
+        if let Some(decl) = declarations {
+            hints.push(
+                ApplicableDeclarationBlock::from_declarations(Clone::clone(decl), ServoCascadeLevel::PresHints)
+            );
+        }
+        let declarations = unsafe { Gecko_GetExtraContentStyleRules(self.0) };
         let declarations = declarations.and_then(|s| s.as_arc_opt());
         if let Some(decl) = declarations {
             hints.push(

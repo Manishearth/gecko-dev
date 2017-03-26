@@ -45,6 +45,7 @@
 #include "mozilla/DeclarationBlockInlines.h"
 #include "mozilla/dom/Element.h"
 #include "mozilla/dom/ElementInlines.h"
+#include "mozilla/dom/HTMLTableCellElement.h"
 #include "mozilla/LookAndFeel.h"
 
 using namespace mozilla;
@@ -396,6 +397,22 @@ Gecko_GetHTMLPresentationAttrDeclarationBlock(RawGeckoElementBorrowed aElement)
 
   const RefPtr<RawServoDeclarationBlock>& servo = attrs->GetServoStyle();
   return reinterpret_cast<const RawServoDeclarationBlockStrong*>(&servo);
+}
+
+RawServoDeclarationBlockStrongBorrowedOrNull
+Gecko_GetExtraContentStyleRules(RawGeckoElementBorrowed aElement)
+{
+  static_assert(sizeof(RefPtr<RawServoDeclarationBlock>) ==
+                sizeof(RawServoDeclarationBlockStrong),
+                "RefPtr should just be a pointer");
+  if (aElement->IsHTMLElement(nsGkAtoms::td) || aElement->IsHTMLElement(nsGkAtoms::th)) {
+    const HTMLTableCellElement* cell = static_cast<const HTMLTableCellElement*>(aElement);
+    if (nsMappedAttributes* attrs = cell->GetParentMappedAttributes()) {
+      const RefPtr<RawServoDeclarationBlock>& servo = attrs->GetServoStyle();
+      return reinterpret_cast<const RawServoDeclarationBlockStrong*>(&servo);
+    }
+  }
+  return nullptr;
 }
 
 bool

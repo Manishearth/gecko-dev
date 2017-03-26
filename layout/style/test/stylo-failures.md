@@ -75,7 +75,6 @@ to mochitest command.
 * test_box_size_keywords.html: moz-prefixed intrinsic size keyword value [64]
 * test_bug357614.html: case-insensitivity for old attrs in attr selector servo/servo#15006 [2]
 * mapped attribute not supported
-  * test_bug363146.html [2]
   * test_bug389464.html: also font-size computation [1]
   * test_html_attribute_computed_values.html: also list-style-type [8]
 * test_bug387615.html: servo/servo#15006 [1]
