@@ -3002,6 +3002,14 @@ pub mod root {
                 #[allow(unused_imports)]
                 use self::super::super::super::super::root;
             }
+            #[repr(u8)]
+            #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+            pub enum CSSStyleSheetParsingMode {
+                Author = 0,
+                User = 1,
+                Agent = 2,
+                EndGuard_ = 3,
+            }
             #[repr(C)]
             #[derive(Debug)]
             pub struct OriginAttributesDictionary {
@@ -3061,18 +3069,6 @@ pub mod root {
             #[repr(C)]
             #[derive(Debug, Copy, Clone)]
             pub struct Promise([u8; 0]);
-            pub mod workers {
-                #[allow(unused_imports)]
-                use self::super::super::super::super::root;
-            }
-            #[repr(u8)]
-            #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-            pub enum CSSStyleSheetParsingMode {
-                Author = 0,
-                User = 1,
-                Agent = 2,
-                EndGuard_ = 3,
-            }
             #[repr(C)]
             #[derive(Debug, Copy, Clone)]
             pub struct CSSRuleList([u8; 0]);
@@ -4828,176 +4824,6 @@ pub mod root {
         #[repr(C)]
         #[derive(Debug, Copy, Clone)]
         pub struct EventListenerManager([u8; 0]);
-        #[repr(C)]
-        #[derive(Debug, Copy, Clone)]
-        pub struct DeadlockDetector<T> {
-            pub _address: u8,
-            pub _phantom_0: ::std::marker::PhantomData<T>,
-        }
-        /**
- * BlockingResourceBase
- * Base class of resources that might block clients trying to acquire them.
- * Does debugging and deadlock detection in DEBUG builds.
- **/
-        #[repr(C)]
-        #[derive(Debug)]
-        pub struct BlockingResourceBase {
-            /**
-   * mChainPrev
-   * A series of resource acquisitions creates a chain of orders.  This
-   * chain is implemented as a linked list; |mChainPrev| points to the
-   * resource most recently Acquire()'d before this one.
-   **/
-            pub mChainPrev: *mut root::mozilla::BlockingResourceBase,
-            /**
-   * mName
-   * A descriptive name for this resource.  Used in error
-   * messages etc.
-   */
-            pub mName: *const ::std::os::raw::c_char,
-            /**
-   * mType
-   * The more specific type of this resource.  Used to implement
-   * special semantics (e.g., reentrancy of monitors).
-   **/
-            pub mType: root::mozilla::BlockingResourceBase_BlockingResourceType,
-            /**
-   * mAcquired
-   * Indicates if this resource is currently acquired.
-   */
-            pub mAcquired: root::mozilla::BlockingResourceBase_AcquisitionState,
-        }
-        #[repr(u32)]
-        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-        pub enum BlockingResourceBase_BlockingResourceType {
-            eMutex = 0,
-            eReentrantMonitor = 1,
-            eCondVar = 2,
-        }
-        pub type BlockingResourceBase_DDT =
-            root::mozilla::DeadlockDetector<root::mozilla::BlockingResourceBase>;
-        pub type BlockingResourceBase_AcquisitionState = bool;
-        extern "C" {
-            #[link_name =
-                  "_ZN7mozilla20BlockingResourceBase17kResourceTypeNameE"]
-            pub static mut BlockingResourceBase_kResourceTypeName:
-                       [*const ::std::os::raw::c_char; 0usize];
-        }
-        extern "C" {
-            #[link_name = "_ZN7mozilla20BlockingResourceBase9sCallOnceE"]
-            pub static mut BlockingResourceBase_sCallOnce:
-                       root::PRCallOnceType;
-        }
-        extern "C" {
-            #[link_name =
-                  "_ZN7mozilla20BlockingResourceBase26sResourceAcqnChainFrontTPIE"]
-            pub static mut BlockingResourceBase_sResourceAcqnChainFrontTPI:
-                       ::std::os::raw::c_uint;
-        }
-        extern "C" {
-            #[link_name =
-                  "_ZN7mozilla20BlockingResourceBase17sDeadlockDetectorE"]
-            pub static mut BlockingResourceBase_sDeadlockDetector:
-                       *mut root::mozilla::BlockingResourceBase_DDT;
-        }
-        #[test]
-        fn bindgen_test_layout_BlockingResourceBase() {
-            assert_eq!(::std::mem::size_of::<BlockingResourceBase>() , 24usize
-                       , concat ! (
-                       "Size of: " , stringify ! ( BlockingResourceBase ) ));
-            assert_eq! (::std::mem::align_of::<BlockingResourceBase>() ,
-                        8usize , concat ! (
-                        "Alignment of " , stringify ! ( BlockingResourceBase )
-                        ));
-            assert_eq! (unsafe {
-                        & ( * ( 0 as * const BlockingResourceBase ) ) .
-                        mChainPrev as * const _ as usize } , 0usize , concat !
-                        (
-                        "Alignment of field: " , stringify ! (
-                        BlockingResourceBase ) , "::" , stringify ! (
-                        mChainPrev ) ));
-            assert_eq! (unsafe {
-                        & ( * ( 0 as * const BlockingResourceBase ) ) . mName
-                        as * const _ as usize } , 8usize , concat ! (
-                        "Alignment of field: " , stringify ! (
-                        BlockingResourceBase ) , "::" , stringify ! ( mName )
-                        ));
-            assert_eq! (unsafe {
-                        & ( * ( 0 as * const BlockingResourceBase ) ) . mType
-                        as * const _ as usize } , 16usize , concat ! (
-                        "Alignment of field: " , stringify ! (
-                        BlockingResourceBase ) , "::" , stringify ! ( mType )
-                        ));
-            assert_eq! (unsafe {
-                        & ( * ( 0 as * const BlockingResourceBase ) ) .
-                        mAcquired as * const _ as usize } , 20usize , concat !
-                        (
-                        "Alignment of field: " , stringify ! (
-                        BlockingResourceBase ) , "::" , stringify ! (
-                        mAcquired ) ));
-        }
-        /**
- * OffTheBooksMutex is identical to Mutex, except that OffTheBooksMutex doesn't
- * include leak checking.  Sometimes you want to intentionally "leak" a mutex
- * until shutdown; in these cases, OffTheBooksMutex is for you.
- */
-        #[repr(C)]
-        #[derive(Debug)]
-        pub struct OffTheBooksMutex {
-            pub _base: root::mozilla::detail::MutexImpl,
-            pub _base_1: root::mozilla::BlockingResourceBase,
-            pub mOwningThread: *mut root::PRThread,
-        }
-        #[test]
-        fn bindgen_test_layout_OffTheBooksMutex() {
-            assert_eq!(::std::mem::size_of::<OffTheBooksMutex>() , 96usize ,
-                       concat ! (
-                       "Size of: " , stringify ! ( OffTheBooksMutex ) ));
-            assert_eq! (::std::mem::align_of::<OffTheBooksMutex>() , 8usize ,
-                        concat ! (
-                        "Alignment of " , stringify ! ( OffTheBooksMutex ) ));
-            assert_eq! (unsafe {
-                        & ( * ( 0 as * const OffTheBooksMutex ) ) .
-                        mOwningThread as * const _ as usize } , 88usize ,
-                        concat ! (
-                        "Alignment of field: " , stringify ! (
-                        OffTheBooksMutex ) , "::" , stringify ! (
-                        mOwningThread ) ));
-        }
-        /**
- * Mutex
- * When possible, use MutexAutoLock/MutexAutoUnlock to lock/unlock this
- * mutex within a scope, instead of calling Lock/Unlock directly.
- */
-        #[repr(C)]
-        #[derive(Debug)]
-        pub struct Mutex {
-            pub _base: root::mozilla::OffTheBooksMutex,
-        }
-        #[test]
-        fn bindgen_test_layout_Mutex() {
-            assert_eq!(::std::mem::size_of::<Mutex>() , 96usize , concat ! (
-                       "Size of: " , stringify ! ( Mutex ) ));
-            assert_eq! (::std::mem::align_of::<Mutex>() , 8usize , concat ! (
-                        "Alignment of " , stringify ! ( Mutex ) ));
-        }
-        pub mod net {
-            #[allow(unused_imports)]
-            use self::super::super::super::root;
-            #[repr(u32)]
-            #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-            pub enum ReferrerPolicy {
-                RP_No_Referrer = 2,
-                RP_Origin = 3,
-                RP_No_Referrer_When_Downgrade = 1,
-                RP_Origin_When_Crossorigin = 4,
-                RP_Unsafe_URL = 5,
-                RP_Same_Origin = 6,
-                RP_Strict_Origin = 7,
-                RP_Strict_Origin_When_Cross_Origin = 8,
-                RP_Unset = 0,
-            }
-        }
         pub const FlushType_Frames: root::mozilla::FlushType =
             FlushType::Style;
         #[repr(u8)]
@@ -5586,6 +5412,23 @@ pub mod root {
                        ! ( "Size of: " , stringify ! ( StyleSheet ) ));
             assert_eq! (::std::mem::align_of::<StyleSheet>() , 8usize , concat
                         ! ( "Alignment of " , stringify ! ( StyleSheet ) ));
+        }
+        pub mod net {
+            #[allow(unused_imports)]
+            use self::super::super::super::root;
+            #[repr(u32)]
+            #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+            pub enum ReferrerPolicy {
+                RP_No_Referrer = 2,
+                RP_Origin = 3,
+                RP_No_Referrer_When_Downgrade = 1,
+                RP_Origin_When_Crossorigin = 4,
+                RP_Unsafe_URL = 5,
+                RP_Same_Origin = 6,
+                RP_Strict_Origin = 7,
+                RP_Strict_Origin_When_Cross_Origin = 8,
+                RP_Unset = 0,
+            }
         }
         #[repr(u8)]
         /**
@@ -6991,6 +6834,159 @@ pub mod root {
         #[repr(C)]
         #[derive(Debug, Copy, Clone)]
         pub struct RestyleManager([u8; 0]);
+        #[repr(C)]
+        #[derive(Debug, Copy, Clone)]
+        pub struct DeadlockDetector<T> {
+            pub _address: u8,
+            pub _phantom_0: ::std::marker::PhantomData<T>,
+        }
+        /**
+ * BlockingResourceBase
+ * Base class of resources that might block clients trying to acquire them.
+ * Does debugging and deadlock detection in DEBUG builds.
+ **/
+        #[repr(C)]
+        #[derive(Debug)]
+        pub struct BlockingResourceBase {
+            /**
+   * mChainPrev
+   * A series of resource acquisitions creates a chain of orders.  This
+   * chain is implemented as a linked list; |mChainPrev| points to the
+   * resource most recently Acquire()'d before this one.
+   **/
+            pub mChainPrev: *mut root::mozilla::BlockingResourceBase,
+            /**
+   * mName
+   * A descriptive name for this resource.  Used in error
+   * messages etc.
+   */
+            pub mName: *const ::std::os::raw::c_char,
+            /**
+   * mType
+   * The more specific type of this resource.  Used to implement
+   * special semantics (e.g., reentrancy of monitors).
+   **/
+            pub mType: root::mozilla::BlockingResourceBase_BlockingResourceType,
+            /**
+   * mAcquired
+   * Indicates if this resource is currently acquired.
+   */
+            pub mAcquired: root::mozilla::BlockingResourceBase_AcquisitionState,
+        }
+        #[repr(u32)]
+        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+        pub enum BlockingResourceBase_BlockingResourceType {
+            eMutex = 0,
+            eReentrantMonitor = 1,
+            eCondVar = 2,
+        }
+        pub type BlockingResourceBase_DDT =
+            root::mozilla::DeadlockDetector<root::mozilla::BlockingResourceBase>;
+        pub type BlockingResourceBase_AcquisitionState = bool;
+        extern "C" {
+            #[link_name =
+                  "_ZN7mozilla20BlockingResourceBase17kResourceTypeNameE"]
+            pub static mut BlockingResourceBase_kResourceTypeName:
+                       [*const ::std::os::raw::c_char; 0usize];
+        }
+        extern "C" {
+            #[link_name = "_ZN7mozilla20BlockingResourceBase9sCallOnceE"]
+            pub static mut BlockingResourceBase_sCallOnce:
+                       root::PRCallOnceType;
+        }
+        extern "C" {
+            #[link_name =
+                  "_ZN7mozilla20BlockingResourceBase26sResourceAcqnChainFrontTPIE"]
+            pub static mut BlockingResourceBase_sResourceAcqnChainFrontTPI:
+                       ::std::os::raw::c_uint;
+        }
+        extern "C" {
+            #[link_name =
+                  "_ZN7mozilla20BlockingResourceBase17sDeadlockDetectorE"]
+            pub static mut BlockingResourceBase_sDeadlockDetector:
+                       *mut root::mozilla::BlockingResourceBase_DDT;
+        }
+        #[test]
+        fn bindgen_test_layout_BlockingResourceBase() {
+            assert_eq!(::std::mem::size_of::<BlockingResourceBase>() , 24usize
+                       , concat ! (
+                       "Size of: " , stringify ! ( BlockingResourceBase ) ));
+            assert_eq! (::std::mem::align_of::<BlockingResourceBase>() ,
+                        8usize , concat ! (
+                        "Alignment of " , stringify ! ( BlockingResourceBase )
+                        ));
+            assert_eq! (unsafe {
+                        & ( * ( 0 as * const BlockingResourceBase ) ) .
+                        mChainPrev as * const _ as usize } , 0usize , concat !
+                        (
+                        "Alignment of field: " , stringify ! (
+                        BlockingResourceBase ) , "::" , stringify ! (
+                        mChainPrev ) ));
+            assert_eq! (unsafe {
+                        & ( * ( 0 as * const BlockingResourceBase ) ) . mName
+                        as * const _ as usize } , 8usize , concat ! (
+                        "Alignment of field: " , stringify ! (
+                        BlockingResourceBase ) , "::" , stringify ! ( mName )
+                        ));
+            assert_eq! (unsafe {
+                        & ( * ( 0 as * const BlockingResourceBase ) ) . mType
+                        as * const _ as usize } , 16usize , concat ! (
+                        "Alignment of field: " , stringify ! (
+                        BlockingResourceBase ) , "::" , stringify ! ( mType )
+                        ));
+            assert_eq! (unsafe {
+                        & ( * ( 0 as * const BlockingResourceBase ) ) .
+                        mAcquired as * const _ as usize } , 20usize , concat !
+                        (
+                        "Alignment of field: " , stringify ! (
+                        BlockingResourceBase ) , "::" , stringify ! (
+                        mAcquired ) ));
+        }
+        /**
+ * OffTheBooksMutex is identical to Mutex, except that OffTheBooksMutex doesn't
+ * include leak checking.  Sometimes you want to intentionally "leak" a mutex
+ * until shutdown; in these cases, OffTheBooksMutex is for you.
+ */
+        #[repr(C)]
+        #[derive(Debug)]
+        pub struct OffTheBooksMutex {
+            pub _base: root::mozilla::detail::MutexImpl,
+            pub _base_1: root::mozilla::BlockingResourceBase,
+            pub mOwningThread: *mut root::PRThread,
+        }
+        #[test]
+        fn bindgen_test_layout_OffTheBooksMutex() {
+            assert_eq!(::std::mem::size_of::<OffTheBooksMutex>() , 96usize ,
+                       concat ! (
+                       "Size of: " , stringify ! ( OffTheBooksMutex ) ));
+            assert_eq! (::std::mem::align_of::<OffTheBooksMutex>() , 8usize ,
+                        concat ! (
+                        "Alignment of " , stringify ! ( OffTheBooksMutex ) ));
+            assert_eq! (unsafe {
+                        & ( * ( 0 as * const OffTheBooksMutex ) ) .
+                        mOwningThread as * const _ as usize } , 88usize ,
+                        concat ! (
+                        "Alignment of field: " , stringify ! (
+                        OffTheBooksMutex ) , "::" , stringify ! (
+                        mOwningThread ) ));
+        }
+        /**
+ * Mutex
+ * When possible, use MutexAutoLock/MutexAutoUnlock to lock/unlock this
+ * mutex within a scope, instead of calling Lock/Unlock directly.
+ */
+        #[repr(C)]
+        #[derive(Debug)]
+        pub struct Mutex {
+            pub _base: root::mozilla::OffTheBooksMutex,
+        }
+        #[test]
+        fn bindgen_test_layout_Mutex() {
+            assert_eq!(::std::mem::size_of::<Mutex>() , 96usize , concat ! (
+                       "Size of: " , stringify ! ( Mutex ) ));
+            assert_eq! (::std::mem::align_of::<Mutex>() , 8usize , concat ! (
+                        "Alignment of " , stringify ! ( Mutex ) ));
+        }
         pub mod image {
             #[allow(unused_imports)]
             use self::super::super::super::root;
@@ -12680,30 +12676,6 @@ pub mod root {
     #[derive(Debug, Copy, Clone)]
     pub struct nsISelection([u8; 0]);
     #[repr(C)]
-    #[derive(Debug, Copy)]
-    pub struct mozIDOMWindowProxy {
-        pub _base: root::nsISupports,
-    }
-    #[repr(C)]
-    #[derive(Debug, Copy, Clone)]
-    pub struct mozIDOMWindowProxy_COMTypeInfo<T, U> {
-        pub _address: u8,
-        pub _phantom_0: ::std::marker::PhantomData<T>,
-        pub _phantom_1: ::std::marker::PhantomData<U>,
-    }
-    #[test]
-    fn bindgen_test_layout_mozIDOMWindowProxy() {
-        assert_eq!(::std::mem::size_of::<mozIDOMWindowProxy>() , 8usize ,
-                   concat ! ( "Size of: " , stringify ! ( mozIDOMWindowProxy )
-                   ));
-        assert_eq! (::std::mem::align_of::<mozIDOMWindowProxy>() , 8usize ,
-                    concat ! (
-                    "Alignment of " , stringify ! ( mozIDOMWindowProxy ) ));
-    }
-    impl Clone for mozIDOMWindowProxy {
-        fn clone(&self) -> Self { *self }
-    }
-    #[repr(C)]
     #[derive(Debug)]
     pub struct nsPresContext {
         pub _base: root::nsIObserver,
@@ -13786,157 +13758,12 @@ pub mod root {
                         ! ( "Alignment of " , stringify ! ( ErrorNote ) ));
         }
     }
-    #[repr(C)]
-    #[derive(Debug, Copy)]
-    pub struct PRCallOnceType {
-        pub initialized: root::PRIntn,
-        pub inProgress: root::PRInt32,
-        pub status: root::PRStatus,
-    }
-    #[test]
-    fn bindgen_test_layout_PRCallOnceType() {
-        assert_eq!(::std::mem::size_of::<PRCallOnceType>() , 12usize , concat
-                   ! ( "Size of: " , stringify ! ( PRCallOnceType ) ));
-        assert_eq! (::std::mem::align_of::<PRCallOnceType>() , 4usize , concat
-                    ! ( "Alignment of " , stringify ! ( PRCallOnceType ) ));
-        assert_eq! (unsafe {
-                    & ( * ( 0 as * const PRCallOnceType ) ) . initialized as *
-                    const _ as usize } , 0usize , concat ! (
-                    "Alignment of field: " , stringify ! ( PRCallOnceType ) ,
-                    "::" , stringify ! ( initialized ) ));
-        assert_eq! (unsafe {
-                    & ( * ( 0 as * const PRCallOnceType ) ) . inProgress as *
-                    const _ as usize } , 4usize , concat ! (
-                    "Alignment of field: " , stringify ! ( PRCallOnceType ) ,
-                    "::" , stringify ! ( inProgress ) ));
-        assert_eq! (unsafe {
-                    & ( * ( 0 as * const PRCallOnceType ) ) . status as *
-                    const _ as usize } , 8usize , concat ! (
-                    "Alignment of field: " , stringify ! ( PRCallOnceType ) ,
-                    "::" , stringify ! ( status ) ));
-    }
-    impl Clone for PRCallOnceType {
-        fn clone(&self) -> Self { *self }
-    }
-    #[repr(C)]
-    #[derive(Debug, Copy)]
-    pub struct nsIChannel {
-        pub _base: root::nsIRequest,
-    }
-    #[repr(C)]
-    #[derive(Debug, Copy, Clone)]
-    pub struct nsIChannel_COMTypeInfo<T, U> {
-        pub _address: u8,
-        pub _phantom_0: ::std::marker::PhantomData<T>,
-        pub _phantom_1: ::std::marker::PhantomData<U>,
-    }
-    pub const nsIChannel_LOAD_DOCUMENT_URI: root::nsIChannel__bindgen_ty_1 =
-        nsIChannel__bindgen_ty_1::LOAD_DOCUMENT_URI;
-    pub const nsIChannel_LOAD_RETARGETED_DOCUMENT_URI:
-              root::nsIChannel__bindgen_ty_1 =
-        nsIChannel__bindgen_ty_1::LOAD_RETARGETED_DOCUMENT_URI;
-    pub const nsIChannel_LOAD_REPLACE: root::nsIChannel__bindgen_ty_1 =
-        nsIChannel__bindgen_ty_1::LOAD_REPLACE;
-    pub const nsIChannel_LOAD_INITIAL_DOCUMENT_URI:
-              root::nsIChannel__bindgen_ty_1 =
-        nsIChannel__bindgen_ty_1::LOAD_INITIAL_DOCUMENT_URI;
-    pub const nsIChannel_LOAD_TARGETED: root::nsIChannel__bindgen_ty_1 =
-        nsIChannel__bindgen_ty_1::LOAD_TARGETED;
-    pub const nsIChannel_LOAD_CALL_CONTENT_SNIFFERS:
-              root::nsIChannel__bindgen_ty_1 =
-        nsIChannel__bindgen_ty_1::LOAD_CALL_CONTENT_SNIFFERS;
-    pub const nsIChannel_LOAD_CLASSIFY_URI: root::nsIChannel__bindgen_ty_1 =
-        nsIChannel__bindgen_ty_1::LOAD_CLASSIFY_URI;
-    pub const nsIChannel_LOAD_MEDIA_SNIFFER_OVERRIDES_CONTENT_TYPE:
-              root::nsIChannel__bindgen_ty_1 =
-        nsIChannel__bindgen_ty_1::LOAD_MEDIA_SNIFFER_OVERRIDES_CONTENT_TYPE;
-    pub const nsIChannel_LOAD_EXPLICIT_CREDENTIALS:
-              root::nsIChannel__bindgen_ty_1 =
-        nsIChannel__bindgen_ty_1::LOAD_EXPLICIT_CREDENTIALS;
-    pub const nsIChannel_LOAD_BYPASS_SERVICE_WORKER:
-              root::nsIChannel__bindgen_ty_1 =
-        nsIChannel__bindgen_ty_1::LOAD_BYPASS_SERVICE_WORKER;
     #[repr(u32)]
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-    pub enum nsIChannel__bindgen_ty_1 {
-        LOAD_DOCUMENT_URI = 65536,
-        LOAD_RETARGETED_DOCUMENT_URI = 131072,
-        LOAD_REPLACE = 262144,
-        LOAD_INITIAL_DOCUMENT_URI = 524288,
-        LOAD_TARGETED = 1048576,
-        LOAD_CALL_CONTENT_SNIFFERS = 2097152,
-        LOAD_CLASSIFY_URI = 4194304,
-        LOAD_MEDIA_SNIFFER_OVERRIDES_CONTENT_TYPE = 8388608,
-        LOAD_EXPLICIT_CREDENTIALS = 16777216,
-        LOAD_BYPASS_SERVICE_WORKER = 33554432,
-    }
-    pub const nsIChannel_DISPOSITION_INLINE: root::nsIChannel__bindgen_ty_2 =
-        nsIChannel__bindgen_ty_2::DISPOSITION_INLINE;
-    pub const nsIChannel_DISPOSITION_ATTACHMENT:
-              root::nsIChannel__bindgen_ty_2 =
-        nsIChannel__bindgen_ty_2::DISPOSITION_ATTACHMENT;
-    #[repr(u32)]
-    #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-    pub enum nsIChannel__bindgen_ty_2 {
-        DISPOSITION_INLINE = 0,
-        DISPOSITION_ATTACHMENT = 1,
-    }
-    #[test]
-    fn bindgen_test_layout_nsIChannel() {
-        assert_eq!(::std::mem::size_of::<nsIChannel>() , 8usize , concat ! (
-                   "Size of: " , stringify ! ( nsIChannel ) ));
-        assert_eq! (::std::mem::align_of::<nsIChannel>() , 8usize , concat ! (
-                    "Alignment of " , stringify ! ( nsIChannel ) ));
-    }
-    impl Clone for nsIChannel {
-        fn clone(&self) -> Self { *self }
-    }
-    #[repr(C)]
-    #[derive(Debug, Copy)]
-    pub struct nsILoadContext {
-        pub _base: root::nsISupports,
-    }
-    #[repr(C)]
-    #[derive(Debug, Copy, Clone)]
-    pub struct nsILoadContext_COMTypeInfo<T, U> {
-        pub _address: u8,
-        pub _phantom_0: ::std::marker::PhantomData<T>,
-        pub _phantom_1: ::std::marker::PhantomData<U>,
-    }
-    #[test]
-    fn bindgen_test_layout_nsILoadContext() {
-        assert_eq!(::std::mem::size_of::<nsILoadContext>() , 8usize , concat !
-                   ( "Size of: " , stringify ! ( nsILoadContext ) ));
-        assert_eq! (::std::mem::align_of::<nsILoadContext>() , 8usize , concat
-                    ! ( "Alignment of " , stringify ! ( nsILoadContext ) ));
-    }
-    impl Clone for nsILoadContext {
-        fn clone(&self) -> Self { *self }
-    }
-    #[repr(C)]
-    #[derive(Debug, Copy)]
-    pub struct nsIInterfaceRequestor {
-        pub _base: root::nsISupports,
-    }
-    #[repr(C)]
-    #[derive(Debug, Copy, Clone)]
-    pub struct nsIInterfaceRequestor_COMTypeInfo<T, U> {
-        pub _address: u8,
-        pub _phantom_0: ::std::marker::PhantomData<T>,
-        pub _phantom_1: ::std::marker::PhantomData<U>,
-    }
-    #[test]
-    fn bindgen_test_layout_nsIInterfaceRequestor() {
-        assert_eq!(::std::mem::size_of::<nsIInterfaceRequestor>() , 8usize ,
-                   concat ! (
-                   "Size of: " , stringify ! ( nsIInterfaceRequestor ) ));
-        assert_eq! (::std::mem::align_of::<nsIInterfaceRequestor>() , 8usize ,
-                    concat ! (
-                    "Alignment of " , stringify ! ( nsIInterfaceRequestor )
-                    ));
-    }
-    impl Clone for nsIInterfaceRequestor {
-        fn clone(&self) -> Self { *self }
+    pub enum nsCompatibility {
+        eCompatibility_FullStandards = 1,
+        eCompatibility_AlmostStandards = 2,
+        eCompatibility_NavQuirks = 3,
     }
     #[repr(C)]
     #[derive(Debug, Copy)]
@@ -14285,6 +14112,82 @@ pub mod root {
                     "Alignment of field: " , stringify ! ( nsINode ) , "::" ,
                     stringify ! ( mSlots ) ));
     }
+    #[repr(C)]
+    #[derive(Debug, Copy)]
+    pub struct nsIChannel {
+        pub _base: root::nsIRequest,
+    }
+    #[repr(C)]
+    #[derive(Debug, Copy, Clone)]
+    pub struct nsIChannel_COMTypeInfo<T, U> {
+        pub _address: u8,
+        pub _phantom_0: ::std::marker::PhantomData<T>,
+        pub _phantom_1: ::std::marker::PhantomData<U>,
+    }
+    pub const nsIChannel_LOAD_DOCUMENT_URI: root::nsIChannel__bindgen_ty_1 =
+        nsIChannel__bindgen_ty_1::LOAD_DOCUMENT_URI;
+    pub const nsIChannel_LOAD_RETARGETED_DOCUMENT_URI:
+              root::nsIChannel__bindgen_ty_1 =
+        nsIChannel__bindgen_ty_1::LOAD_RETARGETED_DOCUMENT_URI;
+    pub const nsIChannel_LOAD_REPLACE: root::nsIChannel__bindgen_ty_1 =
+        nsIChannel__bindgen_ty_1::LOAD_REPLACE;
+    pub const nsIChannel_LOAD_INITIAL_DOCUMENT_URI:
+              root::nsIChannel__bindgen_ty_1 =
+        nsIChannel__bindgen_ty_1::LOAD_INITIAL_DOCUMENT_URI;
+    pub const nsIChannel_LOAD_TARGETED: root::nsIChannel__bindgen_ty_1 =
+        nsIChannel__bindgen_ty_1::LOAD_TARGETED;
+    pub const nsIChannel_LOAD_CALL_CONTENT_SNIFFERS:
+              root::nsIChannel__bindgen_ty_1 =
+        nsIChannel__bindgen_ty_1::LOAD_CALL_CONTENT_SNIFFERS;
+    pub const nsIChannel_LOAD_CLASSIFY_URI: root::nsIChannel__bindgen_ty_1 =
+        nsIChannel__bindgen_ty_1::LOAD_CLASSIFY_URI;
+    pub const nsIChannel_LOAD_MEDIA_SNIFFER_OVERRIDES_CONTENT_TYPE:
+              root::nsIChannel__bindgen_ty_1 =
+        nsIChannel__bindgen_ty_1::LOAD_MEDIA_SNIFFER_OVERRIDES_CONTENT_TYPE;
+    pub const nsIChannel_LOAD_EXPLICIT_CREDENTIALS:
+              root::nsIChannel__bindgen_ty_1 =
+        nsIChannel__bindgen_ty_1::LOAD_EXPLICIT_CREDENTIALS;
+    pub const nsIChannel_LOAD_BYPASS_SERVICE_WORKER:
+              root::nsIChannel__bindgen_ty_1 =
+        nsIChannel__bindgen_ty_1::LOAD_BYPASS_SERVICE_WORKER;
+    #[repr(u32)]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+    pub enum nsIChannel__bindgen_ty_1 {
+        LOAD_DOCUMENT_URI = 65536,
+        LOAD_RETARGETED_DOCUMENT_URI = 131072,
+        LOAD_REPLACE = 262144,
+        LOAD_INITIAL_DOCUMENT_URI = 524288,
+        LOAD_TARGETED = 1048576,
+        LOAD_CALL_CONTENT_SNIFFERS = 2097152,
+        LOAD_CLASSIFY_URI = 4194304,
+        LOAD_MEDIA_SNIFFER_OVERRIDES_CONTENT_TYPE = 8388608,
+        LOAD_EXPLICIT_CREDENTIALS = 16777216,
+        LOAD_BYPASS_SERVICE_WORKER = 33554432,
+    }
+    pub const nsIChannel_DISPOSITION_INLINE: root::nsIChannel__bindgen_ty_2 =
+        nsIChannel__bindgen_ty_2::DISPOSITION_INLINE;
+    pub const nsIChannel_DISPOSITION_ATTACHMENT:
+              root::nsIChannel__bindgen_ty_2 =
+        nsIChannel__bindgen_ty_2::DISPOSITION_ATTACHMENT;
+    #[repr(u32)]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+    pub enum nsIChannel__bindgen_ty_2 {
+        DISPOSITION_INLINE = 0,
+        DISPOSITION_ATTACHMENT = 1,
+    }
+    #[test]
+    fn bindgen_test_layout_nsIChannel() {
+        assert_eq!(::std::mem::size_of::<nsIChannel>() , 8usize , concat ! (
+                   "Size of: " , stringify ! ( nsIChannel ) ));
+        assert_eq! (::std::mem::align_of::<nsIChannel>() , 8usize , concat ! (
+                    "Alignment of " , stringify ! ( nsIChannel ) ));
+    }
+    impl Clone for nsIChannel {
+        fn clone(&self) -> Self { *self }
+    }
+    #[repr(C)]
+    #[derive(Debug, Copy, Clone)]
+    pub struct nsILoadContext([u8; 0]);
     pub type nsSecurityFlags = u32;
     #[repr(C)]
     #[derive(Debug, Copy)]
@@ -14393,6 +14296,31 @@ pub mod root {
         fn clone(&self) -> Self { *self }
     }
     #[repr(C)]
+    #[derive(Debug, Copy)]
+    pub struct nsIInterfaceRequestor {
+        pub _base: root::nsISupports,
+    }
+    #[repr(C)]
+    #[derive(Debug, Copy, Clone)]
+    pub struct nsIInterfaceRequestor_COMTypeInfo<T, U> {
+        pub _address: u8,
+        pub _phantom_0: ::std::marker::PhantomData<T>,
+        pub _phantom_1: ::std::marker::PhantomData<U>,
+    }
+    #[test]
+    fn bindgen_test_layout_nsIInterfaceRequestor() {
+        assert_eq!(::std::mem::size_of::<nsIInterfaceRequestor>() , 8usize ,
+                   concat ! (
+                   "Size of: " , stringify ! ( nsIInterfaceRequestor ) ));
+        assert_eq! (::std::mem::align_of::<nsIInterfaceRequestor>() , 8usize ,
+                    concat ! (
+                    "Alignment of " , stringify ! ( nsIInterfaceRequestor )
+                    ));
+    }
+    impl Clone for nsIInterfaceRequestor {
+        fn clone(&self) -> Self { *self }
+    }
+    #[repr(C)]
     #[derive(Debug, Copy, Clone)]
     pub struct nsIInputStream([u8; 0]);
     #[repr(C)]
@@ -14418,13 +14346,6 @@ pub mod root {
     }
     impl Clone for nsIStreamListener {
         fn clone(&self) -> Self { *self }
-    }
-    #[repr(u32)]
-    #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-    pub enum nsCompatibility {
-        eCompatibility_FullStandards = 1,
-        eCompatibility_AlmostStandards = 2,
-        eCompatibility_NavQuirks = 3,
     }
     #[repr(C)]
     #[derive(Debug)]
@@ -22639,6 +22560,38 @@ pub mod root {
                     nsIThreadRetargetableStreamListener ) ));
     }
     impl Clone for nsIThreadRetargetableStreamListener {
+        fn clone(&self) -> Self { *self }
+    }
+    #[repr(C)]
+    #[derive(Debug, Copy)]
+    pub struct PRCallOnceType {
+        pub initialized: root::PRIntn,
+        pub inProgress: root::PRInt32,
+        pub status: root::PRStatus,
+    }
+    #[test]
+    fn bindgen_test_layout_PRCallOnceType() {
+        assert_eq!(::std::mem::size_of::<PRCallOnceType>() , 12usize , concat
+                   ! ( "Size of: " , stringify ! ( PRCallOnceType ) ));
+        assert_eq! (::std::mem::align_of::<PRCallOnceType>() , 4usize , concat
+                    ! ( "Alignment of " , stringify ! ( PRCallOnceType ) ));
+        assert_eq! (unsafe {
+                    & ( * ( 0 as * const PRCallOnceType ) ) . initialized as *
+                    const _ as usize } , 0usize , concat ! (
+                    "Alignment of field: " , stringify ! ( PRCallOnceType ) ,
+                    "::" , stringify ! ( initialized ) ));
+        assert_eq! (unsafe {
+                    & ( * ( 0 as * const PRCallOnceType ) ) . inProgress as *
+                    const _ as usize } , 4usize , concat ! (
+                    "Alignment of field: " , stringify ! ( PRCallOnceType ) ,
+                    "::" , stringify ! ( inProgress ) ));
+        assert_eq! (unsafe {
+                    & ( * ( 0 as * const PRCallOnceType ) ) . status as *
+                    const _ as usize } , 8usize , concat ! (
+                    "Alignment of field: " , stringify ! ( PRCallOnceType ) ,
+                    "::" , stringify ! ( status ) ));
+    }
+    impl Clone for PRCallOnceType {
         fn clone(&self) -> Self { *self }
     }
     #[repr(C)]
