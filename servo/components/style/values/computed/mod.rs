@@ -209,6 +209,7 @@ impl ToComputedValue for specified::Color {
             specified::Color::MozHyperlinktext => to_rgba(pres_context.mLinkColor),
             specified::Color::MozActiveHyperlinktext => to_rgba(pres_context.mActiveLinkColor),
             specified::Color::MozVisitedHyperlinktext => to_rgba(pres_context.mVisitedLinkColor),
+            specified::Color::InheritFromBodyQuirk => to_rgba(pres_context.mBodyTextColor),
         }
     }
 
@@ -239,13 +240,10 @@ impl ToComputedValue for specified::CSSColor {
 
     #[inline]
     fn from_computed_value(computed: &CSSColor) -> Self {
-        specified::CSSColor {
-            parsed: match *computed {
-                CSSColor::RGBA(rgba) => specified::Color::RGBA(rgba),
-                CSSColor::CurrentColor => specified::Color::CurrentColor,
-            },
-            authored: None,
-        }
+        (match *computed {
+            CSSColor::RGBA(rgba) => specified::Color::RGBA(rgba),
+            CSSColor::CurrentColor => specified::Color::CurrentColor,
+        }).into()
     }
 }
 
