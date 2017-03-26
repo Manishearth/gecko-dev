@@ -248,11 +248,10 @@ ${helpers.single_keyword("text-align-last",
                          spec="https://drafts.csswg.org/css-text/#propdef-text-align-last")}
 
 // TODO make this a shorthand and implement text-align-last/text-align-all
-<%helpers:longhand name="text-align" animatable="False" spec="https://drafts.csswg.org/css-text/#propdef-text-align">
-    pub use self::computed_value::T as SpecifiedValue;
+<%helpers:longhand name="text-align" animatable="False" need_clone="True"
+                   spec="https://drafts.csswg.org/css-text/#propdef-text-align">
     use values::computed::ComputedValueAsSpecified;
     use values::HasViewportPercentage;
-    impl ComputedValueAsSpecified for SpecifiedValue {}
     no_viewport_percentage!(SpecifiedValue);
     pub mod computed_value {
         use style_traits::ToCss;
@@ -297,21 +296,100 @@ ${helpers.single_keyword("text-align-last",
             _moz_center("-moz-center") => 6,
             _moz_left("-moz-left") => 7,
             _moz_right("-moz-right") => 8,
-            match_parent("match-parent") => 9,
             char("char") => 10,
             % endif
         }
+
+    ${helpers.gecko_keyword_conversion(Keyword('text-align',
+                                               """left right center justify -moz-left -moz-right
+                                                -moz-center char end""",
+                                                gecko_strip_moz_prefix=False), type="T")}
     }
+
     #[inline] pub fn get_initial_value() -> computed_value::T {
         computed_value::T::start
     }
-    pub fn parse(_context: &ParserContext, input: &mut Parser) -> Result<SpecifiedValue, ()> {
-        computed_value::T::parse(input)
-    }
-    ${helpers.gecko_keyword_conversion(Keyword('text-align',
-                                               """left right center justify -moz-left -moz-right
-                                                -moz-center char end match-parent""",
-                                                gecko_strip_moz_prefix=False))}
+
+
+    % if product == "gecko":
+        use std::fmt;
+        use style_traits::ToCss;
+
+        #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
+        pub enum SpecifiedValue {
+            Keyword(computed_value::T),
+            MatchParent,
+            MozCenterOrInherit,
+        }
+        pub fn parse(_context: &ParserContext, input: &mut Parser) -> Result<SpecifiedValue, ()> {
+            if let Ok(key) = input.try(computed_value::T::parse) {
+                Ok(SpecifiedValue::Keyword(key))
+            } else {
+                input.expect_ident_matching("match-parent")?;
+                Ok(SpecifiedValue::MatchParent)
+            }
+        }
+        impl ToCss for SpecifiedValue {
+            fn to_css<W>(&self, dest: &mut W) -> fmt::Result where W: fmt::Write {
+                match *self {
+                    SpecifiedValue::Keyword(key) => key.to_css(dest),
+                    SpecifiedValue::MatchParent => dest.write_str("match-parent"),
+                    SpecifiedValue::MozCenterOrInherit => Ok(()),
+                }
+            }
+        }
+
+        impl SpecifiedValue {
+            pub fn from_gecko_keyword(kw: u32) -> Self {
+                use gecko_bindings::structs::NS_STYLE_TEXT_ALIGN_MATCH_PARENT;
+                if kw == NS_STYLE_TEXT_ALIGN_MATCH_PARENT {
+                    SpecifiedValue::MatchParent
+                } else {
+                    SpecifiedValue::Keyword(computed_value::T::from_gecko_keyword(kw))
+                }
+            }
+        }
+        impl ToComputedValue for SpecifiedValue {
+            type ComputedValue = computed_value::T;
+
+            #[inline]
+            fn to_computed_value(&self, context: &Context) -> computed_value::T {
+                match *self {
+                    SpecifiedValue::Keyword(key) => key,
+                    SpecifiedValue::MatchParent => {
+                        let parent = context.inherited_style().get_inheritedtext().clone_text_align();
+                        let ltr = context.inherited_style().writing_mode.is_bidi_ltr();
+                        match (parent, ltr) {
+                            (computed_value::T::start, true) => computed_value::T::left,
+                            (computed_value::T::start, false) => computed_value::T::right,
+                            (computed_value::T::end, true) => computed_value::T::right,
+                            (computed_value::T::end, false) => computed_value::T::left,
+                            _ => parent
+                        }
+                    }
+                    SpecifiedValue::MozCenterOrInherit => {
+                        let parent = context.inherited_style().get_inheritedtext().clone_text_align();
+                        if parent == computed_value::T::start {
+                            computed_value::T::center
+                        } else {
+                            parent
+                        }
+                    }
+                }
+            }
+
+            #[inline]
+            fn from_computed_value(computed: &computed_value::T) -> Self {
+                SpecifiedValue::Keyword(*computed)
+            }
+        }
+    % else:
+        impl ComputedValueAsSpecified for SpecifiedValue {}
+        pub use self::computed_value::T as SpecifiedValue;
+        pub fn parse(_context: &ParserContext, input: &mut Parser) -> Result<SpecifiedValue, ()> {
+            computed_value::T::parse(input)
+        }
+    % endif
 </%helpers:longhand>
 
 // FIXME: This prop should be animatable.
