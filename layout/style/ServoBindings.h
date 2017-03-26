@@ -190,6 +190,8 @@ RawServoDeclarationBlockStrongBorrowedOrNull
 Gecko_GetStyleAttrDeclarationBlock(RawGeckoElementBorrowed element);
 RawServoDeclarationBlockStrongBorrowedOrNull
 Gecko_GetHTMLPresentationAttrDeclarationBlock(RawGeckoElementBorrowed element);
+RawServoDeclarationBlockStrongBorrowedOrNull
+Gecko_GetExtraContentStyleRules(RawGeckoElementBorrowed element);
 
 // Animations
 bool

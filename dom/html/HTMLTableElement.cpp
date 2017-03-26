@@ -322,7 +322,7 @@ TableRowsCollection::ParentDestroyed()
 
 HTMLTableElement::HTMLTableElement(already_AddRefed<mozilla::dom::NodeInfo>& aNodeInfo)
   : nsGenericHTMLElement(aNodeInfo),
-    mTableInheritedAttributes(TABLE_ATTRS_DIRTY)
+    mTableInheritedAttributes(nullptr)
 {
   SetHasWeirdParserInsertionMode();
 }
@@ -864,9 +864,6 @@ nsMappedAttributes*
 HTMLTableElement::GetAttributesMappedForCell()
 {
   if (mTableInheritedAttributes) {
-    if (mTableInheritedAttributes == TABLE_ATTRS_DIRTY)
-      BuildInheritedAttributes();
-    if (mTableInheritedAttributes != TABLE_ATTRS_DIRTY)
       return mTableInheritedAttributes;
   }
   return nullptr;
@@ -875,8 +872,9 @@ HTMLTableElement::GetAttributesMappedForCell()
 void
 HTMLTableElement::BuildInheritedAttributes()
 {
-  NS_ASSERTION(mTableInheritedAttributes == TABLE_ATTRS_DIRTY,
+  NS_ASSERTION(!mTableInheritedAttributes,
                "potential leak, plus waste of work");
+  MOZ_ASSERT(NS_IsMainThread());
   nsIDocument *document = GetComposedDoc();
   nsHTMLStyleSheet* sheet = document ?
                               document->GetAttributeStyleSheet() : nullptr;
@@ -900,6 +898,7 @@ HTMLTableElement::BuildInheritedAttributes()
         // risk that modifiableMapped is in the hash since we created
         // it ourselves and it didn't come from the stylesheet (in which
         // case it would not have been modifiable).
+
         modifiableMapped->DropStyleSheetReference();
       }
     }
@@ -911,10 +910,9 @@ HTMLTableElement::BuildInheritedAttributes()
 void
 HTMLTableElement::ReleaseInheritedAttributes()
 {
-  if (mTableInheritedAttributes &&
-      mTableInheritedAttributes != TABLE_ATTRS_DIRTY)
+  if (mTableInheritedAttributes)
     NS_RELEASE(mTableInheritedAttributes);
-  mTableInheritedAttributes = TABLE_ATTRS_DIRTY;
+  mTableInheritedAttributes = nullptr;
 }
 
 nsresult
@@ -923,9 +921,12 @@ HTMLTableElement::BindToTree(nsIDocument* aDocument, nsIContent* aParent,
                              bool aCompileEventHandlers)
 {
   ReleaseInheritedAttributes();
-  return nsGenericHTMLElement::BindToTree(aDocument, aParent,
-                                          aBindingParent,
-                                          aCompileEventHandlers);
+  nsresult rv = nsGenericHTMLElement::BindToTree(aDocument, aParent,
+                                                aBindingParent,
+                                                aCompileEventHandlers);
+  NS_ENSURE_SUCCESS(rv, rv);
+  BuildInheritedAttributes();
+  return NS_OK;
 }
 
 void
