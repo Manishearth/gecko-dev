@@ -41,7 +41,15 @@ NS_IMPL_ISUPPORTS(BodyRule, nsIStyleRule)
 /* virtual */ void
 BodyRule::MapRuleInfoInto(nsRuleData* aData)
 {
-  if (!(aData->mSIDs & NS_STYLE_INHERIT_BIT(Margin)) || !mPart)
+  if (mPart) {
+    mPart->MapMarginRulesInto(aData);
+  }
+}
+
+void
+HTMLBodyElement::MapMarginRulesInto(GenericSpecifiedValues* aData) const
+{
+  if (!(aData->mSIDs & NS_STYLE_INHERIT_BIT(Margin)))
     return; // We only care about margins.
 
   int32_t bodyMarginWidth  = -1;
@@ -57,70 +65,54 @@ BodyRule::MapRuleInfoInto(nsRuleData* aData)
 
 
   const nsAttrValue* value;
-  if (mPart->GetAttrCount() > 0) {
+  if (GetAttrCount() > 0) {
     // if marginwidth/marginheight are set, reflect them as 'margin'
-    value = mPart->GetParsedAttr(nsGkAtoms::marginwidth);
+    value = GetParsedAttr(nsGkAtoms::marginwidth);
     if (value && value->Type() == nsAttrValue::eInteger) {
       bodyMarginWidth = value->GetIntegerValue();
       if (bodyMarginWidth < 0) bodyMarginWidth = 0;
-      nsCSSValue* marginLeft = aData->ValueForMarginLeft();
-      if (marginLeft->GetUnit() == eCSSUnit_Null)
-        marginLeft->SetFloatValue((float)bodyMarginWidth, eCSSUnit_Pixel);
-      nsCSSValue* marginRight = aData->ValueForMarginRight();
-      if (marginRight->GetUnit() == eCSSUnit_Null)
-        marginRight->SetFloatValue((float)bodyMarginWidth, eCSSUnit_Pixel);
+      aData->SetPixelValueIfUnset(eCSSProperty_margin_left, (float)bodyMarginWidth);
+      aData->SetPixelValueIfUnset(eCSSProperty_margin_right, (float)bodyMarginWidth);
     }
 
-    value = mPart->GetParsedAttr(nsGkAtoms::marginheight);
+    value = GetParsedAttr(nsGkAtoms::marginheight);
     if (value && value->Type() == nsAttrValue::eInteger) {
       bodyMarginHeight = value->GetIntegerValue();
       if (bodyMarginHeight < 0) bodyMarginHeight = 0;
-      nsCSSValue* marginTop = aData->ValueForMarginTop();
-      if (marginTop->GetUnit() == eCSSUnit_Null)
-        marginTop->SetFloatValue((float)bodyMarginHeight, eCSSUnit_Pixel);
-      nsCSSValue* marginBottom = aData->ValueForMarginBottom();
-      if (marginBottom->GetUnit() == eCSSUnit_Null)
-        marginBottom->SetFloatValue((float)bodyMarginHeight, eCSSUnit_Pixel);
+      aData->SetPixelValueIfUnset(eCSSProperty_margin_top, (float)bodyMarginHeight);
+      aData->SetPixelValueIfUnset(eCSSProperty_margin_bottom, (float)bodyMarginHeight);
     }
 
       // topmargin (IE-attribute)
-    value = mPart->GetParsedAttr(nsGkAtoms::topmargin);
+    value = GetParsedAttr(nsGkAtoms::topmargin);
     if (value && value->Type() == nsAttrValue::eInteger) {
       bodyTopMargin = value->GetIntegerValue();
       if (bodyTopMargin < 0) bodyTopMargin = 0;
-      nsCSSValue* marginTop = aData->ValueForMarginTop();
-      if (marginTop->GetUnit() == eCSSUnit_Null)
-        marginTop->SetFloatValue((float)bodyTopMargin, eCSSUnit_Pixel);
+      aData->SetPixelValueIfUnset(eCSSProperty_margin_top, (float)bodyTopMargin);
     }
 
       // bottommargin (IE-attribute)
-    value = mPart->GetParsedAttr(nsGkAtoms::bottommargin);
+    value = GetParsedAttr(nsGkAtoms::bottommargin);
     if (value && value->Type() == nsAttrValue::eInteger) {
       bodyBottomMargin = value->GetIntegerValue();
       if (bodyBottomMargin < 0) bodyBottomMargin = 0;
-      nsCSSValue* marginBottom = aData->ValueForMarginBottom();
-      if (marginBottom->GetUnit() == eCSSUnit_Null)
-        marginBottom->SetFloatValue((float)bodyBottomMargin, eCSSUnit_Pixel);
+      aData->SetPixelValueIfUnset(eCSSProperty_margin_bottom, (float)bodyBottomMargin);
     }
 
       // leftmargin (IE-attribute)
-    value = mPart->GetParsedAttr(nsGkAtoms::leftmargin);
+    value = GetParsedAttr(nsGkAtoms::leftmargin);
     if (value && value->Type() == nsAttrValue::eInteger) {
       bodyLeftMargin = value->GetIntegerValue();
       if (bodyLeftMargin < 0) bodyLeftMargin = 0;
-      nsCSSValue* marginLeft = aData->ValueForMarginLeft();
-      if (marginLeft->GetUnit() == eCSSUnit_Null)
-        marginLeft->SetFloatValue((float)bodyLeftMargin, eCSSUnit_Pixel);
+      aData->SetPixelValueIfUnset(eCSSProperty_margin_left, (float)bodyLeftMargin);
     }
 
       // rightmargin (IE-attribute)
-    value = mPart->GetParsedAttr(nsGkAtoms::rightmargin);
+    value = GetParsedAttr(nsGkAtoms::rightmargin);
     if (value && value->Type() == nsAttrValue::eInteger) {
       bodyRightMargin = value->GetIntegerValue();
       if (bodyRightMargin < 0) bodyRightMargin = 0;
-      nsCSSValue* marginRight = aData->ValueForMarginRight();
-      if (marginRight->GetUnit() == eCSSUnit_Null)
-        marginRight->SetFloatValue((float)bodyRightMargin, eCSSUnit_Pixel);
+      aData->SetPixelValueIfUnset(eCSSProperty_margin_right, (float)bodyRightMargin);
     }
 
   }
@@ -148,22 +140,27 @@ BodyRule::MapRuleInfoInto(nsRuleData* aData)
       }
 
       if ((bodyMarginWidth == -1) && (frameMarginWidth >= 0)) {
-        nsCSSValue* marginLeft = aData->ValueForMarginLeft();
-        if (marginLeft->GetUnit() == eCSSUnit_Null)
-          marginLeft->SetFloatValue((float)frameMarginWidth, eCSSUnit_Pixel);
-        nsCSSValue* marginRight = aData->ValueForMarginRight();
-        if (marginRight->GetUnit() == eCSSUnit_Null)
-          marginRight->SetFloatValue((float)frameMarginWidth, eCSSUnit_Pixel);
+        aData->SetPixelValueIfUnset(eCSSProperty_margin_left, (float)frameMarginWidth);
+        aData->SetPixelValueIfUnset(eCSSProperty_margin_right, (float)frameMarginWidth);
       }
 
       if ((bodyMarginHeight == -1) && (frameMarginHeight >= 0)) {
-        nsCSSValue* marginTop = aData->ValueForMarginTop();
-        if (marginTop->GetUnit() == eCSSUnit_Null)
-          marginTop->SetFloatValue((float)frameMarginHeight, eCSSUnit_Pixel);
-        nsCSSValue* marginBottom = aData->ValueForMarginBottom();
-        if (marginBottom->GetUnit() == eCSSUnit_Null)
-          marginBottom->SetFloatValue((float)frameMarginHeight, eCSSUnit_Pixel);
+      aData->SetPixelValueIfUnset(eCSSProperty_margin_top, (float)frameMarginHeight);
+      aData->SetPixelValueIfUnset(eCSSProperty_margin_bottom, (float)frameMarginHeight);
       }
+    }
+  }
+}
+
+void
+HTMLBodyElement::UpdateServoStyle()
+{
+  if (auto doc = OwnerDoc()) {
+    if (doc->GetStyleBackendType() == StyleBackendType::Servo) {
+      mServoContentStyle = Servo_DeclarationBlock_CreateEmpty().Consume();
+      ServoSpecifiedValues servo = ServoSpecifiedValues(doc->GetShell()->GetPresContext(),
+                                                        mServoContentStyle.get());
+      MapMarginRulesInto(&servo);
     }
   }
 }
@@ -355,6 +352,8 @@ HTMLBodyElement::UnbindFromTree(bool aDeep, bool aNullParent)
     mContentStyleRule = nullptr;
   }
 
+  mServoContentStyle = nullptr;
+
   nsGenericHTMLElement::UnbindFromTree(aDeep, aNullParent);  
 }
 
@@ -488,6 +487,41 @@ HTMLBodyElement::IsEventAttributeName(nsIAtom *aName)
   return nsContentUtils::IsEventAttributeName(aName,
                                               EventNameType_HTML |
                                               EventNameType_HTMLBodyOrFramesetOnly);
+}
+
+nsresult
+HTMLBodyElement::BindToTree(nsIDocument* aDocument, nsIContent* aParent,
+                            nsIContent* aBindingParent,
+                            bool aCompileEventHandlers)
+{
+  nsresult rv = nsGenericHTMLElement::BindToTree(aDocument, aParent,
+                                                 aBindingParent,
+                                                 aCompileEventHandlers);
+  NS_ENSURE_SUCCESS(rv, rv);
+  UpdateServoStyle();
+  return NS_OK;
+}
+
+nsresult
+HTMLBodyElement::AfterSetAttr(int32_t aNameSpaceID, nsIAtom* aName,
+                              const nsAttrValue* aValue,
+                              bool aNotify)
+{
+  if (aNameSpaceID == kNameSpaceID_None) {
+    if (aName == nsGkAtoms::marginheight ||
+        aName == nsGkAtoms::marginheight ||
+        aName == nsGkAtoms::marginwidth ||
+        aName == nsGkAtoms::topmargin ||
+        aName == nsGkAtoms::rightmargin ||
+        aName == nsGkAtoms::bottommargin ||
+        aName == nsGkAtoms::leftmargin) {
+
+        UpdateServoStyle();
+    }
+  }
+
+  return nsGenericHTMLElement::AfterSetAttr(aNameSpaceID, aName, aValue,
+                                            aNotify);
 }
 
 #define EVENT(name_, id_, type_, struct_) /* nothing; handled by the superclass */

@@ -1203,6 +1203,18 @@ nsFrameLoader::MarginsChanged(uint32_t aMarginWidth,
   mDocShell->SetMarginWidth(aMarginWidth);
   mDocShell->SetMarginHeight(aMarginHeight);
 
+  // There's a cached property declaration block
+  // that needs to be updated
+  if (nsIDocument* doc = mDocShell->GetDocument()) {
+    if (doc->GetStyleBackendType() == StyleBackendType::Servo) {
+      for (nsINode* cur = doc; cur; cur = cur->GetNextNode()) {
+        if (cur->IsHTMLElement(nsGkAtoms::body)) {
+          static_cast<HTMLBodyElement*>(cur)->UpdateServoStyle();
+        }
+      }
+    }
+  }
+
   // Trigger a restyle if there's a prescontext
   // FIXME: This could do something much less expensive.
   RefPtr<nsPresContext> presContext;

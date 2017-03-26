@@ -7,6 +7,8 @@
 #define HTMLBodyElement_h___
 
 #include "mozilla/Attributes.h"
+#include "mozilla/ServoDeclarationBlock.h"
+#include "mozilla/ServoBindings.h"
 #include "nsGenericHTMLElement.h"
 #include "nsIDOMHTMLBodyElement.h"
 #include "nsIStyleRule.h"
@@ -46,7 +48,7 @@ public:
   using Element::SetText;
 
   explicit HTMLBodyElement(already_AddRefed<mozilla::dom::NodeInfo>& aNodeInfo)
-    : nsGenericHTMLElement(aNodeInfo)
+    : nsGenericHTMLElement(aNodeInfo), mServoContentStyle(nullptr)
   {
   }
 
@@ -135,14 +137,38 @@ public:
 
   virtual bool IsEventAttributeName(nsIAtom* aName) override;
 
+  // Update the Servo property declaration block
+  // for margin-* properties
+  void UpdateServoStyle();
+
+  // Get the servo property declaration block for margin-*
+  const RefPtr<RawServoDeclarationBlock>& GetServoStyle() const
+  {
+    return mServoContentStyle;
+  }
+
+  // Map margin-* attributes into rule data
+  void MapMarginRulesInto(GenericSpecifiedValues* aData) const;
+
+  virtual nsresult BindToTree(nsIDocument* aDocument, nsIContent* aParent,
+                              nsIContent* aBindingParent,
+                              bool aCompileEventHandlers) override;
+  /**
+   * Called when an attribute has just been changed
+   */
+  virtual nsresult AfterSetAttr(int32_t aNameSpaceID, nsIAtom* aName,
+                                const nsAttrValue* aValue, bool aNotify) override;
+
 protected:
   virtual ~HTMLBodyElement();
 
   virtual JSObject* WrapNode(JSContext *aCx, JS::Handle<JSObject*> aGivenProto) override;
 
   RefPtr<BodyRule> mContentStyleRule;
+  RefPtr<RawServoDeclarationBlock> mServoContentStyle;
 
 private:
+
   static void MapAttributesIntoRule(const nsMappedAttributes* aAttributes,
                                     GenericSpecifiedValues* aGenericData);
 };

@@ -45,6 +45,7 @@
 #include "mozilla/DeclarationBlockInlines.h"
 #include "mozilla/dom/Element.h"
 #include "mozilla/dom/ElementInlines.h"
+#include "mozilla/dom/HTMLBodyElement.h"
 #include "mozilla/dom/HTMLTableCellElement.h"
 #include "mozilla/LookAndFeel.h"
 
@@ -411,6 +412,11 @@ Gecko_GetExtraContentStyleRules(RawGeckoElementBorrowed aElement)
       const RefPtr<RawServoDeclarationBlock>& servo = attrs->GetServoStyle();
       return reinterpret_cast<const RawServoDeclarationBlockStrong*>(&servo);
     }
+  }
+  if (aElement->IsHTMLElement(nsGkAtoms::body)) {
+    const HTMLBodyElement* body = static_cast<const HTMLBodyElement*>(aElement);
+    const RefPtr<RawServoDeclarationBlock>& servo = body->GetServoStyle();
+    return reinterpret_cast<const RawServoDeclarationBlockStrong*>(&servo);
   }
   return nullptr;
 }
