@@ -477,11 +477,10 @@ Preferences::IsServiceAvailable()
 bool
 Preferences::InitStaticMembers()
 {
-#ifndef MOZ_B2G
-  MOZ_ASSERT(NS_IsMainThread());
-#endif
-
   if (!sShutdown && !sPreferences) {
+#ifndef MOZ_B2G
+    MOZ_ASSERT(NS_IsMainThread());
+#endif
     nsCOMPtr<nsIPrefService> prefService =
       do_GetService(NS_PREFSERVICE_CONTRACTID);
   }
