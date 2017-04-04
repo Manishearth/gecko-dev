@@ -45,7 +45,15 @@ impl FontMetricsProvider for DummyProvider {
     fn create_from(_: &SharedStyleContext) -> Self {
         DummyProvider
     }
+
+    fn get_size(&self, _font_name: &Atom, _font_family: u8) -> Au {
+        unreachable!("Dummy provider should never be used to compute font size")
+    }
 }
+
+// Servo's font metrics provider will probably not live in this crate, so this will
+// have to be replaced with something else (perhaps a trait method on TElement)
+// when we get there
 
 #[cfg(feature = "gecko")]
 /// Construct a font metrics provider for the current product
@@ -60,7 +68,7 @@ pub fn get_metrics_provider_for_product() -> ServoMetricsProvider {
 }
 
 /// A trait used to represent something capable of providing us font metrics.
-pub trait FontMetricsProvider: Send + fmt::Debug {
+pub trait FontMetricsProvider: fmt::Debug {
     /// Obtain the metrics for given font family.
     ///
     /// TODO: We could make this take the full list, I guess, and save a few
@@ -71,9 +79,7 @@ pub trait FontMetricsProvider: Send + fmt::Debug {
     }
 
     /// Get default size of a given language and generic family
-    fn get_size(&self, _font_name: &Atom, _font_family: u8) -> Au {
-        unimplemented!()
-    }
+    fn get_size(&self, font_name: &Atom, font_family: u8) -> Au;
 
     /// Construct from a shared style context
     fn create_from(context: &SharedStyleContext) -> Self where Self: Sized;
