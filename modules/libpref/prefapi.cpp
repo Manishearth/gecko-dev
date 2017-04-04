@@ -26,6 +26,7 @@
 #include "mozilla/ArenaAllocatorExtensions.h"
 #include "mozilla/Logging.h"
 #include "mozilla/MemoryReporting.h"
+#include "mozilla/ServoStyleSet.h"
 #include "mozilla/dom/PContent.h"
 #include "mozilla/dom/ContentPrefs.h"
 #include "nsQuickSort.h"
@@ -783,7 +784,7 @@ PrefHashEntry* pref_HashTableLookup(const char *key)
 nsresult pref_HashPref(const char *key, PrefValue value, PrefType type, uint32_t flags)
 {
 #ifndef MOZ_B2G
-    MOZ_ASSERT(NS_IsMainThread());
+    MOZ_ASSERT(NS_IsMainThread() || mozilla::ServoStyleSet::IsInServoTraversal());
 #endif
 
     if (!gHashTable)
