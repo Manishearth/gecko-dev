@@ -67,6 +67,7 @@ use style::data::ElementData;
 use style::dom::{DescendantsBit, DirtyDescendants, LayoutIterator, NodeInfo, OpaqueNode};
 use style::dom::{PresentationalHintsSynthetizer, TElement, TNode, UnsafeNode};
 use style::element_state::*;
+use style::font_metrics::DummyProvider;
 use style::properties::{ComputedValues, PropertyDeclarationBlock};
 use style::selector_parser::{NonTSPseudoClass, PseudoElement, SelectorImpl};
 use style::shared_lock::{SharedRwLock as StyleSharedRwLock, Locked as StyleLocked};
@@ -372,6 +373,9 @@ impl<'le> PresentationalHintsSynthetizer for ServoLayoutElement<'le> {
 
 impl<'le> TElement for ServoLayoutElement<'le> {
     type ConcreteNode = ServoLayoutNode<'le>;
+
+    // We don't support font metrics in Servo yet
+    type FontMetrics = DummyProvider;
 
     fn as_node(&self) -> ServoLayoutNode<'le> {
         ServoLayoutNode::from_layout_js(self.element.upcast())

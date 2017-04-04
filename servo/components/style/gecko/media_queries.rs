@@ -7,6 +7,7 @@
 use app_units::Au;
 use cssparser::{CssStringWriter, Parser, Token};
 use euclid::Size2D;
+use font_metrics::DummyProvider;
 use gecko_bindings::bindings;
 use gecko_bindings::structs::{nsCSSValue, nsCSSUnit, nsStringBuffer};
 use gecko_bindings::structs::{nsMediaExpression_Range, nsMediaFeature};
@@ -509,7 +510,7 @@ impl Expression {
             // This cloning business is kind of dumb.... It's because Context
             // insists on having an actual ComputedValues inside itself.
             style: default_values.clone(),
-            font_metrics_provider: None,
+            font_metrics_provider: &DummyProvider,
         };
 
         let required_value = match self.value {

@@ -11,6 +11,7 @@ use bloom::StyleBloom;
 use data::ElementData;
 use dom::{OpaqueNode, TNode, TElement, SendElement};
 use error_reporting::ParseErrorReporter;
+use font_metrics::FontMetricsProvider;
 use euclid::Size2D;
 #[cfg(feature = "gecko")] use gecko_bindings::structs;
 use matching::StyleSharingCandidateCache;
@@ -277,7 +278,10 @@ pub struct ThreadLocalStyleContext<E: TElement> {
     pub statistics: TraversalStatistics,
     /// Information related to the current element, non-None during processing.
     current_element_info: Option<CurrentElementInfo>,
+    /// Font metrics
+    pub font_metrics: E::FontMetrics,
 }
+
 
 impl<E: TElement> ThreadLocalStyleContext<E> {
     /// Creates a new `ThreadLocalStyleContext` from a shared one.
@@ -289,6 +293,7 @@ impl<E: TElement> ThreadLocalStyleContext<E> {
             tasks: Vec::new(),
             statistics: TraversalStatistics::default(),
             current_element_info: None,
+            font_metrics: E::FontMetrics::create_from(shared),
         }
     }
 

@@ -13,6 +13,7 @@ use app_units::Au;
 use cssparser::{AtRuleParser, DeclarationListParser, DeclarationParser, Parser, parse_important};
 use cssparser::ToCss as ParserToCss;
 use euclid::size::TypedSize2D;
+use font_metrics::DummyProvider;
 use media_queries::Device;
 use parser::{ParserContext, log_css_error};
 use shared_lock::{SharedRwLockReadGuard, ToCssWithGuard};
@@ -694,7 +695,7 @@ impl MaybeNew for ViewportConstraints {
             inherited_style: device.default_computed_values(),
             layout_parent_style: device.default_computed_values(),
             style: device.default_computed_values().clone(),
-            font_metrics_provider: None, // TODO: Should have!
+            font_metrics_provider: &DummyProvider, // TODO: Should have!
         };
 
         // DEVICE-ADAPT § 9.3 Resolving 'extend-to-zoom'

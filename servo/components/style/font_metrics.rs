@@ -8,6 +8,7 @@
 
 use Atom;
 use app_units::Au;
+use context::SharedStyleContext;
 use euclid::Size2D;
 use std::fmt;
 
@@ -32,7 +33,7 @@ pub enum FontMetricsQueryResult {
 }
 
 /// A trait used to represent something capable of providing us font metrics.
-pub trait FontMetricsProvider: Send + Sync + fmt::Debug {
+pub trait FontMetricsProvider: Send + fmt::Debug {
     /// Obtain the metrics for given font family.
     ///
     /// TODO: We could make this take the full list, I guess, and save a few
@@ -40,5 +41,24 @@ pub trait FontMetricsProvider: Send + Sync + fmt::Debug {
     /// That is not too common in practice though.
     fn query(&self, _font_name: &Atom) -> FontMetricsQueryResult {
         FontMetricsQueryResult::NotAvailable
+    }
+
+    /// Get default size of a given language and generic family
+    fn get_size(&self, _font_name: &Atom, _font_family: u8) -> Au {
+        unimplemented!()
+    }
+
+    /// Construct from a shared style context
+    fn create_from(context: &SharedStyleContext) -> Self where Self: Sized;
+}
+
+#[derive(Debug)]
+/// Dummy font metrics provider, for use by Servo
+/// and in cases where gecko doesn't need font metrics
+pub struct DummyProvider;
+
+impl FontMetricsProvider for DummyProvider {
+    fn create_from(_: &SharedStyleContext) -> Self {
+        DummyProvider
     }
 }

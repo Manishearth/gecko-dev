@@ -7,6 +7,7 @@
 use app_units::Au;
 use cssparser::Parser;
 use euclid::{Size2D, TypedSize2D};
+use font_metrics::DummyProvider;
 use media_queries::MediaType;
 use properties::ComputedValues;
 use std::fmt;
@@ -185,7 +186,8 @@ impl Range<specified::Length> {
             // This cloning business is kind of dumb.... It's because Context
             // insists on having an actual ComputedValues inside itself.
             style: default_values.clone(),
-            font_metrics_provider: None
+            // will not be used
+            font_metrics_provider: &DummyProvider,
         };
 
         match *self {

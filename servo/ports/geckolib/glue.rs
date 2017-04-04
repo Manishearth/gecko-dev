@@ -25,7 +25,7 @@ use style::gecko::global_style_data::GLOBAL_STYLE_DATA;
 use style::gecko::restyle_damage::GeckoRestyleDamage;
 use style::gecko::selector_parser::{SelectorImpl, PseudoElement};
 use style::gecko::traversal::RecalcStyleOnly;
-use style::gecko::wrapper::GeckoElement;
+use style::gecko::wrapper::{FontMetrics, GeckoElement};
 use style::gecko_bindings::bindings;
 use style::gecko_bindings::bindings::{RawGeckoKeyframeListBorrowed, RawGeckoKeyframeListBorrowedMut};
 use style::gecko_bindings::bindings::{RawServoDeclarationBlockBorrowed, RawServoDeclarationBlockStrong};
@@ -692,7 +692,7 @@ pub extern "C" fn Servo_ComputedValues_GetForAnonymousBox(parent_style_or_null: 
         cascade_flags.insert(SKIP_ROOT_AND_ITEM_BASED_DISPLAY_FIXUP);
     }
     data.stylist.precomputed_values_for_pseudo(&guards, &pseudo, maybe_parent,
-                                               cascade_flags)
+                                               cascade_flags, &FontMetrics::new())
         .values.unwrap()
         .into_strong()
 }
@@ -741,7 +741,8 @@ fn get_pseudo_style(guard: &SharedRwLockReadGuard, element: GeckoElement, pseudo
             d.stylist.lazily_compute_pseudo_element_style(&guards,
                                                           &element,
                                                           &pseudo,
-                                                          base)
+                                                          base,
+                                                          &FontMetrics::new())
                      .map(|s| s.values().clone())
         },
     }
@@ -1558,7 +1559,7 @@ pub extern "C" fn Servo_GetComputedKeyframeValues(keyframes: RawGeckoKeyframeLis
         inherited_style: parent_style.unwrap_or(default_values),
         layout_parent_style: parent_style.unwrap_or(default_values),
         style: (**style).clone(),
-        font_metrics_provider: None,
+        font_metrics_provider: &FontMetrics::new(),
     };
 
     for (index, keyframe) in keyframes.iter().enumerate() {

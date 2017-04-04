@@ -15,6 +15,7 @@ use cascade_info::CascadeInfo;
 use context::{SequentialTask, SharedStyleContext, StyleContext};
 use data::{ComputedStyle, ElementData, ElementStyles, RestyleData};
 use dom::{AnimationRules, SendElement, TElement, TNode};
+use font_metrics::FontMetricsProvider;
 use properties::{CascadeFlags, ComputedValues, SHAREABLE, SKIP_ROOT_AND_ITEM_BASED_DISPLAY_FIXUP, cascade};
 use properties::longhands::display::computed_value as display;
 use restyle_hints::{RESTYLE_STYLE_ATTRIBUTE, RESTYLE_CSS_ANIMATIONS, RestyleHint};
@@ -537,6 +538,7 @@ trait PrivateMatchMethods: TElement {
                              layout_parent_style,
                              Some(&mut cascade_info),
                              &*shared_context.error_reporter,
+                             &context.thread_local.font_metrics,
                              cascade_flags));
 
         cascade_info.finish(&self.as_node());
@@ -685,7 +687,8 @@ trait PrivateMatchMethods: TElement {
         let shared_context = context.shared;
         if let Some(ref mut old) = *old_values {
             self.update_animations_for_cascade(shared_context, old,
-                                               possibly_expired_animations);
+                                               possibly_expired_animations,
+                                               &context.thread_local.font_metrics);
         }
 
         let new_animations_sender = &context.thread_local.new_animations_sender;
@@ -753,7 +756,8 @@ trait PrivateMatchMethods: TElement {
     fn update_animations_for_cascade(&self,
                                      context: &SharedStyleContext,
                                      style: &mut Arc<ComputedValues>,
-                                     possibly_expired_animations: &mut Vec<PropertyAnimation>) {
+                                     possibly_expired_animations: &mut Vec<PropertyAnimation>,
+                                     font_metrics: &FontMetricsProvider) {
         // Finish any expired transitions.
         let this_opaque = self.as_node().opaque();
         animation::complete_expired_transitions(this_opaque, style, context);
@@ -780,7 +784,8 @@ trait PrivateMatchMethods: TElement {
                 if !running_animation.is_expired() {
                     animation::update_style_for_animation(context,
                                                           running_animation,
-                                                          style);
+                                                          style,
+                                                          font_metrics);
                     if let Animation::Transition(_, _, _, ref frame, _) = *running_animation {
                         possibly_expired_animations.push(frame.property_animation.clone())
                     }

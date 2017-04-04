@@ -21,6 +21,7 @@ use style::context::SharedStyleContext;
 use style::data::ElementData;
 use style::dom::{LayoutIterator, NodeInfo, PresentationalHintsSynthetizer, TNode};
 use style::dom::OpaqueNode;
+use style::font_metrics::DummyProvider;
 use style::properties::{CascadeFlags, ServoComputedValues};
 use style::selector_parser::{PseudoElement, PseudoElementCascadeType, SelectorImpl};
 
@@ -411,7 +412,8 @@ pub trait ThreadSafeLayoutElement: Clone + Copy + Sized + Debug +
                                     &context.guards,
                                     &style_pseudo,
                                     Some(data.styles().primary.values()),
-                                    CascadeFlags::empty());
+                                    CascadeFlags::empty(),
+                                    &DummyProvider);
                             data.styles_mut().pseudos
                                 .insert(style_pseudo.clone(), new_style);
                         }
@@ -428,7 +430,8 @@ pub trait ThreadSafeLayoutElement: Clone + Copy + Sized + Debug +
                                            &context.guards,
                                            unsafe { &self.unsafe_get() },
                                            &style_pseudo,
-                                           data.styles().primary.values());
+                                           data.styles().primary.values(),
+                                           &DummyProvider);
                             data.styles_mut().pseudos
                                 .insert(style_pseudo.clone(), new_style.unwrap());
                         }
