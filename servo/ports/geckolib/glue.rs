@@ -20,6 +20,7 @@ use style::data::{ElementData, ElementStyles, RestyleData};
 use style::dom::{AnimationOnlyDirtyDescendants, DirtyDescendants};
 use style::dom::{ShowSubtreeData, TElement, TNode};
 use style::error_reporting::StdoutErrorReporter;
+use style::font_metrics::get_metrics_provider_for_product;
 use style::gecko::data::{PerDocumentStyleData, PerDocumentStyleDataImpl};
 use style::gecko::global_style_data::GLOBAL_STYLE_DATA;
 use style::gecko::restyle_damage::GeckoRestyleDamage;
@@ -691,8 +692,9 @@ pub extern "C" fn Servo_ComputedValues_GetForAnonymousBox(parent_style_or_null: 
     if skip_display_fixup {
         cascade_flags.insert(SKIP_ROOT_AND_ITEM_BASED_DISPLAY_FIXUP);
     }
+    let metrics = get_metrics_provider_for_product();
     data.stylist.precomputed_values_for_pseudo(&guards, &pseudo, maybe_parent,
-                                               cascade_flags)
+                                               cascade_flags, &metrics)
         .values.unwrap()
         .into_strong()
 }
@@ -738,10 +740,12 @@ fn get_pseudo_style(guard: &SharedRwLockReadGuard, element: GeckoElement, pseudo
             let d = doc_data.borrow_mut();
             let base = styles.primary.values();
             let guards = StylesheetGuards::same(guard);
+            let metrics = get_metrics_provider_for_product();
             d.stylist.lazily_compute_pseudo_element_style(&guards,
                                                           &element,
                                                           &pseudo,
-                                                          base)
+                                                          base,
+                                                          &metrics)
                      .map(|s| s.values().clone())
         },
     }
@@ -1551,6 +1555,7 @@ pub extern "C" fn Servo_GetComputedKeyframeValues(keyframes: RawGeckoKeyframeLis
     let parent_style = parent_style.as_ref().map(|r| &**ComputedValues::as_arc(&r));
 
     let default_values = data.default_computed_values();
+    let metrics = get_metrics_provider_for_product();
 
     let context = Context {
         is_root_element: false,
@@ -1558,7 +1563,7 @@ pub extern "C" fn Servo_GetComputedKeyframeValues(keyframes: RawGeckoKeyframeLis
         inherited_style: parent_style.unwrap_or(default_values),
         layout_parent_style: parent_style.unwrap_or(default_values),
         style: (**style).clone(),
-        font_metrics_provider: None,
+        font_metrics_provider: &metrics,
     };
 
     for (index, keyframe) in keyframes.iter().enumerate() {

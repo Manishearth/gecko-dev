@@ -380,7 +380,7 @@ bool Gecko_PropertyId_IsPrefEnabled(nsCSSPropertyID id);
 
 void Gecko_nsStyleFont_SetLang(nsStyleFont* font, nsIAtom* atom);
 void Gecko_nsStyleFont_CopyLangFrom(nsStyleFont* aFont, const nsStyleFont* aSource);
-FontSizePrefs Gecko_GetBaseSize(nsIAtom* lang, RawGeckoPresContextBorrowed pres_context);
+FontSizePrefs Gecko_GetBaseSize(nsIAtom* lang);
 
 const nsMediaFeature* Gecko_GetMediaFeatures();
 

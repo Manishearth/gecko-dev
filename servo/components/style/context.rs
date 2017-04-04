@@ -12,6 +12,7 @@ use data::ElementData;
 use dom::{OpaqueNode, TNode, TElement, SendElement};
 use error_reporting::ParseErrorReporter;
 use euclid::Size2D;
+use font_metrics::FontMetricsProvider;
 #[cfg(feature = "gecko")] use gecko_bindings::structs;
 use matching::StyleSharingCandidateCache;
 use parking_lot::RwLock;
@@ -277,6 +278,9 @@ pub struct ThreadLocalStyleContext<E: TElement> {
     pub statistics: TraversalStatistics,
     /// Information related to the current element, non-None during processing.
     current_element_info: Option<CurrentElementInfo>,
+    /// The struct used to compute and cache font metrics from style
+    /// for evaluation of the font-relative em/ch units and font-size
+    font_metrics_provider: E::FontMetricsProvider,
 }
 
 impl<E: TElement> ThreadLocalStyleContext<E> {
@@ -289,6 +293,7 @@ impl<E: TElement> ThreadLocalStyleContext<E> {
             tasks: Vec::new(),
             statistics: TraversalStatistics::default(),
             current_element_info: None,
+            font_metrics_provider: E::FontMetricsProvider::create_from(shared),
         }
     }
 
@@ -315,6 +320,11 @@ impl<E: TElement> ThreadLocalStyleContext<E> {
     /// Panics if called while no element is being traversed.
     pub fn is_initial_style(&self) -> bool {
         self.current_element_info.as_ref().unwrap().is_initial_style
+    }
+
+    /// Get the contained font metrics provider
+    pub fn font_metrics_provider(&self) -> &FontMetricsProvider {
+        &self.font_metrics_provider
     }
 }
 

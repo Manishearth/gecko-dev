@@ -563,8 +563,7 @@ ${helpers.single_keyword("font-variant-caps",
                 // XXXManishearth handle quirks mode
 
                 let base_sizes = unsafe {
-                    Gecko_GetBaseSize(cx.style().get_font().gecko().mLanguage.raw(),
-                                      &*cx.device.pres_context)
+                    Gecko_GetBaseSize(cx.style().get_font().gecko().mLanguage.raw())
                 };
                 let base_size = match cx.style().get_font().gecko().mGenericID {
                     structs::kGenericFont_serif => base_sizes.mDefaultSerifSize,
