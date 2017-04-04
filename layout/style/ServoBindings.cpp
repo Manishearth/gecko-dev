@@ -1529,12 +1529,10 @@ Gecko_nsStyleFont_CopyLangFrom(nsStyleFont* aFont, const nsStyleFont* aSource)
 }
 
 FontSizePrefs
-Gecko_GetBaseSize(nsIAtom* aLanguage, RawGeckoPresContextBorrowed aPresContext)
+Gecko_GetBaseSize(nsIAtom* aLanguage)
 {
-  nsIAtom* lang =  aLanguage ? aLanguage : aPresContext->GetLanguageFromCharset();
   LangGroupFontPrefs prefs;
-
-  nsIAtom *langGroupAtom = StaticPresData::Get()->GetLangGroup(lang);
+  nsIAtom *langGroupAtom = StaticPresData::Get()->GetLangGroup(aLanguage);
 
   prefs.Initialize(langGroupAtom);
   FontSizePrefs sizes;
