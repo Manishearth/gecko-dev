@@ -23,6 +23,7 @@ use gecko_bindings::structs::CSSPseudoClassType;
 use gecko_bindings::structs::TraversalRootBehavior;
 use gecko_bindings::structs::FontFamilyList;
 use gecko_bindings::structs::FontFamilyType;
+use gecko_bindings::structs::FontSizePrefs;
 use gecko_bindings::structs::Keyframe;
 use gecko_bindings::structs::ServoBundledURI;
 use gecko_bindings::structs::ServoElementSnapshot;
@@ -1021,10 +1022,9 @@ extern "C" {
                                           aSource: *const nsStyleFont);
 }
 extern "C" {
-    pub fn Gecko_nsStyleFont_GetBaseSize(font: *const nsStyleFont,
-                                         pres_context:
-                                             RawGeckoPresContextBorrowed)
-     -> nscoord;
+    pub fn Gecko_GetBaseSize(lang: *mut nsIAtom,
+                             pres_context: RawGeckoPresContextBorrowed)
+     -> FontSizePrefs;
 }
 extern "C" {
     pub fn Gecko_GetMediaFeatures() -> *const nsMediaFeature;

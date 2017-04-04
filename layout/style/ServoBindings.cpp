@@ -1528,10 +1528,23 @@ Gecko_nsStyleFont_CopyLangFrom(nsStyleFont* aFont, const nsStyleFont* aSource)
   aFont->mLanguage = aSource->mLanguage;
 }
 
-nscoord
-Gecko_nsStyleFont_GetBaseSize(const nsStyleFont* aFont, RawGeckoPresContextBorrowed aPresContext)
+FontSizePrefs
+Gecko_GetBaseSize(nsIAtom* aLanguage)
 {
-  return aPresContext->GetDefaultFont(aFont->mGenericID, aFont->mLanguage)->size;
+  LangGroupFontPrefs prefs;
+  nsCOMPtr<nsIAtom> langGroupAtom = StaticPresData::Get()->GetUncachedLangGroup(aLanguage);
+
+  prefs.Initialize(langGroupAtom);
+  FontSizePrefs sizes;
+
+  sizes.mDefaultVariableSize = prefs.mDefaultVariableFont.size;
+  sizes.mDefaultFixedSize = prefs.mDefaultFixedFont.size;
+  sizes.mDefaultSerifSize = prefs.mDefaultSerifFont.size;
+  sizes.mDefaultSansSerifSize = prefs.mDefaultSansSerifFont.size;
+  sizes.mDefaultMonospaceSize = prefs.mDefaultMonospaceFont.size;
+  sizes.mDefaultCursiveSize = prefs.mDefaultCursiveFont.size;
+  sizes.mDefaultFantasySize = prefs.mDefaultFantasyFont.size;
+  return sizes;
 }
 
 void
