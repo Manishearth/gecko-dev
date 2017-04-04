@@ -451,16 +451,7 @@ extern "C" {
     pub fn Gecko_ElementState(element: RawGeckoElementBorrowed) -> u64;
 }
 extern "C" {
-    pub fn Gecko_IsLink(element: RawGeckoElementBorrowed) -> bool;
-}
-extern "C" {
     pub fn Gecko_IsTextNode(node: RawGeckoNodeBorrowed) -> bool;
-}
-extern "C" {
-    pub fn Gecko_IsVisitedLink(element: RawGeckoElementBorrowed) -> bool;
-}
-extern "C" {
-    pub fn Gecko_IsUnvisitedLink(element: RawGeckoElementBorrowed) -> bool;
 }
 extern "C" {
     pub fn Gecko_IsRootElement(element: RawGeckoElementBorrowed) -> bool;
@@ -583,7 +574,8 @@ extern "C" {
      -> RawServoDeclarationBlockStrongBorrowedOrNull;
 }
 extern "C" {
-    pub fn Gecko_GetExtraContentStyleDeclarations(element: RawGeckoElementBorrowed)
+    pub fn Gecko_GetExtraContentStyleDeclarations(element:
+                                                      RawGeckoElementBorrowed)
      -> RawServoDeclarationBlockStrongBorrowedOrNull;
 }
 extern "C" {
@@ -1833,8 +1825,7 @@ extern "C" {
 extern "C" {
     pub fn Servo_ResolveStyle(element: RawGeckoElementBorrowed,
                               set: RawServoStyleSetBorrowed,
-                              allow_stale: bool)
-     -> ServoComputedValuesStrong;
+                              allow_stale: bool) -> ServoComputedValuesStrong;
 }
 extern "C" {
     pub fn Servo_ResolvePseudoStyle(element: RawGeckoElementBorrowed,
