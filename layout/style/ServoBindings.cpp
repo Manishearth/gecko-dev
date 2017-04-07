@@ -26,6 +26,7 @@
 #include "nsIPresShell.h"
 #include "nsIPresShellInlines.h"
 #include "nsIPrincipal.h"
+#include "nsFontMetrics.h"
 #include "nsMappedAttributes.h"
 #include "nsMediaFeatures.h"
 #include "nsNameSpaceManager.h"
@@ -40,6 +41,7 @@
 #include "mozilla/EffectSet.h"
 #include "mozilla/EventStates.h"
 #include "mozilla/Keyframe.h"
+#include "mozilla/Mutex.h"
 #include "mozilla/ServoElementSnapshot.h"
 #include "mozilla/ServoRestyleManager.h"
 #include "mozilla/StyleAnimationValue.h"
@@ -1545,6 +1547,28 @@ Gecko_GetBaseSize(nsIAtom* aLanguage)
   sizes.mDefaultCursiveSize = prefs.mDefaultCursiveFont.size;
   sizes.mDefaultFantasySize = prefs.mDefaultFantasyFont.size;
   return sizes;
+}
+
+static Mutex sServoFontMetricsLock("Gecko_GetFontMetrics");
+
+GeckoFontMetrics
+Gecko_GetFontMetrics(RawGeckoPresContextBorrowed aPresContext,
+                     bool aIsVertical,
+                     const nsStyleFont* aFont,
+                     nscoord aFontSize,
+                     bool aUseUserFontSet)
+{
+  MutexAutoLock lock(sServoFontMetricsLock);
+  GeckoFontMetrics ret;
+  // Safe because we are locked, and this function is only
+  // ever called from Servo parallel traversal
+  nsPresContext* presContext = const_cast<nsPresContext*>(aPresContext);
+  RefPtr<nsFontMetrics> fm = nsRuleNode::GetMetricsFor(presContext, aIsVertical, aFont, aFontSize, aUseUserFontSet);
+  ret.mXSize = float(fm->XHeight());
+  gfxFloat zeroWidth = fm->GetThebesFontGroup()->GetFirstValidFont()->
+                           GetMetrics(fm->Orientation()).zeroOrAveCharWidth;
+  ret.mChSize = ceil(aPresContext->AppUnitsPerDevPixel() * zeroWidth);
+  return ret;
 }
 
 void
