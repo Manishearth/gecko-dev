@@ -55,6 +55,11 @@ public:
      */
     nsresult Init(nsIWidget *aWidget);
 
+    /*
+     * Initialize the font cache if it hasn't been initialized yet.
+     */
+    void InitFontCache();
+
     /**
      * Initialize the device context from a device context spec
      * @param aDevSpec the specification of the printing device

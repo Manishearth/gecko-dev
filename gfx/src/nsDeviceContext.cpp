@@ -208,15 +208,19 @@ nsDeviceContext::~nsDeviceContext()
     }
 }
 
-already_AddRefed<nsFontMetrics>
-nsDeviceContext::GetMetricsFor(const nsFont& aFont,
-                               const nsFontMetrics::Params& aParams)
+void
+nsDeviceContext::InitFontCache()
 {
     if (!mFontCache) {
         mFontCache = new nsFontCache();
         mFontCache->Init(this);
     }
-
+}
+already_AddRefed<nsFontMetrics>
+nsDeviceContext::GetMetricsFor(const nsFont& aFont,
+                               const nsFontMetrics::Params& aParams)
+{
+    InitFontCache();
     return mFontCache->GetMetricsFor(aFont, aParams);
 }
 

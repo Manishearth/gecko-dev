@@ -15,6 +15,7 @@
 #include "mozilla/dom/KeyframeEffectReadOnly.h"
 #include "nsCSSAnonBoxes.h"
 #include "nsCSSPseudoElements.h"
+#include "nsDeviceContext.h"
 #include "nsHTMLStyleSheet.h"
 #include "nsIDocumentInlines.h"
 #include "nsPrintfCString.h"
@@ -204,6 +205,8 @@ void
 ServoStyleSet::PreTraverse()
 {
   PreTraverseSync();
+
+  mPresContext->DeviceContext()->InitFontCache();
 
   // Process animation stuff that we should avoid doing during the parallel
   // traversal.
