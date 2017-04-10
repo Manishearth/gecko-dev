@@ -14,6 +14,7 @@ use parser::{Parse, ParserContext};
 use std::{cmp, fmt, mem};
 use std::ascii::AsciiExt;
 use std::ops::Mul;
+use std::str::FromStr;
 use style_traits::ToCss;
 use style_traits::values::specified::AllowedNumericType;
 use super::{Angle, Number, SimplifiedValueNode, SimplifiedSumNode, Time};
@@ -283,28 +284,100 @@ impl Mul<CSSFloat> for NoCalcLength {
     }
 }
 
+/// Units that can be specified for lengths
+pub enum SpecifiedLengthUnit {
+    // absolute
+    /// px
+    Pixel,
+    /// in
+    Inch,
+    /// cm
+    Centimeter,
+    /// mm
+    Millimeter,
+    /// q
+    Quarter,
+    /// pt
+    Point,
+    /// pc
+    Pica,
+
+    // relative
+    /// em
+    Em,
+    /// ex
+    XHeight,
+    /// ch
+    ZeroWidth,
+    /// rem
+    RootEm,
+
+    /// vw
+    ViewportWidth,
+    /// vh
+    ViewportHeight,
+    /// vmin
+    ViewportMin,
+    /// vmax
+    ViewportMax,
+}
+
+impl FromStr for SpecifiedLengthUnit {
+    type Err = ();
+    #[inline]
+    fn from_str(unit: &str) -> Result<Self, ()> {
+        use self::SpecifiedLengthUnit::*;
+        Ok(match_ignore_ascii_case! { unit,
+            "px" => Pixel,
+            "in" => Inch,
+            "cm" => Centimeter,
+            "mm" => Millimeter,
+            "q" => Quarter,
+            "pt" => Point,
+            "pc" => Pica,
+            // font-relative
+            "em" => Em,
+            "ex" => XHeight,
+            "ch" => ZeroWidth,
+            "rem" => RootEm,
+            // viewport percentages
+            "vw" => ViewportWidth,
+            "vh" => ViewportHeight,
+            "vmin" => ViewportMin,
+            "vmax" => ViewportMax,
+            _ => return Err(())
+        })
+    }
+}
+
 impl NoCalcLength {
     /// Parse a given absolute or relative dimension.
     pub fn parse_dimension(value: CSSFloat, unit: &str) -> Result<NoCalcLength, ()> {
-        match_ignore_ascii_case! { unit,
-            "px" => Ok(NoCalcLength::Absolute(Au((value * AU_PER_PX) as i32))),
-            "in" => Ok(NoCalcLength::Absolute(Au((value * AU_PER_IN) as i32))),
-            "cm" => Ok(NoCalcLength::Absolute(Au((value * AU_PER_CM) as i32))),
-            "mm" => Ok(NoCalcLength::Absolute(Au((value * AU_PER_MM) as i32))),
-            "q" => Ok(NoCalcLength::Absolute(Au((value * AU_PER_Q) as i32))),
-            "pt" => Ok(NoCalcLength::Absolute(Au((value * AU_PER_PT) as i32))),
-            "pc" => Ok(NoCalcLength::Absolute(Au((value * AU_PER_PC) as i32))),
+        Ok(NoCalcLength::for_dimension(value, SpecifiedLengthUnit::from_str(unit)?))
+    }
+
+    /// Create a NoCalcLength value from a number and its unit
+    #[inline]
+    pub fn for_dimension(value: CSSFloat, unit: SpecifiedLengthUnit) -> NoCalcLength {
+        use self::SpecifiedLengthUnit::*;
+        match unit {
+            Pixel => NoCalcLength::Absolute(Au((value * AU_PER_PX) as i32)),
+            Inch =>  NoCalcLength::Absolute(Au((value * AU_PER_IN) as i32)),
+            Centimeter =>  NoCalcLength::Absolute(Au((value * AU_PER_CM) as i32)),
+            Millimeter =>  NoCalcLength::Absolute(Au((value * AU_PER_MM) as i32)),
+            Quarter =>  NoCalcLength::Absolute(Au((value * AU_PER_Q) as i32)),
+            Point =>  NoCalcLength::Absolute(Au((value * AU_PER_PT) as i32)),
+            Pica =>  NoCalcLength::Absolute(Au((value * AU_PER_PC) as i32)),
             // font-relative
-            "em" => Ok(NoCalcLength::FontRelative(FontRelativeLength::Em(value))),
-            "ex" => Ok(NoCalcLength::FontRelative(FontRelativeLength::Ex(value))),
-            "ch" => Ok(NoCalcLength::FontRelative(FontRelativeLength::Ch(value))),
-            "rem" => Ok(NoCalcLength::FontRelative(FontRelativeLength::Rem(value))),
+            Em =>  NoCalcLength::FontRelative(FontRelativeLength::Em(value)),
+            XHeight =>  NoCalcLength::FontRelative(FontRelativeLength::Ex(value)),
+            ZeroWidth =>  NoCalcLength::FontRelative(FontRelativeLength::Ch(value)),
+            RootEm =>  NoCalcLength::FontRelative(FontRelativeLength::Rem(value)),
             // viewport percentages
-            "vw" => Ok(NoCalcLength::ViewportPercentage(ViewportPercentageLength::Vw(value))),
-            "vh" => Ok(NoCalcLength::ViewportPercentage(ViewportPercentageLength::Vh(value))),
-            "vmin" => Ok(NoCalcLength::ViewportPercentage(ViewportPercentageLength::Vmin(value))),
-            "vmax" => Ok(NoCalcLength::ViewportPercentage(ViewportPercentageLength::Vmax(value))),
-            _ => Err(())
+            ViewportWidth =>  NoCalcLength::ViewportPercentage(ViewportPercentageLength::Vw(value)),
+            ViewportHeight =>  NoCalcLength::ViewportPercentage(ViewportPercentageLength::Vh(value)),
+            ViewportMin =>  NoCalcLength::ViewportPercentage(ViewportPercentageLength::Vmin(value)),
+            ViewportMax =>  NoCalcLength::ViewportPercentage(ViewportPercentageLength::Vmax(value)),
         }
     }
 
