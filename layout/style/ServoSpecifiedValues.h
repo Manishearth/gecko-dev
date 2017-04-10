@@ -60,6 +60,12 @@ public:
     }
   }
 
+  void SetPointValue(nsCSSPropertyID aId,
+                     float aValue);
+
+  void SetNumberValue(nsCSSPropertyID aId,
+                     float aValue);
+
   void SetPercentValue(nsCSSPropertyID aId,
                        float aValue);
 
