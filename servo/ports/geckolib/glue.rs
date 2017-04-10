@@ -1337,6 +1337,41 @@ pub extern "C" fn Servo_DeclarationBlock_SetPixelValue(declarations:
     })
 }
 
+
+#[no_mangle]
+pub extern "C" fn Servo_DeclarationBlock_SetLengthValue(declarations:
+                                                        RawServoDeclarationBlockBorrowed,
+                                                        property: nsCSSPropertyID,
+                                                        value: f32,
+                                                        unit: structs::nsCSSUnit) {
+    use style::properties::{PropertyDeclaration, LonghandId};
+    use style::values::specified::length::{LengthOrPercentage, NoCalcLength, SpecifiedLengthUnit};
+
+    let long = get_longhand_from_id!(property);
+    let servo_unit = match unit {
+        structs::nsCSSUnit::eCSSUnit_EM => SpecifiedLengthUnit::Em,
+        structs::nsCSSUnit::eCSSUnit_XHeight => SpecifiedLengthUnit::XHeight,
+        structs::nsCSSUnit::eCSSUnit_Pixel => SpecifiedLengthUnit::Pixel,
+        structs::nsCSSUnit::eCSSUnit_Inch => SpecifiedLengthUnit::Inch,
+        structs::nsCSSUnit::eCSSUnit_Centimeter => SpecifiedLengthUnit::Centimeter,
+        structs::nsCSSUnit::eCSSUnit_Millimeter => SpecifiedLengthUnit::Millimeter,
+        structs::nsCSSUnit::eCSSUnit_Point => SpecifiedLengthUnit::Point,
+        structs::nsCSSUnit::eCSSUnit_Pica => SpecifiedLengthUnit::Pica,
+        structs::nsCSSUnit::eCSSUnit_Quarter => SpecifiedLengthUnit::Quarter,
+        _ => unreachable!("Unknown unit {:?} passed to SetLengthValue", unit)
+    };
+    let nocalc = NoCalcLength::for_dimension(value, servo_unit);
+
+    let prop = match_wrap_declared! { long,
+        Width => nocalc.into(),
+        FontSize => LengthOrPercentage::from(nocalc).into(),
+        MozScriptMinSize => nocalc.into(),
+    };
+    write_locked_arc(declarations, |decls: &mut PropertyDeclarationBlock| {
+        decls.push(prop, Importance::Normal);
+    })
+}
+
 #[no_mangle]
 pub extern "C" fn Servo_DeclarationBlock_SetNumberValue(declarations:
                                                        RawServoDeclarationBlockBorrowed,
@@ -1363,7 +1398,7 @@ pub extern "C" fn Servo_DeclarationBlock_SetPercentValue(declarations:
                                                          property: nsCSSPropertyID,
                                                          value: f32) {
     use style::properties::{PropertyDeclaration, LonghandId};
-    use style::values::specified::length::Percentage;
+    use style::values::specified::length::{LengthOrPercentage, Percentage};
 
     let long = get_longhand_from_id!(property);
     let pc = Percentage(value);
@@ -1375,6 +1410,7 @@ pub extern "C" fn Servo_DeclarationBlock_SetPercentValue(declarations:
         MarginRight => pc.into(),
         MarginBottom => pc.into(),
         MarginLeft => pc.into(),
+        FontSize => LengthOrPercentage::from(pc).into(),
     };
     write_locked_arc(declarations, |decls: &mut PropertyDeclarationBlock| {
         decls.push(prop, Importance::Normal);

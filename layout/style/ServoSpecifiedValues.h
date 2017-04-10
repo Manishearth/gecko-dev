@@ -60,6 +60,9 @@ public:
     }
   }
 
+  void SetLengthValue(nsCSSPropertyID aId,
+                      nsCSSValue aValue);
+
   void SetPointValue(nsCSSPropertyID aId,
                      float aValue);
 
