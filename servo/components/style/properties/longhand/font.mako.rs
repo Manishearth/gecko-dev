@@ -225,7 +225,8 @@ ${helpers.single_keyword("font-style",
                          gecko_constant_prefix="NS_FONT_STYLE",
                          gecko_ffi_name="mFont.style",
                          spec="https://drafts.csswg.org/css-fonts/#propdef-font-style",
-                         animation_type="none")}
+                         animation_type="none",
+                         needs_conversion=True)}
 
 ${helpers.single_keyword("font-variant",
                          "normal small-caps",
@@ -305,6 +306,18 @@ ${helpers.single_keyword("font-variant-caps",
                 _ => Err(())
             }
         })
+    }
+
+    impl SpecifiedValue {
+        pub fn from_gecko_keyword(kw: u32) -> Self {
+            match kw {
+                % for weight in range(100, 901, 100):
+                    ${weight} => SpecifiedValue::Weight${weight},
+                % endfor
+                _ => panic!("Found unexpected value in style
+                             struct for font-weight property: {:?}", kw),
+            }
+        }
     }
 
     /// Used in @font-face, where relative keywords are not allowed.
