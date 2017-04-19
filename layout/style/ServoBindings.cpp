@@ -998,9 +998,11 @@ Gecko_nsFont_InitSystem(nsFont* aDest, int32_t aFontId,
   // itself, so this will do.
   nsFont* system = new (aDest) nsFont(*defaultVariableFont);
 
-  *system = *defaultVariableFont;
+  MOZ_RELEASE_ASSERT(system);
+
+  *aDest = *defaultVariableFont;
   LookAndFeel::FontID fontID = static_cast<LookAndFeel::FontID>(aFontId);
-  nsRuleNode::ComputeSystemFont(system, fontID, aPresContext, defaultVariableFont);
+  nsRuleNode::ComputeSystemFont(aDest, fontID, aPresContext, defaultVariableFont);
 }
 
 void
