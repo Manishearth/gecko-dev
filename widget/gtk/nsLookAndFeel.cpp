@@ -28,6 +28,7 @@
 #include <dlfcn.h>
 
 #include "mozilla/gfx/2D.h"
+#include "mozilla/ServoStyleSet.h"
 
 #if MOZ_WIDGET_GTK != 2
 #include <cairo-gobject.h>
@@ -1054,13 +1055,26 @@ nsLookAndFeel::GetFontImpl(FontID aID, nsString& aFontName,
       break;
   }
 
-  if (!*isCached) {
-    GetSystemFontInfo(aID, cachedFontName, cachedFontStyle);
-    *isCached = true;
+
+
+  if (ServoStyleSet::IsInServoTraversal()) {
+    if (*isCached) {
+      aFontName = *cachedFontName;
+      aFontStyle = *cachedFontStyle;
+    } else {
+      // It's not thread safe to touch the cache, so we just
+      // return the result without caching
+      GetSystemFontInfo(aID, &aFontName, &aFontStyle);
+    }
+  } else {
+    if (!*isCached) {
+      GetSystemFontInfo(aID, cachedFontName, cachedFontStyle);
+      *isCached = true;
+    }
+    aFontName = *cachedFontName;
+    aFontStyle = *cachedFontStyle;
   }
 
-  aFontName = *cachedFontName;
-  aFontStyle = *cachedFontStyle;
   return true;
 }
 
