@@ -3,7 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 <%namespace name="helpers" file="/helpers.mako.rs" />
-<% from data import SYSTEM_FONT_LONGHANDS %>
+<% from data import SYSTEM_FONT_LONGHANDS, to_camel_case %>
 
 <%helpers:shorthand name="font"
                     sub_properties="font-style font-variant-caps font-weight font-stretch
@@ -21,6 +21,7 @@
     use properties::longhands::{font_size, line_height, font_variant_caps};
     #[cfg(feature = "gecko")]
     use properties::longhands::system_font::SystemFont;
+
     <%
         gecko_sub_properties = "kerning language_override size_adjust \
                                 variant_alternates variant_east_asian \

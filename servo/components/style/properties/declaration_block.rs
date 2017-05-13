@@ -415,14 +415,30 @@ impl ToCss for PropertyDeclarationBlock {
                     let mut current_longhands = Vec::new();
                     let mut important_count = 0;
 
+                    let mut found_system = None;
+
                     for &&(ref longhand, longhand_importance) in longhands.iter() {
                         if longhand.id().is_longhand_of(shorthand) {
                             current_longhands.push(longhand);
                             if longhand_importance.important() {
                                 important_count += 1;
                             }
+
+                            if shorthand == ShorthandId::Font && found_system.is_none() {
+                                if let Some(sys) = longhand.get_system() {
+                                    found_system = Some(sys);
+                                }
+                            }
                         }
                     }
+
+                    if found_system.is_some() {
+                        current_longhands = current_longhands.into_iter()
+                                                             .filter(|l| l.get_system().is_some() ||
+                                                                         l.is_default_line_height())
+                                                             .collect();
+                    }
+
 
                     // Substep 1:
                     //
@@ -430,7 +446,7 @@ impl ToCss for PropertyDeclarationBlock {
                     // duplicate entries, if the current_longhands length is
                     // equal to the properties length, it means that the
                     // properties that map to shorthand are present in longhands
-                    if current_longhands.len() != properties.len() {
+                    if current_longhands.len() != properties.len() && found_system.is_none() {
                         continue;
                     }
 
@@ -455,25 +471,32 @@ impl ToCss for PropertyDeclarationBlock {
 
                     // We avoid re-serializing if we're already an
                     // AppendableValue::Css.
-                    let mut value = String::new();
-                    let value = match appendable_value {
-                        AppendableValue::Css { css, with_variables } => {
+                    let mut v = String::new();
+                    let value = match (appendable_value, found_system) {
+                        (AppendableValue::Css { css, with_variables }, _) => {
                             debug_assert!(!css.is_empty());
                             AppendableValue::Css {
                                 css: css,
                                 with_variables: with_variables,
                             }
                         }
-                        other @ _ => {
-                            append_declaration_value(&mut value, other)?;
+                        (_, Some(sys)) => {
+                            sys.to_css(&mut v)?;
+                            AppendableValue::Css {
+                                css: &v,
+                                with_variables: false,
+                            }
+                        }
+                        (other, _) => {
+                            append_declaration_value(&mut v, other)?;
 
                             // Substep 6
-                            if value.is_empty() {
+                            if v.is_empty() {
                                 continue;
                             }
 
                             AppendableValue::Css {
-                                css: &value,
+                                css: &v,
                                 with_variables: false,
                             }
                         }

@@ -31,6 +31,7 @@ use logical_geometry::WritingMode;
 use media_queries::Device;
 use parser::{LengthParsingMode, Parse, ParserContext};
 use properties::animated_properties::TransitionProperty;
+#[cfg(feature = "gecko")] use properties::longhands::system_font::SystemFont;
 #[cfg(feature = "servo")] use servo_config::prefs::PREFS;
 use shared_lock::StylesheetGuards;
 use style_traits::ToCss;
@@ -51,7 +52,7 @@ macro_rules! property_name {
 }
 
 <%!
-    from data import Method, Keyword, to_rust_ident, to_camel_case
+    from data import Method, Keyword, to_rust_ident, to_camel_case, SYSTEM_FONT_LONGHANDS
     import os.path
 %>
 
@@ -1368,6 +1369,35 @@ impl PropertyDeclaration {
             PropertyDeclaration::CSSWideKeyword(_, keyword) => Some(keyword),
             _ => None,
         }
+    }
+
+    /// Returns whether or not the property is set by a system font
+    #[cfg(feature = "gecko")]
+    pub fn get_system(&self) -> Option<SystemFont> {
+        match *self {
+            % for prop in SYSTEM_FONT_LONGHANDS:
+                PropertyDeclaration::${to_camel_case(prop)}(ref prop) => {
+                    prop.get_system()
+                }
+            % endfor
+            _ => None,
+        }
+    }
+
+    /// Is it the default value of line-height?
+    ///
+    /// (using match because it generates less code than)
+    pub fn is_default_line_height(&self) -> bool {
+        match *self {
+            PropertyDeclaration::LineHeight(longhands::line_height::SpecifiedValue::Normal) => true,
+            _ => false
+        }
+    }
+
+    #[cfg(feature = "servo")]
+    /// Dummy method to avoid cfg()s
+    pub fn get_system(&self, include_line_height_default: bool) -> Option<()> {
+        None
     }
 
     /// Returns whether the declaration may be serialized as part of a shorthand.
