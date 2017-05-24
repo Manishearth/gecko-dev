@@ -62,6 +62,7 @@ headers = [
     "nsCSSFontFaceRule.h",
     "nsMediaFeatures.h",
     "nsMediaList.h",
+    "nsIWidget.h",
 ]
 raw-lines = [
     # FIXME(emilio): Incrementally remove these "pub use"s. Probably
