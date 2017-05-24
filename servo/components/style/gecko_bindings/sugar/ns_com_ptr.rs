@@ -13,6 +13,12 @@ impl<T> nsCOMPtr<T> {
     pub fn raw<U>(&self) -> *mut T {
         self.mRawPtr
     }
+
+    /// Set this pointer to a raw pointer.
+    #[inline]
+    pub fn set_raw<U>(&mut self, ptr: *mut T)  {
+        self.mRawPtr = ptr;
+    }
 }
 
 #[cfg(not(feature = "gecko_debug"))]
@@ -21,5 +27,11 @@ impl nsCOMPtr {
     #[inline]
     pub fn raw<T>(&self) -> *mut T {
         self._base.mRawPtr as *mut _
+    }
+
+    /// Set this pointer to a raw pointer.
+    #[inline]
+    pub fn set_raw<T>(&mut self, ptr: *mut T)  {
+        self._base.mRawPtr = ptr;
     }
 }

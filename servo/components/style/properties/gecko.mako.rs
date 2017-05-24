@@ -4026,7 +4026,7 @@ clip-path
 </%self:impl_trait>
 
 <%self:impl_trait style_struct_name="InheritedSVG"
-                  skip_longhands="paint-order stroke-dasharray"
+                  skip_longhands="paint-order stroke-dasharray -moz-context-properties"
                   skip_additionals="*">
     pub fn set_paint_order(&mut self, v: longhands::paint_order::computed_value::T) {
         use self::longhands::paint_order;
@@ -4093,6 +4093,34 @@ clip-path
             }
         }
         longhands::stroke_dasharray::computed_value::T(vec)
+    }
+
+    #[allow(non_snake_case)]
+    pub fn set__moz_context_properties<I>(&mut self, v: I)
+        where I: IntoIterator<Item = longhands::_moz_context_properties::computed_value::single_value::T>,
+              I::IntoIter: ExactSizeIterator
+    {
+        let v = v.into_iter();
+        unsafe {
+            bindings::Gecko_nsStyleSVG_SetContextPropertiesLength(&mut self.gecko, v.len() as u32);
+        }
+
+        self.gecko.mContextPropsBits = 0;
+        for (mut gecko, servo) in self.gecko.mContextProps.iter_mut().zip(v) {
+            if servo.0 == atom!("stroke") {
+                self.gecko.mContextPropsBits |= structs::NS_STYLE_CONTEXT_PROPERTY_FILL as u8;
+            } else if servo.0 == atom!("stroke") {
+                self.gecko.mContextPropsBits |= structs::NS_STYLE_CONTEXT_PROPERTY_STROKE as u8;
+            }
+            gecko.set_raw::<structs::nsIAtom>(servo.0.into_addrefed())
+        }
+    }
+
+    #[allow(non_snake_case)]
+    pub fn copy__moz_context_properties_from(&mut self, other: &Self) {
+        unsafe {
+            bindings::Gecko_nsStyleSVG_CopyContextProperties(&mut self.gecko, &other.gecko);
+        }
     }
 </%self:impl_trait>
 
