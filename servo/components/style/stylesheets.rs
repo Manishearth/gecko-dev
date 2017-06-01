@@ -39,7 +39,7 @@ use servo_url::ServoUrl;
 use shared_lock::{SharedRwLock, Locked, ToCssWithGuard, SharedRwLockReadGuard};
 use std::borrow::Borrow;
 use std::cell::Cell;
-use std::fmt;
+use std::{fmt, mem};
 use std::sync::atomic::{AtomicBool, Ordering};
 use str::starts_with_ignore_ascii_case;
 use style_traits::ToCss;
@@ -449,13 +449,13 @@ impl CssRule {
                  loader: Option<&StylesheetLoader>)
                  -> Result<(Self, State), SingleRuleParseError> {
         let error_reporter = NullReporter;
-        let mut namespaces = parent_stylesheet.namespaces.write();
-        let context = ParserContext::new(parent_stylesheet.origin,
-                                         &parent_stylesheet.url_data,
-                                         &error_reporter,
-                                         None,
-                                         PARSING_MODE_DEFAULT,
-                                         parent_stylesheet.quirks_mode);
+        let mut context = ParserContext::new(parent_stylesheet.origin,
+                                             &parent_stylesheet.url_data,
+                                             &error_reporter,
+                                             None,
+                                             PARSING_MODE_DEFAULT,
+                                             parent_stylesheet.quirks_mode);
+        context.namespaces = Some(&parent_stylesheet.namespaces);
         let mut input = Parser::new(css);
 
         // nested rules are in the body state
@@ -466,7 +466,6 @@ impl CssRule {
             shared_lock: &parent_stylesheet.shared_lock,
             loader: loader,
             state: Cell::new(state),
-            namespaces: &mut namespaces,
         };
         match parse_one_rule(&mut input, &mut rule_parser) {
             Ok(result) => Ok((result, rule_parser.state.get())),
@@ -914,14 +913,14 @@ impl Stylesheet {
                            stylesheet_loader: Option<&StylesheetLoader>,
                            error_reporter: &ParseErrorReporter,
                            line_number_offset: u64) {
-        let mut namespaces = Namespaces::default();
+        let namespaces = RwLock::new(Namespaces::default());
         // FIXME: we really should update existing.url_data with the given url_data,
         // otherwise newly inserted rule may not have the right base url.
         let (rules, dirty_on_viewport_size_change) = Stylesheet::parse_rules(
-            css, url_data, existing.origin, &mut namespaces,
+            css, url_data, existing.origin, &namespaces,
             &existing.shared_lock, stylesheet_loader, error_reporter,
             existing.quirks_mode, line_number_offset);
-        *existing.namespaces.write() = namespaces;
+        mem::swap(&mut *existing.namespaces.write(), &mut *namespaces.write());
         existing.dirty_on_viewport_size_change
             .store(dirty_on_viewport_size_change, Ordering::Release);
 
@@ -933,7 +932,7 @@ impl Stylesheet {
     fn parse_rules(css: &str,
                    url_data: &UrlExtraData,
                    origin: Origin,
-                   namespaces: &mut Namespaces,
+                   namespaces: &RwLock<Namespaces>,
                    shared_lock: &SharedRwLock,
                    stylesheet_loader: Option<&StylesheetLoader>,
                    error_reporter: &ParseErrorReporter,
@@ -942,14 +941,15 @@ impl Stylesheet {
                    -> (Vec<CssRule>, bool) {
         let mut rules = Vec::new();
         let mut input = Parser::new(css);
+        let mut context = ParserContext::new_with_line_number_offset(origin, url_data, error_reporter,
+                                                                line_number_offset, PARSING_MODE_DEFAULT,
+                                                                quirks_mode);
+        context.namespaces = Some(namespaces);
         let rule_parser = TopLevelRuleParser {
             stylesheet_origin: origin,
-            namespaces: namespaces,
             shared_lock: shared_lock,
             loader: stylesheet_loader,
-            context: ParserContext::new_with_line_number_offset(origin, url_data, error_reporter,
-                                                                line_number_offset, PARSING_MODE_DEFAULT,
-                                                                quirks_mode),
+            context: context,
             state: Cell::new(State::Start),
         };
 
@@ -987,15 +987,15 @@ impl Stylesheet {
                     quirks_mode: QuirksMode,
                     line_number_offset: u64)
                     -> Stylesheet {
-        let mut namespaces = Namespaces::default();
+        let namespaces = RwLock::new(Namespaces::default());
         let (rules, dirty_on_viewport_size_change) = Stylesheet::parse_rules(
-            css, &url_data, origin, &mut namespaces,
+            css, &url_data, origin, &namespaces,
             &shared_lock, stylesheet_loader, error_reporter, quirks_mode, line_number_offset,
         );
         Stylesheet {
             origin: origin,
             url_data: url_data,
-            namespaces: RwLock::new(namespaces),
+            namespaces: namespaces,
             rules: CssRules::new(rules, &shared_lock),
             media: media,
             shared_lock: shared_lock,
@@ -1189,7 +1189,6 @@ impl StylesheetLoader for NoOpLoader {
 
 struct TopLevelRuleParser<'a> {
     stylesheet_origin: Origin,
-    namespaces: &'a mut Namespaces,
     shared_lock: &'a SharedRwLock,
     loader: Option<&'a StylesheetLoader>,
     context: ParserContext<'a>,
@@ -1202,7 +1201,6 @@ impl<'b> TopLevelRuleParser<'b> {
             stylesheet_origin: self.stylesheet_origin,
             shared_lock: self.shared_lock,
             context: &self.context,
-            namespaces: self.namespaces,
         }
     }
 }
@@ -1307,10 +1305,12 @@ impl<'a> AtRuleParser for TopLevelRuleParser<'a> {
 
                     let opt_prefix = if let Ok(prefix) = prefix_result {
                         let prefix = Prefix::from(prefix);
-                        self.namespaces.prefixes.insert(prefix.clone(), url.clone());
+                        self.context.namespaces.expect("namespaces must be set whilst parsing rules")
+                                               .write().prefixes.insert(prefix.clone(), url.clone());
                         Some(prefix)
                     } else {
-                        self.namespaces.default = Some(url.clone());
+                        self.context.namespaces.expect("namespaces must be set whilst parsing rules")
+                                               .write().default = Some(url.clone());
                         None
                     };
 
@@ -1369,7 +1369,6 @@ struct NestedRuleParser<'a, 'b: 'a> {
     stylesheet_origin: Origin,
     shared_lock: &'a SharedRwLock,
     context: &'a ParserContext<'b>,
-    namespaces: &'b Namespaces,
 }
 
 impl<'a, 'b> NestedRuleParser<'a, 'b> {
@@ -1379,7 +1378,6 @@ impl<'a, 'b> NestedRuleParser<'a, 'b> {
             stylesheet_origin: self.stylesheet_origin,
             shared_lock: self.shared_lock,
             context: &context,
-            namespaces: self.namespaces,
         };
         let mut iter = RuleListParser::new_for_nested_rule(input, nested_parser);
         let mut rules = Vec::new();
@@ -1555,9 +1553,10 @@ impl<'a, 'b> QualifiedRuleParser for NestedRuleParser<'a, 'b> {
     type QualifiedRule = CssRule;
 
     fn parse_prelude(&mut self, input: &mut Parser) -> Result<SelectorList<SelectorImpl>, ()> {
+        let ns = self.context.namespaces.expect("namespaces must be set when parsing rules").read();
         let selector_parser = SelectorParser {
             stylesheet_origin: self.stylesheet_origin,
-            namespaces: self.namespaces,
+            namespaces: &*ns,
         };
         SelectorList::parse(&selector_parser, input)
     }
