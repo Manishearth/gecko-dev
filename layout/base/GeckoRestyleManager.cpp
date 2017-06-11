@@ -1777,7 +1777,7 @@ ElementRestyler::Restyle(nsRestyleHint aRestyleHint)
                                   eRestyle_Subtree |
                                   eRestyle_ForceDescendants));
 
-  RefPtr<nsStyleContext> oldContext = mFrame->StyleContext();
+  RefPtr<GeckoStyleContext> oldContext = mFrame->StyleContext()->AsGecko();
 
   nsTArray<SwapInstruction> swaps;
 
