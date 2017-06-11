@@ -94,10 +94,6 @@ public:
 
   bool HasNoChildren() const;
 
-  NonOwningStyleContextSource StyleSource() const {
-    return NonOwningStyleContextSource(mRuleNode);
-  }
-
   nsRuleNode* RuleNode() const {
     return mRuleNode;
   }
