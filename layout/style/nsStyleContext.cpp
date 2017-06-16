@@ -439,7 +439,11 @@ void
 nsStyleContext::SetStyleIfVisited(already_AddRefed<nsStyleContext> aStyleIfVisited)
 {
   MOZ_ASSERT(!IsStyleIfVisited(), "this context is not visited data");
-  NS_ASSERTION(!mStyleIfVisited, "should only be set once");
+  // XXXManishearth
+  // Servo currently mints fresh visited contexts on calls to GetContext()
+  // in line with the previous behavior.
+  // This is suboptimal and should be phased out when we phase out GetContext()
+  NS_ASSERTION(IsServo() || !mStyleIfVisited, "should only be set once");
 
   mStyleIfVisited = aStyleIfVisited;
 

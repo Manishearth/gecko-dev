@@ -5875,7 +5875,8 @@ nsCSSFrameConstructor::AddFrameConstructionItemsInternal(nsFrameConstructorState
           styleSet->StyleNewChildren(element);
 
           styleContext =
-            styleSet->ResolveStyleFor(element, nullptr, LazyComputeBehavior::Allow);
+            styleSet->ResolveStyleFor(element, styleContext->GetParentAllowServo()->AsServo(),
+                                      LazyComputeBehavior::Assert);
         } else {
           styleContext =
             ResolveStyleContext(styleContext->GetParent(), aContent, &aState);
