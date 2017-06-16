@@ -520,7 +520,7 @@ ServoRestyleManager::ProcessPostTraversal(Element* aElement,
   // Also, we're going to need to check for pseudos of display: contents
   // elements, though that is buggy right now even in non-stylo mode, see
   // bug 1251799.
-  const bool recreateContext = oldStyleContext &&
+  const bool updateContext = oldStyleContext &&
     oldStyleContext->ComputedValues() != currentContext->ComputedValues();
 
   Maybe<ServoRestyleState> thisFrameRestyleState;
@@ -538,19 +538,11 @@ ServoRestyleManager::ProcessPostTraversal(Element* aElement,
     thisFrameRestyleState ? *thisFrameRestyleState : aRestyleState;
 
   RefPtr<ServoStyleContext> newContext = nullptr;
-  if (recreateContext) {
+  if (updateContext) {
     MOZ_ASSERT(styleFrame || displayContentsNode);
 
-    auto pseudo = aElement->GetPseudoElementType();
-    nsIAtom* pseudoTag = pseudo == CSSPseudoElementType::NotPseudo
-      ? nullptr : nsCSSPseudoElements::GetPseudoAtom(pseudo);
 
-    // XXXManishearth we should just reuse the old one here
-    RefPtr<ServoStyleContext> tempContext =
-      Servo_StyleContext_NewContext(currentContext->ComputedValues(), aParentContext,
-                                    PresContext(), pseudo, pseudoTag).Consume();
-    newContext = aRestyleState.StyleSet().GetContext(tempContext.forget(), aParentContext,
-                                                     pseudoTag, pseudo, aElement);
+    newContext = currentContext;
 
     newContext->ResolveSameStructsAs(PresContext(), oldStyleContext);
 
@@ -606,15 +598,15 @@ ServoRestyleManager::ProcessPostTraversal(Element* aElement,
     aElement->HasDirtyDescendantsForServo() ||
     aElement->HasAnimationOnlyDirtyDescendantsForServo() ||
     descendantsNeedFrames;
-  const bool traverseTextChildren = recreateContext || descendantsNeedFrames;
-  bool recreatedAnyContext = recreateContext;
+  const bool traverseTextChildren = updateContext || descendantsNeedFrames;
+  bool recreatedAnyContext = updateContext;
   if (traverseElementChildren || traverseTextChildren) {
     ServoStyleContext* upToDateContext =
-      recreateContext ? newContext : oldStyleContext;
+      updateContext ? newContext : oldStyleContext;
 
     StyleChildrenIterator it(aElement);
     TextPostTraversalState textState(*upToDateContext,
-                                     displayContentsNode && recreateContext,
+                                     displayContentsNode && updateContext,
                                      childrenRestyleState);
     for (nsIContent* n = it.GetNextChild(); n; n = it.GetNextChild()) {
       if (traverseElementChildren && n->IsElement()) {
@@ -630,7 +622,7 @@ ServoRestyleManager::ProcessPostTraversal(Element* aElement,
   // kids, because some of those updates (::first-line/::first-letter) need to
   // modify the styles of the kids, and the child traversal above would just
   // clobber those modifications.
-  if (recreateContext && styleFrame) {
+  if (updateContext && styleFrame) {
     UpdateFramePseudoElementStyles(styleFrame, childrenRestyleState);
   }
 
