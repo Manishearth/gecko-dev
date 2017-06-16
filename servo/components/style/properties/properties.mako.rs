@@ -12,9 +12,7 @@
 
 use std::borrow::Cow;
 use std::collections::HashSet;
-use std::fmt;
-use std::mem;
-use std::ops::Deref;
+use std::{fmt, mem, ops};
 use stylearc::{Arc, UniqueArc};
 
 use app_units::Au;
@@ -113,7 +111,7 @@ pub struct FontComputationData {
 }
 
 
-impl FontComputationData{
+impl FontComputationData {
         /// Assigns values for variables in struct FontComputationData
     pub fn new(font_size_keyword: Option<(longhands::font_size::KeywordSize, f32)>) -> Self {
         FontComputationData {
@@ -1806,19 +1804,11 @@ pub mod style_structs {
 #[cfg(feature = "gecko")]
 pub use gecko_properties::ComputedValues;
 
-/// A legacy alias for a servo-version of ComputedValues. Should go away soon.
-#[cfg(feature = "servo")]
-pub type ServoComputedValues = ComputedValues;
 
-/// The struct that Servo uses to represent computed values.
-///
-/// This struct contains an immutable atomically-reference-counted pointer to
-/// every kind of style struct.
-///
-/// When needed, the structs may be copied in order to get mutated.
 #[cfg(feature = "servo")]
-#[cfg_attr(feature = "servo", derive(Clone))]
-pub struct ComputedValues {
+#[cfg_attr(feature = "servo", derive(Clone, Debug))]
+/// Actual data of ComputedValues, to match up with Gecko
+pub struct ComputedValuesInner {
     % for style_struct in data.active_style_structs():
         ${style_struct.ident}: Arc<style_structs::${style_struct.name}>,
     % endfor
@@ -1842,6 +1832,24 @@ pub struct ComputedValues {
     visited_style: Option<Arc<ComputedValues>>,
 }
 
+/// The struct that Servo uses to represent computed values.
+///
+/// This struct contains an immutable atomically-reference-counted pointer to
+/// every kind of style struct.
+///
+/// When needed, the structs may be copied in order to get mutated.
+#[cfg(feature = "servo")]
+#[cfg_attr(feature = "servo", derive(Clone, Debug))]
+pub struct ComputedValues {
+    /// The actual computed values
+    ///
+    /// In Gecko the outer ComputedValues is actually a style context,
+    /// whereas ComputedValuesInner is the core set of computed values.
+    ///
+    /// We maintain this distinction in servo to reduce the amount of special casing.
+    pub inner: ComputedValuesInner,
+}
+
 #[cfg(feature = "servo")]
 impl ComputedValues {
     /// Construct a `ComputedValues` instance.
@@ -1858,21 +1866,41 @@ impl ComputedValues {
     ) -> Self {
         let font_computation_data = FontComputationData::new(font_size_keyword);
         ComputedValues {
-            custom_properties,
-            writing_mode,
-            font_computation_data,
-            flags,
-            rules,
-            visited_style,
-        % for style_struct in data.active_style_structs():
-            ${style_struct.ident},
-        % endfor
+            inner: ComputedValuesInner {
+                custom_properties: custom_properties,
+                writing_mode: writing_mode,
+                font_computation_data: FontComputationData::new(font_size_keyword),
+                rules: rules,
+                visited_style: visited_style,
+                flags: flags,
+            % for style_struct in data.active_style_structs():
+                ${style_struct.ident}: ${style_struct.ident},
+            % endfor
+            }
         }
     }
 
     /// Get the initial computed values.
     pub fn initial_values() -> &'static Self { &*INITIAL_SERVO_VALUES }
+}
 
+#[cfg(feature = "servo")]
+impl ops::Deref for ComputedValues {
+    type Target = ComputedValuesInner;
+    fn deref(&self) -> &ComputedValuesInner {
+        &self.inner
+    }
+}
+
+#[cfg(feature = "servo")]
+impl ops::DerefMut for ComputedValues {
+    fn deref_mut(&mut self) -> &mut ComputedValuesInner {
+        &mut self.inner
+    }
+}
+
+#[cfg(feature = "servo")]
+impl ComputedValuesInner {
     % for style_struct in data.active_style_structs():
         /// Clone the ${style_struct.name} struct.
         #[inline]
@@ -2226,7 +2254,7 @@ pub fn get_writing_mode(inheritedbox_style: &style_structs::InheritedBox) -> Wri
         Arc::from_raw_offset(x.clone())
     }
 % else:
-    pub use Arc as BuilderArc;
+    pub use ::stylearc::Arc as BuilderArc;
     /// Clone an arc, returning a regular arc
     fn clone_arc<T: 'static>(x: &BuilderArc<T>) -> Arc<T> {
         x.clone()
@@ -2303,7 +2331,7 @@ impl<'a, T: 'a> StyleStructRef<'a, T>
     }
 }
 
-impl<'a, T: 'a> Deref for StyleStructRef<'a, T> {
+impl<'a, T: 'a> ops::Deref for StyleStructRef<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -2483,28 +2511,30 @@ pub use self::lazy_static_module::INITIAL_SERVO_VALUES;
 mod lazy_static_module {
     use logical_geometry::WritingMode;
     use stylearc::Arc;
-    use super::{ComputedValues, longhands, style_structs, FontComputationData};
+    use super::{ComputedValues, ComputedValuesInner, longhands, style_structs, FontComputationData};
     use super::computed_value_flags::ComputedValueFlags;
 
     /// The initial values for all style structs as defined by the specification.
     lazy_static! {
         pub static ref INITIAL_SERVO_VALUES: ComputedValues = ComputedValues {
-            % for style_struct in data.active_style_structs():
-                ${style_struct.ident}: Arc::new(style_structs::${style_struct.name} {
-                    % for longhand in style_struct.longhands:
-                        ${longhand.ident}: longhands::${longhand.ident}::get_initial_value(),
-                    % endfor
-                    % if style_struct.name == "Font":
-                        hash: 0,
-                    % endif
-                }),
-            % endfor
-            custom_properties: None,
-            writing_mode: WritingMode::empty(),
-            flags: ComputedValueFlags::initial(),
-            font_computation_data: FontComputationData::default_values(),
-            rules: None,
-            visited_style: None,
+            inner: ComputedValuesInner {
+                % for style_struct in data.active_style_structs():
+                    ${style_struct.ident}: Arc::new(style_structs::${style_struct.name} {
+                        % for longhand in style_struct.longhands:
+                            ${longhand.ident}: longhands::${longhand.ident}::get_initial_value(),
+                        % endfor
+                        % if style_struct.name == "Font":
+                            hash: 0,
+                        % endif
+                    }),
+                % endfor
+                custom_properties: None,
+                writing_mode: WritingMode::empty(),
+                font_computation_data: FontComputationData::default_values(),
+                rules: None,
+                visited_style: None,
+                flags: flags,
+            }
         };
     }
 }
