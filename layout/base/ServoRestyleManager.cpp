@@ -260,7 +260,7 @@ ServoRestyleManager::ClearRestyleStateFromSubtree(Element* aElement)
 struct ServoRestyleManager::TextPostTraversalState
 {
 public:
-  TextPostTraversalState(nsStyleContext& aParentContext,
+  TextPostTraversalState(ServoStyleContext& aParentContext,
                          bool aDisplayContentsParentStyleChanged,
                          ServoRestyleState& aParentRestyleState)
     : mParentContext(aParentContext)
@@ -294,7 +294,7 @@ public:
       return;
     }
 
-    nsStyleContext* oldContext = aTextFrame->StyleContext();
+    ServoStyleContext* oldContext = aTextFrame->StyleContext()->AsServo();
     MOZ_ASSERT(oldContext->GetPseudo() == nsCSSAnonBoxes::mozText);
 
     // We rely on the fact that all the text children for the same element share
@@ -320,7 +320,7 @@ public:
   }
 
 private:
-  nsStyleContext& mParentContext;
+  ServoStyleContext& mParentContext;
   ServoRestyleState& mParentRestyleState;
   RefPtr<nsStyleContext> mStyle;
   bool mShouldPostHints;
@@ -382,7 +382,7 @@ UpdateBackdropIfNeeded(nsIFrame* aFrame,
   RefPtr<nsStyleContext> newContext =
     aStyleSet.ResolvePseudoElementStyle(aFrame->GetContent()->AsElement(),
                                         CSSPseudoElementType::backdrop,
-                                        aFrame->StyleContext(),
+                                        aFrame->StyleContext()->AsServo(),
                                         /* aPseudoElement = */ nullptr);
 
   // NOTE(emilio): We can't use the changes handled for the owner of the
@@ -428,11 +428,10 @@ UpdateFramePseudoElementStyles(nsIFrame* aFrame,
 
 bool
 ServoRestyleManager::ProcessPostTraversal(Element* aElement,
-                                          nsStyleContext* aParentContext,
+                                          ServoStyleContext* aParentContext,
                                           ServoRestyleState& aRestyleState)
 {
   nsIFrame* styleFrame = nsLayoutUtils::GetStyleFrame(aElement);
-  ServoStyleContext* parent = aParentContext ? aParentContext->AsServo() : nullptr;
 
   // NOTE(emilio): This is needed because for table frames the bit is set on the
   // table wrapper (which is the primary frame), not on the table itself.
@@ -540,7 +539,7 @@ ServoRestyleManager::ProcessPostTraversal(Element* aElement,
 
     // XXXManishearth we should just reuse the old one here
     RefPtr<ServoStyleContext> tempContext =
-      Servo_StyleContext_NewContext(currentContext->ComputedValues(), parent,
+      Servo_StyleContext_NewContext(currentContext->ComputedValues(), aParentContext,
                                     PresContext(), pseudo, pseudoTag).Consume();
     newContext = aRestyleState.StyleSet().GetContext(tempContext.forget(), aParentContext,
                                                      pseudoTag, pseudo, aElement);
@@ -602,7 +601,7 @@ ServoRestyleManager::ProcessPostTraversal(Element* aElement,
   const bool traverseTextChildren = recreateContext || descendantsNeedFrames;
   bool recreatedAnyContext = recreateContext;
   if (traverseElementChildren || traverseTextChildren) {
-    nsStyleContext* upToDateContext =
+    ServoStyleContext* upToDateContext =
       recreateContext ? newContext : oldStyleContext;
 
     StyleChildrenIterator it(aElement);
