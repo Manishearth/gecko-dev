@@ -514,12 +514,12 @@ KeyframeEffectReadOnly::EnsureBaseStyles(
              "supposed to be called right after getting computed values with "
              "a valid nsPresContext");
 
-  RefPtr<ServoComputedValues> baseComputedValues;
+  RefPtr<ServoStyleContext> baseStyleContext;
   for (const AnimationProperty& property : aProperties) {
     EnsureBaseStyle(property,
                     mTarget->mPseudoType,
                     presContext,
-                    baseComputedValues);
+                    baseStyleContext);
   }
 }
 
@@ -528,7 +528,7 @@ KeyframeEffectReadOnly::EnsureBaseStyle(
   const AnimationProperty& aProperty,
   CSSPseudoElementType aPseudoType,
   nsPresContext* aPresContext,
-  RefPtr<ServoComputedValues>& aBaseComputedValues)
+  RefPtr<ServoStyleContext>& aBaseStyleContext)
 {
   bool hasAdditiveValues = false;
 
@@ -543,13 +543,13 @@ KeyframeEffectReadOnly::EnsureBaseStyle(
     return;
   }
 
-  if (!aBaseComputedValues) {
-    aBaseComputedValues =
+  if (!aBaseStyleContext) {
+    aBaseStyleContext =
       aPresContext->StyleSet()->AsServo()->
-        GetBaseComputedValuesForElement(mTarget->mElement, aPseudoType);
+        GetBaseContextForElement(mTarget->mElement, nullptr, aPresContext, nullptr, aPseudoType);
   }
   RefPtr<RawServoAnimationValue> baseValue =
-    Servo_ComputedValues_ExtractAnimationValue(aBaseComputedValues,
+    Servo_ComputedValues_ExtractAnimationValue(aBaseStyleContext->ComputedValues(),
                                                aProperty.mProperty).Consume();
   mBaseStyleValuesForServo.Put(aProperty.mProperty, baseValue);
 }

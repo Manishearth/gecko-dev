@@ -640,11 +640,9 @@ nsComputedDOMStyle::DoGetStyleContextNoFlush(Element* aElement,
             return styleSet->ResolveStyleByRemovingAnimation(
                      aElement, result, eRestyle_AllHintsWithAnimations);
           } else {
-            RefPtr<ServoComputedValues> baseComputedValues =
-              presContext->StyleSet()->AsServo()->
-                GetBaseComputedValuesForElement(aElement, pseudoType);
-            return ServoStyleContext::Create(nullptr, presContext, aPseudo,
-                                             pseudoType, baseComputedValues.forget());
+              return presContext->StyleSet()->AsServo()->
+                GetBaseContextForElement(aElement, nullptr, presContext,
+                                         aPseudo, pseudoType);
           }
         }
 
@@ -676,10 +674,8 @@ nsComputedDOMStyle::DoGetStyleContextNoFlush(Element* aElement,
       return result.forget();
     }
 
-    RefPtr<ServoComputedValues> baseComputedValues =
-      servoSet->GetBaseComputedValuesForElement(aElement, pseudoType);
-    return ServoStyleContext::Create(nullptr, presContext, aPseudo,
-                                     pseudoType, baseComputedValues.forget());
+    return servoSet->GetBaseContextForElement(aElement, nullptr, presContext,
+                                              aPseudo, pseudoType);
   }
 
   RefPtr<nsStyleContext> parentContext;

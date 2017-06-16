@@ -382,9 +382,12 @@ public:
 
   nsCSSCounterStyleRule* CounterStyleRuleForName(nsIAtom* aName);
 
-  already_AddRefed<ServoComputedValues>
-  GetBaseComputedValuesForElement(dom::Element* aElement,
-                                  CSSPseudoElementType aPseudoType);
+  already_AddRefed<ServoStyleContext>
+  GetBaseContextForElement(dom::Element* aElement,
+                           nsStyleContext* aParentContext,
+                           nsPresContext* aPresContext,
+                           nsIAtom* aPseudoTag,
+                           CSSPseudoElementType aPseudoType);
 
   /**
    * Resolve style for a given declaration block with/without the parent style.

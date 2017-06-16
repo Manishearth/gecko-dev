@@ -1073,14 +1073,19 @@ ServoStyleSet::GetAnimationValues(
                            &aAnimationValues);
 }
 
-already_AddRefed<ServoComputedValues>
-ServoStyleSet::GetBaseComputedValuesForElement(Element* aElement,
-                                               CSSPseudoElementType aPseudoType)
+already_AddRefed<ServoStyleContext>
+ServoStyleSet::GetBaseContextForElement(dom::Element* aElement,
+                         nsStyleContext* aParentContext,
+                         nsPresContext* aPresContext,
+                         nsIAtom* aPseudoTag,
+                         CSSPseudoElementType aPseudoType)
 {
-  return Servo_StyleSet_GetBaseComputedValuesForElement(mRawSet.get(),
+  RefPtr<ServoComputedValues> cv = Servo_StyleSet_GetBaseComputedValuesForElement(mRawSet.get(),
                                                         aElement,
                                                         &Snapshots(),
                                                         aPseudoType).Consume();
+  return ServoStyleContext::Create(nullptr, presContext, aPseudo,
+                                   pseudoType, baseComputedValues.forget());
 }
 
 already_AddRefed<RawServoAnimationValue>
