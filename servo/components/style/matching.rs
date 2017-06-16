@@ -26,7 +26,7 @@ use selector_parser::{PseudoElement, RestyleDamage, SelectorImpl};
 use selectors::matching::{ElementSelectorFlags, MatchingContext, MatchingMode, StyleRelations};
 use selectors::matching::{VisitedHandlingMode, AFFECTED_BY_PSEUDO_ELEMENTS};
 use sharing::StyleSharingBehavior;
-use stylearc::Arc;
+use stylearc::{Arc, ArcBorrow};
 use stylist::RuleInclusion;
 
 /// Whether we are cascading for an eager pseudo-element or something else.
@@ -1167,7 +1167,7 @@ pub trait MatchMethods : TElement {
                         let animation_rule_node =
                             context.shared.stylist.rule_tree()
                                 .update_rule_at_level(CascadeLevel::Animations,
-                                                      Some(&animation_rule),
+                                                      Some(animation_rule.borrow_arc()),
                                                       &mut rules,
                                                       &context.shared.guards);
                         if let Some(node) = animation_rule_node {
@@ -1179,7 +1179,7 @@ pub trait MatchMethods : TElement {
                         let animation_rule_node =
                             context.shared.stylist.rule_tree()
                                 .update_rule_at_level(CascadeLevel::Transitions,
-                                                      Some(&animation_rule),
+                                                      Some(animation_rule.borrow_arc()),
                                                       &mut rules,
                                                       &context.shared.guards);
                         if let Some(node) = animation_rule_node {
@@ -1506,7 +1506,7 @@ pub trait MatchMethods : TElement {
         };
 
         let replace_rule_node = |level: CascadeLevel,
-                                 pdb: Option<&Arc<Locked<PropertyDeclarationBlock>>>,
+                                 pdb: Option<ArcBorrow<Locked<PropertyDeclarationBlock>>>,
                                  path: &mut StrongRuleNode| -> bool {
             let new_node = stylist.rule_tree()
                                   .update_rule_at_level(level, pdb, path, guards);
@@ -1552,7 +1552,7 @@ pub trait MatchMethods : TElement {
                                                    primary_rules: &mut StrongRuleNode| {
                 let animation_rule = self.get_animation_rule_by_cascade(level);
                 replace_rule_node(level,
-                                  animation_rule.as_ref(),
+                                  animation_rule.as_ref().map(|a| a.borrow_arc()),
                                   primary_rules);
             };
 

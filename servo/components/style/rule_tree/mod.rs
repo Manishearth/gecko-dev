@@ -16,7 +16,7 @@ use std::io::{self, Write};
 use std::mem;
 use std::ptr;
 use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
-use stylearc::{Arc, NonZeroPtrMut};
+use stylearc::{Arc, ArcBorrow, NonZeroPtrMut};
 use stylesheets::StyleRule;
 use thread_state;
 
@@ -306,7 +306,7 @@ impl RuleTree {
     /// the old path is still valid.
     pub fn update_rule_at_level(&self,
                                 level: CascadeLevel,
-                                pdb: Option<&Arc<Locked<PropertyDeclarationBlock>>>,
+                                pdb: Option<ArcBorrow<Locked<PropertyDeclarationBlock>>>,
                                 path: &StrongRuleNode,
                                 guards: &StylesheetGuards)
                                 -> Option<StrongRuleNode> {
@@ -345,7 +345,7 @@ impl RuleTree {
                 // so let's skip it for now.
                 let is_here_already = match &current.get().source {
                     &StyleSource::Declarations(ref already_here) => {
-                        Arc::ptr_eq(pdb, already_here)
+                        pdb.with_arc(|arc| Arc::ptr_eq(arc, already_here))
                     },
                     _ => unreachable!("Replacing non-declarations style?"),
                 };
@@ -369,13 +369,13 @@ impl RuleTree {
             if level.is_important() {
                 if pdb.read_with(level.guard(guards)).any_important() {
                     current = current.ensure_child(self.root.downgrade(),
-                                                   StyleSource::Declarations(pdb.clone()),
+                                                   StyleSource::Declarations(pdb.clone_arc()),
                                                    level);
                 }
             } else {
                 if pdb.read_with(level.guard(guards)).any_normal() {
                     current = current.ensure_child(self.root.downgrade(),
-                                                   StyleSource::Declarations(pdb.clone()),
+                                                   StyleSource::Declarations(pdb.clone_arc()),
                                                    level);
                 }
             }

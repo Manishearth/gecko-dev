@@ -14,7 +14,7 @@ use rule_tree::StrongRuleNode;
 use selector_parser::{EAGER_PSEUDO_COUNT, PseudoElement, RestyleDamage};
 use shared_lock::{Locked, StylesheetGuards};
 use std::ops::{Deref, DerefMut};
-use stylearc::Arc;
+use stylearc::{Arc, ArcBorrow};
 
 bitflags! {
     flags RestyleFlags: u8 {
@@ -414,14 +414,14 @@ impl ElementData {
     }
 
     /// Returns SMIL overriden value if exists.
-    pub fn get_smil_override(&self) -> Option<&Arc<Locked<PropertyDeclarationBlock>>> {
+    pub fn get_smil_override(&self) -> Option<ArcBorrow<Locked<PropertyDeclarationBlock>>> {
         if cfg!(feature = "servo") {
             // Servo has no knowledge of a SMIL rule, so just avoid looking for it.
             return None;
         }
 
         match self.styles.get_primary() {
-            Some(v) => v.rules().get_smil_animation_rule(),
+            Some(v) => v.rules().get_smil_animation_rule().map(|a| a.borrow_arc()),
             None => None,
         }
     }
