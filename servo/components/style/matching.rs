@@ -17,7 +17,7 @@ use invalidation::element::restyle_hints::{RESTYLE_CSS_ANIMATIONS, RESTYLE_CSS_T
 use invalidation::element::restyle_hints::{RESTYLE_SMIL, RESTYLE_STYLE_ATTRIBUTE};
 use invalidation::element::restyle_hints::RestyleHint;
 use log::LogLevel::Trace;
-use properties::{AnimationRules, CascadeFlags, ComputedValues};
+use properties::{AnimationRules, CascadeFlags, ComputedValues, ComputedValuesInner};
 use properties::{IS_ROOT_ELEMENT, PROHIBIT_DISPLAY_CONTENTS, SKIP_ROOT_AND_ITEM_BASED_DISPLAY_FIXUP};
 use properties::{VISITED_DEPENDENT_ONLY, cascade};
 use properties::longhands::display::computed_value as display;
@@ -170,6 +170,17 @@ impl CascadeVisitedMode {
     /// visited values are only returned if they already exist.  If they don't,
     /// we fallback to the regular, unvisited styles.
     pub fn values<'a>(&self, values: &'a Arc<ComputedValues>) -> &'a Arc<ComputedValues> {
+        if *self == CascadeVisitedMode::Visited && values.get_visited_style().is_some() {
+            return values.visited_style();
+        }
+
+        values
+    }
+
+    /// Returns the computed values based on the cascade mode.  In visited mode,
+    /// visited values are only returned if they already exist.  If they don't,
+    /// we fallback to the regular, unvisited styles.
+    pub fn values_inner<'a>(&self, values: &'a ComputedValuesInner) -> &'a ComputedValuesInner {
         if *self == CascadeVisitedMode::Visited && values.get_visited_style().is_some() {
             return values.visited_style();
         }
@@ -374,8 +385,8 @@ trait PrivateMatchMethods: TElement {
             layout_parent_style = Some(cascade_visited.values(layout_parent_data.styles.primary()));
         }
 
-        let style_to_inherit_from = style_to_inherit_from.map(|x| &**x);
-        let layout_parent_style = layout_parent_style.map(|x| &**x);
+        let style_to_inherit_from = style_to_inherit_from.map(|x| &x.inner);
+        let layout_parent_style = layout_parent_style.map(|x| &x.inner);
 
         // Propagate the "can be fragmented" bit. It would be nice to
         // encapsulate this better.
@@ -393,8 +404,7 @@ trait PrivateMatchMethods: TElement {
         }
 
         // Invoke the cascade algorithm.
-        let values =
-            Arc::new(cascade(shared_context.stylist.device(),
+        let values = cascade(shared_context.stylist.device(),
                              rule_node,
                              &shared_context.guards,
                              style_to_inherit_from,
@@ -403,7 +413,7 @@ trait PrivateMatchMethods: TElement {
                              Some(&mut cascade_info),
                              font_metrics_provider,
                              cascade_flags,
-                             shared_context.quirks_mode));
+                             shared_context.quirks_mode).to_outer();
 
         cascade_info.finish(&self.as_node());
         values

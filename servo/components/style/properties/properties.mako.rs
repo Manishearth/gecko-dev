@@ -1803,6 +1803,8 @@ pub mod style_structs {
 
 #[cfg(feature = "gecko")]
 pub use gecko_properties::ComputedValues;
+#[cfg(feature = "gecko")]
+pub use gecko_properties::ComputedValuesInner;
 
 
 #[cfg(feature = "servo")]
@@ -1851,7 +1853,7 @@ pub struct ComputedValues {
 }
 
 #[cfg(feature = "servo")]
-impl ComputedValues {
+impl ComputedValuesInner {
     /// Construct a `ComputedValues` instance.
     pub fn new(
         custom_properties: Option<Arc<::custom_properties::CustomPropertiesMap>>,
@@ -1865,18 +1867,16 @@ impl ComputedValues {
         % endfor
     ) -> Self {
         let font_computation_data = FontComputationData::new(font_size_keyword);
-        ComputedValues {
-            inner: ComputedValuesInner {
-                custom_properties: custom_properties,
-                writing_mode: writing_mode,
-                font_computation_data: FontComputationData::new(font_size_keyword),
-                rules: rules,
-                visited_style: visited_style,
-                flags: flags,
-            % for style_struct in data.active_style_structs():
-                ${style_struct.ident}: ${style_struct.ident},
-            % endfor
-            }
+        ComputedValuesInner {
+            custom_properties: custom_properties,
+            writing_mode: writing_mode,
+            font_computation_data: FontComputationData::new(font_size_keyword),
+            rules: rules,
+            visited_style: visited_style,
+            flags: flags,
+        % for style_struct in data.active_style_structs():
+            ${style_struct.ident}: ${style_struct.ident},
+        % endfor
         }
     }
 
@@ -1901,6 +1901,11 @@ impl ops::DerefMut for ComputedValues {
 
 #[cfg(feature = "servo")]
 impl ComputedValuesInner {
+    /// Convert to an Arc<ComputedValues>
+    pub fn to_outer(self) -> Arc<ComputedValues> {
+        Arc::new(ComputedValues {inner: self})
+    }
+
     % for style_struct in data.active_style_structs():
         /// Clone the ${style_struct.name} struct.
         #[inline]
@@ -2350,7 +2355,7 @@ impl<'a, T: 'a> ops::Deref for StyleStructRef<'a, T> {
 /// inherited value.
 pub struct StyleBuilder<'a> {
     /// The style we're inheriting from.
-    inherited_style: &'a ComputedValues,
+    inherited_style: &'a ComputedValuesInner,
     /// The rule node representing the ordered list of rules matched for this
     /// node.
     rules: Option<StrongRuleNode>,
@@ -2373,8 +2378,8 @@ pub struct StyleBuilder<'a> {
 impl<'a> StyleBuilder<'a> {
     /// Trivially construct a `StyleBuilder`.
     fn new(
-        inherited_style: &'a ComputedValues,
-        reset_style: &'a ComputedValues,
+        inherited_style: &'a ComputedValuesInner,
+        reset_style: &'a ComputedValuesInner,
         rules: Option<StrongRuleNode>,
         custom_properties: Option<Arc<::custom_properties::CustomPropertiesMap>>,
         writing_mode: WritingMode,
@@ -2400,15 +2405,15 @@ impl<'a> StyleBuilder<'a> {
 
     /// Creates a StyleBuilder holding only references to the structs of `s`, in
     /// order to create a derived style.
-    pub fn for_derived_style(s: &'a ComputedValues) -> Self {
+    pub fn for_derived_style(s: &'a ComputedValuesInner) -> Self {
         Self::for_inheritance(s, s)
     }
 
     /// Inherits style from the parent element, accounting for the default
     /// computed values that need to be provided as well.
     pub fn for_inheritance(
-        parent: &'a ComputedValues,
-        default: &'a ComputedValues
+        parent: &'a ComputedValuesInner,
+        default: &'a ComputedValuesInner
     ) -> Self {
         Self::new(
             parent,
@@ -2479,9 +2484,9 @@ impl<'a> StyleBuilder<'a> {
 
 
     /// Turns this `StyleBuilder` into a proper `ComputedValues` instance.
-    pub fn build(self) -> ComputedValues {
-        let flags = ComputedValueFlags::compute(&self, &self.inherited_style);
-        ComputedValues::new(self.custom_properties,
+    pub fn build(self) -> ComputedValuesInner {
+        let flags = ComputedValueFlags::compute(&self, self.inherited_style);
+        ComputedValuesInner::new(self.custom_properties,
                             self.writing_mode,
                             self.font_size_keyword,
                             flags,
@@ -2511,30 +2516,28 @@ pub use self::lazy_static_module::INITIAL_SERVO_VALUES;
 mod lazy_static_module {
     use logical_geometry::WritingMode;
     use stylearc::Arc;
-    use super::{ComputedValues, ComputedValuesInner, longhands, style_structs, FontComputationData};
+    use super::{ComputedValuesInner, longhands, style_structs, FontComputationData};
     use super::computed_value_flags::ComputedValueFlags;
 
     /// The initial values for all style structs as defined by the specification.
     lazy_static! {
-        pub static ref INITIAL_SERVO_VALUES: ComputedValues = ComputedValues {
-            inner: ComputedValuesInner {
-                % for style_struct in data.active_style_structs():
-                    ${style_struct.ident}: Arc::new(style_structs::${style_struct.name} {
-                        % for longhand in style_struct.longhands:
-                            ${longhand.ident}: longhands::${longhand.ident}::get_initial_value(),
-                        % endfor
-                        % if style_struct.name == "Font":
-                            hash: 0,
-                        % endif
-                    }),
-                % endfor
-                custom_properties: None,
-                writing_mode: WritingMode::empty(),
-                font_computation_data: FontComputationData::default_values(),
-                rules: None,
-                visited_style: None,
-                flags: flags,
-            }
+        pub static ref INITIAL_SERVO_VALUES: ComputedValuesInner = ComputedValuesInner {
+            % for style_struct in data.active_style_structs():
+                ${style_struct.ident}: Arc::new(style_structs::${style_struct.name} {
+                    % for longhand in style_struct.longhands:
+                        ${longhand.ident}: longhands::${longhand.ident}::get_initial_value(),
+                    % endfor
+                    % if style_struct.name == "Font":
+                        hash: 0,
+                    % endif
+                }),
+            % endfor
+            custom_properties: None,
+            writing_mode: WritingMode::empty(),
+            font_computation_data: FontComputationData::default_values(),
+            rules: None,
+            visited_style: None,
+            flags: flags,
         };
     }
 }
@@ -2542,8 +2545,8 @@ mod lazy_static_module {
 /// A per-longhand function that performs the CSS cascade for that longhand.
 pub type CascadePropertyFn =
     extern "Rust" fn(declaration: &PropertyDeclaration,
-                     inherited_style: &ComputedValues,
-                     default_style: &ComputedValues,
+                     inherited_style: &ComputedValuesInner,
+                     default_style: &ComputedValuesInner,
                      context: &mut computed::Context,
                      cacheable: &mut bool,
                      cascade_info: &mut Option<<&mut CascadeInfo>);
@@ -2604,14 +2607,14 @@ bitflags! {
 pub fn cascade(device: &Device,
                rule_node: &StrongRuleNode,
                guards: &StylesheetGuards,
-               parent_style: Option<<&ComputedValues>,
-               layout_parent_style: Option<<&ComputedValues>,
+               parent_style: Option<<&ComputedValuesInner>,
+               layout_parent_style: Option<<&ComputedValuesInner>,
                visited_style: Option<Arc<ComputedValues>>,
                cascade_info: Option<<&mut CascadeInfo>,
                font_metrics_provider: &FontMetricsProvider,
                flags: CascadeFlags,
                quirks_mode: QuirksMode)
-               -> ComputedValues {
+               -> ComputedValuesInner {
     debug_assert_eq!(parent_style.is_some(), layout_parent_style.is_some());
     let (inherited_style, layout_parent_style) = match parent_style {
         Some(parent_style) => {
@@ -2666,14 +2669,14 @@ pub fn cascade(device: &Device,
 pub fn apply_declarations<'a, F, I>(device: &Device,
                                     rules: &StrongRuleNode,
                                     iter_declarations: F,
-                                    inherited_style: &ComputedValues,
-                                    layout_parent_style: &ComputedValues,
+                                    inherited_style: &ComputedValuesInner,
+                                    layout_parent_style: &ComputedValuesInner,
                                     visited_style: Option<Arc<ComputedValues>>,
                                     mut cascade_info: Option<<&mut CascadeInfo>,
                                     font_metrics_provider: &FontMetricsProvider,
                                     flags: CascadeFlags,
                                     quirks_mode: QuirksMode)
-                                    -> ComputedValues
+                                    -> ComputedValuesInner
     where F: Fn() -> I,
           I: Iterator<Item = (&'a PropertyDeclaration, CascadeLevel)>,
 {

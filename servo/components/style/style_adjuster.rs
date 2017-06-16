@@ -6,7 +6,7 @@
 //! for it to adhere to the CSS spec.
 
 use app_units::Au;
-use properties::{self, CascadeFlags, ComputedValues};
+use properties::{self, CascadeFlags, ComputedValuesInner};
 use properties::{IS_ROOT_ELEMENT, SKIP_ROOT_AND_ITEM_BASED_DISPLAY_FIXUP, StyleBuilder};
 use properties::longhands::display::computed_value::T as display;
 use properties::longhands::float::computed_value::T as float;
@@ -52,7 +52,7 @@ impl<'a, 'b: 'a> StyleAdjuster<'a, 'b> {
     /// Apply the blockification rules based on the table in CSS 2.2 section 9.7.
     /// https://drafts.csswg.org/css2/visuren.html#dis-pos-flo
     fn blockify_if_necessary(&mut self,
-                             layout_parent_style: &ComputedValues,
+                             layout_parent_style: &ComputedValuesInner,
                              flags: CascadeFlags) {
         let mut blockify = false;
         macro_rules! blockify_if {
@@ -134,7 +134,7 @@ impl<'a, 'b: 'a> StyleAdjuster<'a, 'b> {
     /// https://lists.w3.org/Archives/Public/www-style/2017Mar/0045.html
     /// https://github.com/servo/servo/issues/15754
     fn adjust_for_writing_mode(&mut self,
-                               layout_parent_style: &ComputedValues) {
+                               layout_parent_style: &ComputedValuesInner) {
         let our_writing_mode = self.style.get_inheritedbox().clone_writing_mode();
         let parent_writing_mode = layout_parent_style.get_inheritedbox().clone_writing_mode();
 
@@ -194,7 +194,7 @@ impl<'a, 'b: 'a> StyleAdjuster<'a, 'b> {
     ///
     /// See https://github.com/servo/servo/issues/15229
     #[cfg(feature = "servo")]
-    fn adjust_for_alignment(&mut self, layout_parent_style: &ComputedValues) {
+    fn adjust_for_alignment(&mut self, layout_parent_style: &ComputedValuesInner) {
         use computed_values::align_items::T as align_items;
         use computed_values::align_self::T as align_self;
 
@@ -318,7 +318,7 @@ impl<'a, 'b: 'a> StyleAdjuster<'a, 'b> {
     /// When comparing to Gecko, this is similar to the work done by
     /// `nsStyleContext::ApplyStyleFixups`.
     pub fn adjust(&mut self,
-                  layout_parent_style: &ComputedValues,
+                  layout_parent_style: &ComputedValuesInner,
                   flags: CascadeFlags) {
         #[cfg(feature = "gecko")]
         {

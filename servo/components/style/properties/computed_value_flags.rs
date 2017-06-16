@@ -4,7 +4,7 @@
 
 //! Misc information about a given computed style.
 
-use properties::{ComputedValues, StyleBuilder};
+use properties::{ComputedValuesInner, StyleBuilder};
 
 bitflags! {
     /// Misc information about a given computed style.
@@ -27,7 +27,7 @@ impl ComputedValueFlags {
     /// Compute the flags for this style, given the parent style.
     pub fn compute(
         this_style: &StyleBuilder,
-        parent_style: &ComputedValues,
+        parent_style: &ComputedValuesInner,
     ) -> Self {
         let mut ret = Self::empty();
 

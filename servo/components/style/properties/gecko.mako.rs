@@ -97,7 +97,7 @@ impl Clone for ComputedValuesInner {
     }
 }
 
-impl ComputedValues {
+impl ComputedValuesInner {
     pub fn new(custom_properties: Option<Arc<CustomPropertiesMap>>,
                writing_mode: WritingMode,
                font_size_keyword: Option<(longhands::font_size::KeywordSize, f32)>,
@@ -108,24 +108,21 @@ impl ComputedValues {
                ${style_struct.ident}: Arc<style_structs::${style_struct.name}>,
                % endfor
     ) -> Self {
-        ComputedValues {
-            inner: ComputedValuesInner {
-                custom_properties: custom_properties,
-                writing_mode: writing_mode,
-                font_computation_data: FontComputationData::new(font_size_keyword),
-                rules: rules,
-                visited_style: visited_style,
-                flags: flags,
-                % for style_struct in data.style_structs:
-                ${style_struct.gecko_name}: Arc::into_raw_offset(${style_struct.ident}),
-                % endfor
-            }
+        ComputedValuesInner {
+            custom_properties: custom_properties,
+            writing_mode: writing_mode,
+            font_computation_data: FontComputationData::new(font_size_keyword),
+            rules: rules,
+            visited_style: visited_style,
+            flags: flags,
+            % for style_struct in data.style_structs:
+            ${style_struct.gecko_name}: Arc::into_raw_offset(${style_struct.ident}),
+            % endfor
         }
     }
 
-    pub fn default_values(pres_context: RawGeckoPresContextBorrowed) -> Arc<Self> {
-        Arc::new(ComputedValues {
-            inner: ComputedValuesInner {
+    pub fn default_values(pres_context: RawGeckoPresContextBorrowed) -> Self {
+        ComputedValuesInner {
                 custom_properties: None,
                 writing_mode: WritingMode::empty(), // FIXME(bz): This seems dubious
                 font_computation_data: FontComputationData::default_values(),
@@ -135,8 +132,10 @@ impl ComputedValues {
                 % for style_struct in data.style_structs:
                     ${style_struct.gecko_name}: Arc::into_raw_offset(style_structs::${style_struct.name}::default(pres_context)),
                 % endfor
-            }
-        })
+        }
+    }
+    pub fn to_outer(self) -> Arc<ComputedValues> {
+        Arc::new(ComputedValues {inner: self})
     }
 }
 

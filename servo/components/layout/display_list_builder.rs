@@ -51,7 +51,7 @@ use style::computed_values::{background_attachment, background_clip, background_
 use style::computed_values::{background_repeat, border_style, cursor};
 use style::computed_values::{image_rendering, overflow_x, pointer_events, position, visibility};
 use style::logical_geometry::{LogicalPoint, LogicalRect, LogicalSize, WritingMode};
-use style::properties::{self, ServoComputedValues};
+use style::properties::{self, ComputedValues};
 use style::properties::longhands::border_image_repeat::computed_value::RepeatKeyword;
 use style::properties::style_structs;
 use style::servo::restyle_damage::REPAINT;
@@ -375,14 +375,14 @@ pub trait FragmentDisplayListBuilding {
     /// list if necessary.
     fn build_display_list_for_background_if_applicable(&self,
                                                        state: &mut DisplayListBuildState,
-                                                       style: &ServoComputedValues,
+                                                       style: &ComputedValues,
                                                        display_list_section: DisplayListSection,
                                                        absolute_bounds: &Rect<Au>);
 
     /// Computes the background size for an image with the given background area according to the
     /// rules in CSS-BACKGROUNDS § 3.9.
     fn compute_background_image_size(&self,
-                                     style: &ServoComputedValues,
+                                     style: &ComputedValues,
                                      bounds: &Rect<Au>,
                                      image: &WebRenderImageInfo, index: usize)
                                      -> Size2D<Au>;
@@ -391,7 +391,7 @@ pub trait FragmentDisplayListBuilding {
     /// appropriate section of the display list.
     fn build_display_list_for_background_image(&self,
                                                state: &mut DisplayListBuildState,
-                                               style: &ServoComputedValues,
+                                               style: &ComputedValues,
                                                display_list_section: DisplayListSection,
                                                absolute_bounds: &Rect<Au>,
                                                clip: &ClippingRegion,
@@ -402,7 +402,7 @@ pub trait FragmentDisplayListBuilding {
     /// appropriate section of the display list.
     fn build_display_list_for_webrender_image(&self,
                                               state: &mut DisplayListBuildState,
-                                              style: &ServoComputedValues,
+                                              style: &ComputedValues,
                                               display_list_section: DisplayListSection,
                                               absolute_bounds: &Rect<Au>,
                                               clip: &ClippingRegion,
@@ -413,7 +413,7 @@ pub trait FragmentDisplayListBuilding {
     /// worklet to the appropriate section of the display list.
     fn build_display_list_for_background_paint_worklet(&self,
                                                        state: &mut DisplayListBuildState,
-                                                       style: &ServoComputedValues,
+                                                       style: &ComputedValues,
                                                        display_list_section: DisplayListSection,
                                                        absolute_bounds: &Rect<Au>,
                                                        clip: &ClippingRegion,
@@ -444,14 +444,14 @@ pub trait FragmentDisplayListBuilding {
                                                   clip_bounds: &Rect<Au>,
                                                   clip: &ClippingRegion,
                                                   gradient: &Gradient,
-                                                  style: &ServoComputedValues);
+                                                  style: &ComputedValues);
 
     /// Adds the display items necessary to paint the borders of this fragment to a display list if
     /// necessary.
     fn build_display_list_for_borders_if_applicable(
             &self,
             state: &mut DisplayListBuildState,
-            style: &ServoComputedValues,
+            style: &ComputedValues,
             border_painting_mode: BorderPaintingMode,
             bounds: &Rect<Au>,
             display_list_section: DisplayListSection,
@@ -461,7 +461,7 @@ pub trait FragmentDisplayListBuilding {
     /// if necessary.
     fn build_display_list_for_outline_if_applicable(&self,
                                                     state: &mut DisplayListBuildState,
-                                                    style: &ServoComputedValues,
+                                                    style: &ComputedValues,
                                                     bounds: &Rect<Au>,
                                                     clip: &Rect<Au>);
 
@@ -469,7 +469,7 @@ pub trait FragmentDisplayListBuilding {
     /// list if necessary.
     fn build_display_list_for_box_shadow_if_applicable(&self,
                                                        state: &mut DisplayListBuildState,
-                                                       style: &ServoComputedValues,
+                                                       style: &ComputedValues,
                                                        display_list_section: DisplayListSection,
                                                        absolute_bounds: &Rect<Au>,
                                                        clip: &Rect<Au>);
@@ -477,7 +477,7 @@ pub trait FragmentDisplayListBuilding {
     /// Adds display items necessary to draw debug boxes around a scanned text fragment.
     fn build_debug_borders_around_text_fragments(&self,
                                                  state: &mut DisplayListBuildState,
-                                                 style: &ServoComputedValues,
+                                                 style: &ComputedValues,
                                                  stacking_relative_border_box: &Rect<Au>,
                                                  stacking_relative_content_box: &Rect<Au>,
                                                  text_fragment: &ScannedTextFragmentInfo,
@@ -608,7 +608,7 @@ fn build_border_radius(abs_bounds: &Rect<Au>,
 /// Get the border radius for the rectangle inside of a rounded border. This is useful
 /// for building the clip for the content inside the border.
 fn build_border_radius_for_inner_rect(outer_rect: &Rect<Au>,
-                                      style: &ServoComputedValues)
+                                      style: &ComputedValues)
                                       -> BorderRadii<Au> {
     let mut radii = build_border_radius(&outer_rect, style.get_border());
     if radii.is_square() {
@@ -834,7 +834,7 @@ fn convert_ellipse_size_keyword(keyword: ShapeExtent,
 impl FragmentDisplayListBuilding for Fragment {
     fn build_display_list_for_background_if_applicable(&self,
                                                        state: &mut DisplayListBuildState,
-                                                       style: &ServoComputedValues,
+                                                       style: &ComputedValues,
                                                        display_list_section: DisplayListSection,
                                                        absolute_bounds: &Rect<Au>) {
         // Adjust the clipping region as necessary to account for `border-radius`.
@@ -935,7 +935,7 @@ impl FragmentDisplayListBuilding for Fragment {
     }
 
     fn compute_background_image_size(&self,
-                                     style: &ServoComputedValues,
+                                     style: &ComputedValues,
                                      bounds: &Rect<Au>,
                                      image: &WebRenderImageInfo,
                                      index: usize)
@@ -981,7 +981,7 @@ impl FragmentDisplayListBuilding for Fragment {
 
     fn build_display_list_for_background_image(&self,
                                                state: &mut DisplayListBuildState,
-                                               style: &ServoComputedValues,
+                                               style: &ComputedValues,
                                                display_list_section: DisplayListSection,
                                                absolute_bounds: &Rect<Au>,
                                                clip: &ClippingRegion,
@@ -1005,7 +1005,7 @@ impl FragmentDisplayListBuilding for Fragment {
 
     fn build_display_list_for_webrender_image(&self,
                                               state: &mut DisplayListBuildState,
-                                              style: &ServoComputedValues,
+                                              style: &ComputedValues,
                                               display_list_section: DisplayListSection,
                                               absolute_bounds: &Rect<Au>,
                                               clip: &ClippingRegion,
@@ -1148,7 +1148,7 @@ impl FragmentDisplayListBuilding for Fragment {
 
     fn build_display_list_for_background_paint_worklet(&self,
                                                        state: &mut DisplayListBuildState,
-                                                       style: &ServoComputedValues,
+                                                       style: &ComputedValues,
                                                        display_list_section: DisplayListSection,
                                                        absolute_bounds: &Rect<Au>,
                                                        clip: &ClippingRegion,
@@ -1311,7 +1311,7 @@ impl FragmentDisplayListBuilding for Fragment {
                                                   clip_bounds: &Rect<Au>,
                                                   clip: &ClippingRegion,
                                                   gradient: &Gradient,
-                                                  style: &ServoComputedValues) {
+                                                  style: &ComputedValues) {
         let mut clip = clip.clone();
         clip.intersect_rect(clip_bounds);
 
@@ -1356,7 +1356,7 @@ impl FragmentDisplayListBuilding for Fragment {
 
     fn build_display_list_for_box_shadow_if_applicable(&self,
                                                        state: &mut DisplayListBuildState,
-                                                       style: &ServoComputedValues,
+                                                       style: &ComputedValues,
                                                        display_list_section: DisplayListSection,
                                                        absolute_bounds: &Rect<Au>,
                                                        clip: &Rect<Au>) {
@@ -1399,7 +1399,7 @@ impl FragmentDisplayListBuilding for Fragment {
     fn build_display_list_for_borders_if_applicable(
             &self,
             state: &mut DisplayListBuildState,
-            style: &ServoComputedValues,
+            style: &ComputedValues,
             border_painting_mode: BorderPaintingMode,
             bounds: &Rect<Au>,
             display_list_section: DisplayListSection,
@@ -1546,7 +1546,7 @@ impl FragmentDisplayListBuilding for Fragment {
 
     fn build_display_list_for_outline_if_applicable(&self,
                                                     state: &mut DisplayListBuildState,
-                                                    style: &ServoComputedValues,
+                                                    style: &ComputedValues,
                                                     bounds: &Rect<Au>,
                                                     clip: &Rect<Au>) {
         use style::values::Either;
@@ -1591,7 +1591,7 @@ impl FragmentDisplayListBuilding for Fragment {
 
     fn build_debug_borders_around_text_fragments(&self,
                                                  state: &mut DisplayListBuildState,
-                                                 style: &ServoComputedValues,
+                                                 style: &ComputedValues,
                                                  stacking_relative_border_box: &Rect<Au>,
                                                  stacking_relative_content_box: &Rect<Au>,
                                                  text_fragment: &ScannedTextFragmentInfo,
@@ -2862,12 +2862,12 @@ impl BaseFlowDisplayListBuilding for BaseFlow {
     }
 }
 
-trait ServoComputedValuesCursorUtility {
+trait ComputedValuesCursorUtility {
     fn get_cursor(&self, default_cursor: Cursor) -> Option<Cursor>;
 }
 
-impl ServoComputedValuesCursorUtility for ServoComputedValues {
-    /// Gets the cursor to use given the specific ServoComputedValues.  `default_cursor` specifies
+impl ComputedValuesCursorUtility for ComputedValues {
+    /// Gets the cursor to use given the specific ComputedValues.  `default_cursor` specifies
     /// the cursor to use if `cursor` is `auto`. Typically, this will be `PointerCursor`, but for
     /// text display items it may be `TextCursor` or `VerticalTextCursor`.
     #[inline]

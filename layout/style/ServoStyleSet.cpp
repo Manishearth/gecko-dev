@@ -1084,8 +1084,8 @@ ServoStyleSet::GetBaseContextForElement(dom::Element* aElement,
                                                         aElement,
                                                         &Snapshots(),
                                                         aPseudoType).Consume();
-  return ServoStyleContext::Create(nullptr, presContext, aPseudo,
-                                   pseudoType, baseComputedValues.forget());
+  return ServoStyleContext::Create(nullptr, aPresContext, aPseudoTag,
+                                   aPseudoType, cv.forget());
 }
 
 already_AddRefed<RawServoAnimationValue>
