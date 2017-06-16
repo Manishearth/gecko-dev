@@ -166,13 +166,12 @@ nsStyleContext::Destructor()
     presContext->StyleSet()->RootStyleContextRemoved();
   }
 
-  // Free up our data structs.
+  // Free up our caches.
   if (gecko) {
     gecko->DestroyCachedStructs(presContext);
+    // Servo doesn't store things here, and it's not threadsafe
+    CSSVariableImageTable::RemoveAll(this);
   }
-
-  // Free any ImageValues we were holding on to for CSS variable values.
-  CSSVariableImageTable::RemoveAll(this);
 }
 
 void nsStyleContext::AddChild(nsStyleContext* aChild)
@@ -485,6 +484,34 @@ nsStyleContext::CalcStyleDifference(nsStyleContext* aNewContext,
                                      aSamePointerStructs);
 }
 
+void
+nsStyleContext::SetStyleIfVisited(already_AddRefed<nsStyleContext> aStyleIfVisited)
+{
+  MOZ_ASSERT(!IsStyleIfVisited(), "this context is not visited data");
+  NS_ASSERTION(!mStyleIfVisited, "should only be set once");
+
+  mStyleIfVisited = aStyleIfVisited;
+
+  MOZ_ASSERT(mStyleIfVisited->IsStyleIfVisited(),
+             "other context is visited data");
+  MOZ_ASSERT(!mStyleIfVisited->GetStyleIfVisited(),
+             "other context does not have visited data");
+  NS_ASSERTION(GetStyleIfVisited()->GetPseudo() == GetPseudo(),
+               "pseudo tag mismatch");
+  if (GetParentAllowServo() && GetParentAllowServo()->GetStyleIfVisited()) {
+    NS_ASSERTION(GetStyleIfVisited()->GetParentAllowServo() ==
+                   GetParentAllowServo()->GetStyleIfVisited() ||
+                 GetStyleIfVisited()->GetParentAllowServo() ==
+                   GetParentAllowServo(),
+                 "parent mismatch");
+  } else {
+    NS_ASSERTION(GetStyleIfVisited()->GetParentAllowServo() ==
+                   GetParentAllowServo(),
+                 "parent mismatch");
+  }
+}
+
+
 class MOZ_STACK_CLASS FakeStyleContext
 {
 public:
@@ -627,23 +654,6 @@ NS_NewStyleContext(nsStyleContext* aParentContext,
                    aSkipParentDisplayBasedStyleFixup);
   return context.forget();
 }
-
-namespace mozilla {
-
-already_AddRefed<ServoStyleContext>
-ServoStyleContext::Create(nsStyleContext* aParentContext,
-                          nsPresContext* aPresContext,
-                          nsIAtom* aPseudoTag,
-                          CSSPseudoElementType aPseudoType,
-                          already_AddRefed<ServoComputedValues> aComputedValues)
-{
-  RefPtr<ServoStyleContext> context =
-    new ServoStyleContext(aParentContext, aPresContext, aPseudoTag, aPseudoType,
-                          Move(aComputedValues));
-  return context.forget();
-}
-
-} // namespace mozilla
 
 nsIPresShell*
 nsStyleContext::Arena()

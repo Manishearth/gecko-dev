@@ -432,6 +432,7 @@ ServoRestyleManager::ProcessPostTraversal(Element* aElement,
                                           ServoRestyleState& aRestyleState)
 {
   nsIFrame* styleFrame = nsLayoutUtils::GetStyleFrame(aElement);
+  ServoStyleContext* parent = aParentContext ? aParentContext->AsServo() : nullptr;
 
   // NOTE(emilio): This is needed because for table frames the bit is set on the
   // table wrapper (which is the primary frame), not on the table itself.
@@ -499,7 +500,7 @@ ServoRestyleManager::ProcessPostTraversal(Element* aElement,
     }
   }
 
-  RefPtr<ServoComputedValues> computedValues =
+  RefPtr<ServoStyleContext> currentContext =
     aRestyleState.StyleSet().ResolveServoStyle(aElement);
 
   // Note that we rely in the fact that we don't cascade pseudo-element styles
@@ -513,7 +514,7 @@ ServoRestyleManager::ProcessPostTraversal(Element* aElement,
   // elements, though that is buggy right now even in non-stylo mode, see
   // bug 1251799.
   const bool recreateContext = oldStyleContext &&
-    oldStyleContext->ComputedValues() != computedValues;
+    oldStyleContext->ComputedValues() != currentContext->ComputedValues();
 
   Maybe<ServoRestyleState> thisFrameRestyleState;
   if (styleFrame) {
@@ -537,8 +538,12 @@ ServoRestyleManager::ProcessPostTraversal(Element* aElement,
     nsIAtom* pseudoTag = pseudo == CSSPseudoElementType::NotPseudo
       ? nullptr : nsCSSPseudoElements::GetPseudoAtom(pseudo);
 
-    newContext = aRestyleState.StyleSet().GetContext(
-      computedValues.forget(), aParentContext, pseudoTag, pseudo, aElement);
+    // XXXManishearth we should just reuse the old one here
+    RefPtr<ServoStyleContext> tempContext =
+      Servo_StyleContext_NewContext(currentContext->ComputedValues(), parent,
+                                    PresContext(), pseudo, pseudoTag).Consume();
+    newContext = aRestyleState.StyleSet().GetContext(tempContext.forget(), aParentContext,
+                                                     pseudoTag, pseudo, aElement);
 
     newContext->ResolveSameStructsAs(PresContext(), oldStyleContext);
 

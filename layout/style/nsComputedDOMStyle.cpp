@@ -669,7 +669,7 @@ nsComputedDOMStyle::DoGetStyleContextNoFlush(Element* aElement,
                                ? StyleRuleInclusion::DefaultOnly
                                : StyleRuleInclusion::All;
     RefPtr<nsStyleContext> result =
-       servoSet->ResolveTransientStyle(aElement, aPseudo, pseudoType, rules);
+       servoSet->ResolveTransientStyle(aElement, pseudoType, aPseudo, rules);
     if (aAnimationFlag == eWithAnimation) {
       return result.forget();
     }

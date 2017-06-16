@@ -415,7 +415,7 @@ pub trait ThreadSafeLayoutElement: Clone + Copy + Sized + Debug +
                             &style_pseudo,
                             Some(data.styles.primary()),
                             CascadeFlags::empty(),
-                            &ServoMetricsProvider)
+                            &ServoMetricsProvider, (), ())
                             .clone()
                     }
                     PseudoElementCascadeType::Lazy => {
@@ -427,7 +427,7 @@ pub trait ThreadSafeLayoutElement: Clone + Copy + Sized + Debug +
                                    RuleInclusion::All,
                                    data.styles.primary(),
                                    /* is_probe = */ false,
-                                   &ServoMetricsProvider)
+                                   &ServoMetricsProvider, (), ())
                                .unwrap()
                                .clone()
                     }

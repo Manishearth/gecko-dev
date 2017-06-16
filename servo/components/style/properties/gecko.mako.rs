@@ -46,7 +46,6 @@ use gecko_bindings::structs;
 use gecko_bindings::structs::nsCSSPropertyID;
 use gecko_bindings::structs::nsStyleVariables;
 use gecko_bindings::sugar::ns_style_coord::{CoordDataValue, CoordData, CoordDataMut};
-use gecko_bindings::sugar::ownership::HasArcFFI;
 use gecko::values::convert_nscolor_to_rgba;
 use gecko::values::convert_rgba_to_nscolor;
 use gecko::values::GeckoStyleCoordConvertible;
@@ -58,7 +57,7 @@ use properties::computed_value_flags::ComputedValueFlags;
 use properties::{longhands, FontComputationData, Importance, LonghandId};
 use properties::{PropertyDeclaration, PropertyDeclarationBlock, PropertyDeclarationId};
 use rule_tree::StrongRuleNode;
-use std::mem::{forget, transmute, zeroed};
+use std::mem::{forget, uninitialized, transmute, zeroed};
 use std::{cmp, ops, ptr};
 use stylearc::{Arc, RawOffsetArc};
 use values::{Auto, CustomIdent, Either, KeyframesName};
@@ -74,11 +73,27 @@ pub mod style_structs {
 }
 
 
-pub use ::gecko_bindings::structs::mozilla::ServoComputedValues2 as ComputedValuesInner;
+pub type ComputedValuesInner = ::gecko_bindings::structs::ServoComputedValues;
 
-#[derive(Clone, Debug)]
-pub struct ComputedValues {
-    pub inner: ComputedValuesInner
+#[derive(Debug)]
+#[repr(C)]
+pub struct ComputedValues(::gecko_bindings::structs::mozilla::ServoStyleContext);
+
+impl Drop for ComputedValues {
+    fn drop(&mut self) {
+        unsafe {
+            bindings::Gecko_ServoStyleContext_Destroy(&mut self.0);
+        }
+    }
+}
+
+unsafe impl Sync for ComputedValues {}
+unsafe impl Send for ComputedValues {}
+
+impl Clone for ComputedValues {
+    fn clone(&self) -> Self {
+        unreachable!()
+    }
 }
 
 impl Clone for ComputedValuesInner {
@@ -96,6 +111,9 @@ impl Clone for ComputedValuesInner {
         }
     }
 }
+
+pub type PseudoInfo = (*mut structs::nsIAtom, structs::CSSPseudoElementType);
+pub type ParentStyleContextInfo<'a> = Option< &'a ComputedValues>;
 
 impl ComputedValuesInner {
     pub fn new(custom_properties: Option<Arc<CustomPropertiesMap>>,
@@ -134,21 +152,42 @@ impl ComputedValuesInner {
                 % endfor
         }
     }
-    pub fn to_outer(self) -> Arc<ComputedValues> {
-        Arc::new(ComputedValues {inner: self})
+    pub fn to_outer(self, device: &Device, parent: ParentStyleContextInfo,
+                    info: Option<PseudoInfo>) -> Arc<ComputedValues> {
+        let (tag, ty) = if let Some(info) = info {
+            info
+        } else {
+            (ptr::null_mut(), structs::CSSPseudoElementType::NotPseudo)
+        };
+
+        unsafe { Self::to_outer_from_arc(Arc::new(self), device.pres_context(), parent, ty, tag) }
+    }
+
+    pub unsafe fn to_outer_from_arc(s: Arc<Self>, pres_context: bindings::RawGeckoPresContextBorrowed,
+                                    parent: ParentStyleContextInfo,
+                                    pseudo_ty: structs::CSSPseudoElementType,
+                                    pseudo_tag: *mut structs::nsIAtom) -> Arc<ComputedValues> {
+        use gecko_bindings::sugar::ownership::FFIArcHelpers;
+        let arc = unsafe {
+            let arc: Arc<ComputedValues> = Arc::new(uninitialized());
+            bindings::Gecko_ServoStyleContext_Init(&arc.0 as *const _ as *mut _, parent, pres_context,
+                                                   s.into_strong(), pseudo_ty, pseudo_tag);
+            arc
+        };
+        arc
     }
 }
 
 impl ops::Deref for ComputedValues {
     type Target = ComputedValuesInner;
     fn deref(&self) -> &ComputedValuesInner {
-        &self.inner
+        unsafe { &*self.0.mSource.mRawPtr }
     }
 }
 
 impl ops::DerefMut for ComputedValues {
     fn deref_mut(&mut self) -> &mut ComputedValuesInner {
-        &mut self.inner
+        unsafe { &mut *self.0.mSource.mRawPtr }
     }
 }
 
@@ -4796,7 +4835,7 @@ clip-path
 #[allow(non_snake_case, unused_variables)]
 pub unsafe extern "C" fn Servo_GetStyle${style_struct.gecko_name}(computed_values:
         ServoComputedValuesBorrowedOrNull) -> *const ${style_struct.gecko_ffi_name} {
-    ComputedValues::arc_from_borrowed(&computed_values).unwrap().get_${style_struct.name_lower}().get_gecko()
+    computed_values.unwrap().get_${style_struct.name_lower}().get_gecko()
         as *const ${style_struct.gecko_ffi_name}
 }
 </%def>

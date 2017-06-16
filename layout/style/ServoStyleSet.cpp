@@ -187,22 +187,24 @@ ServoStyleSet::GetContext(nsIContent* aContent,
   MOZ_ASSERT(aContent->IsElement());
   Element* element = aContent->AsElement();
 
-  RefPtr<ServoComputedValues> computedValues;
+  RefPtr<ServoStyleContext> computedValues;
+  ServoStyleContext* parent = aParentContext ? aParentContext->AsServo() : nullptr;
   if (aMayCompute == LazyComputeBehavior::Allow) {
     PreTraverseSync();
-    computedValues =
-      ResolveStyleLazily(element, CSSPseudoElementType::NotPseudo);
+    RefPtr<ServoStyleContext> tmp =
+      ResolveStyleLazily(element, CSSPseudoElementType::NotPseudo, aPseudoTag, parent);
+      computedValues = GetContext(tmp.forget(), parent, aPseudoTag, aPseudoType,
+                                  element);
   } else {
     computedValues = ResolveServoStyle(element);
   }
 
   MOZ_ASSERT(computedValues);
-  return GetContext(computedValues.forget(), aParentContext, aPseudoTag, aPseudoType,
-                    element);
+  return computedValues.forget();
 }
 
 already_AddRefed<ServoStyleContext>
-ServoStyleSet::GetContext(already_AddRefed<ServoComputedValues> aComputedValues,
+ServoStyleSet::GetContext(already_AddRefed<ServoStyleContext> aComputedValues,
                           nsStyleContext* aParentContext,
                           nsIAtom* aPseudoTag,
                           CSSPseudoElementType aPseudoType,
@@ -218,11 +220,16 @@ ServoStyleSet::GetContext(already_AddRefed<ServoComputedValues> aComputedValues,
                                        .HasState(NS_EVENT_STATE_VISITED);
   }
 
-  RefPtr<ServoComputedValues> computedValues = Move(aComputedValues);
-  RefPtr<ServoComputedValues> visitedComputedValues =
+  RefPtr<ServoStyleContext> result = Move(aComputedValues);
+  RefPtr<ServoComputedValues> computedValues = result->ComputedValues();
+
+  MOZ_ASSERT(result->GetPseudoType() == aPseudoType);
+  MOZ_ASSERT(result->GetPseudo() == aPseudoTag);
+
+  RefPtr<ServoStyleContext> resultIfVisited =
     Servo_ComputedValues_GetVisitedStyle(computedValues).Consume();
 
-  // If `visitedComputedValues` is non-null, then there was a relevant link and
+  // If `resultIfVisited` is non-null, then there was a relevant link and
   // visited styles were computed.  This corresponds to the cases where Gecko's
   // style system produces `aVisitedRuleNode`.
   // Set up `parentIfVisited` depending on whether our parent context has a
@@ -231,26 +238,24 @@ ServoStyleSet::GetContext(already_AddRefed<ServoComputedValues> aComputedValues,
   nsStyleContext *parentIfVisited =
     aParentContext ? aParentContext->GetStyleIfVisited() : nullptr;
   if (!parentIfVisited) {
-    if (visitedComputedValues) {
+    if (resultIfVisited) {
       parentIfVisited = aParentContext;
     }
   }
+
+  ServoStyleContext* parentIfVisitedServo = parentIfVisited ? parentIfVisited->AsServo() : nullptr;
 
   // The true visited state of the relevant link is used to decided whether
   // visited styles should be consulted for all visited dependent properties.
   bool relevantLinkVisited = isLink ? isVisitedLink :
     (aParentContext && aParentContext->RelevantLinkVisited());
 
-  RefPtr<ServoStyleContext> result =
-    ServoStyleContext::Create(aParentContext, mPresContext, aPseudoTag, aPseudoType,
-                              computedValues.forget());
-
-  if (visitedComputedValues) {
-    RefPtr<ServoStyleContext> resultIfVisited =
-      ServoStyleContext::Create(parentIfVisited, mPresContext, aPseudoTag, aPseudoType,
-                                visitedComputedValues.forget());
-    resultIfVisited->SetIsStyleIfVisited();
-    result->SetStyleIfVisited(resultIfVisited.forget());
+  if (resultIfVisited) {
+    RefPtr<ServoStyleContext> visitedContext =
+    Servo_StyleContext_NewContext(resultIfVisited->ComputedValues(), parentIfVisitedServo,
+                                  mPresContext, aPseudoType, aPseudoTag).Consume();
+    visitedContext->SetIsStyleIfVisited();
+    result->SetStyleIfVisited(visitedContext.forget());
 
     if (relevantLinkVisited) {
       result->AddStyleBit(NS_STYLE_RELEVANT_LINK_VISITED);
@@ -425,13 +430,12 @@ ServoStyleSet::ResolveStyleForText(nsIContent* aTextNode,
   // rules: inherit the inherit structs, reset the reset structs. This is cheap
   // enough to do on the main thread, which means that the parallel style system
   // can avoid worrying about text nodes.
-  const ServoComputedValues* parentComputedValues =
-    aParentContext->ComputedValues();
-  RefPtr<ServoComputedValues> computedValues =
+  RefPtr<ServoStyleContext> computedValues =
     Servo_ComputedValues_Inherit(mRawSet.get(),
-                                 parentComputedValues,
+                                 CSSPseudoElementType::InheritingAnonBox,
+                                 nsCSSAnonBoxes::mozText,
+                                 aParentContext->AsServo(),
                                  InheritTarget::Text).Consume();
-
   return GetContext(computedValues.forget(), aParentContext,
                     nsCSSAnonBoxes::mozText,
                     CSSPseudoElementType::InheritingAnonBox,
@@ -441,10 +445,11 @@ ServoStyleSet::ResolveStyleForText(nsIContent* aTextNode,
 already_AddRefed<nsStyleContext>
 ServoStyleSet::ResolveStyleForFirstLetterContinuation(nsStyleContext* aParentContext)
 {
-  const ServoComputedValues* parent =
-    aParentContext->ComputedValues();
-  RefPtr<ServoComputedValues> computedValues =
+  ServoStyleContext* parent = aParentContext ? aParentContext->AsServo() : nullptr;
+  RefPtr<ServoStyleContext> computedValues =
     Servo_ComputedValues_Inherit(mRawSet.get(),
+                                 CSSPseudoElementType::InheritingAnonBox,
+                                 nsCSSAnonBoxes::firstLetterContinuation,
                                  parent,
                                  InheritTarget::FirstLetterContinuation)
                                  .Consume();
@@ -466,8 +471,10 @@ ServoStyleSet::ResolveStyleForPlaceholder()
     return retval.forget();
   }
 
-  RefPtr<ServoComputedValues> computedValues =
+  RefPtr<ServoStyleContext> computedValues =
     Servo_ComputedValues_Inherit(mRawSet.get(),
+                                 CSSPseudoElementType::NonInheritingAnonBox,
+                                 nsCSSAnonBoxes::oofPlaceholder,
                                  nullptr,
                                  InheritTarget::PlaceholderFrame)
                                  .Consume();
@@ -492,7 +499,9 @@ ServoStyleSet::ResolvePseudoElementStyle(Element* aOriginatingElement,
 
   MOZ_ASSERT(aType < CSSPseudoElementType::Count);
 
-  RefPtr<ServoComputedValues> computedValues;
+  RefPtr<ServoStyleContext> computedValues;
+
+  nsIAtom* pseudoTag = nsCSSPseudoElements::GetPseudoAtom(aType);
   if (aPseudoElement) {
     MOZ_ASSERT(aType == aPseudoElement->GetPseudoElementType());
     computedValues = Servo_ResolveStyle(aPseudoElement,
@@ -500,11 +509,14 @@ ServoStyleSet::ResolvePseudoElementStyle(Element* aOriginatingElement,
   } else {
     const ServoComputedValues* parentStyle =
       aParentContext ? aParentContext->ComputedValues() : nullptr;
+    ServoStyleContext* parent = aParentContext ? aParentContext->AsServo() : nullptr;
     computedValues =
       Servo_ResolvePseudoStyle(aOriginatingElement,
                                aType,
+                               pseudoTag,
                                /* is_probe = */ false,
                                parentStyle,
+                               parent,
                                mRawSet.get()).Consume();
   }
 
@@ -513,19 +525,18 @@ ServoStyleSet::ResolvePseudoElementStyle(Element* aOriginatingElement,
   bool isBeforeOrAfter = aType == CSSPseudoElementType::before ||
                          aType == CSSPseudoElementType::after;
 
-  nsIAtom* pseudoTag = nsCSSPseudoElements::GetPseudoAtom(aType);
   return GetContext(computedValues.forget(), aParentContext, pseudoTag, aType,
                     isBeforeOrAfter ? aOriginatingElement : nullptr);
 }
 
 already_AddRefed<nsStyleContext>
 ServoStyleSet::ResolveTransientStyle(Element* aElement,
-                                     nsIAtom* aPseudoTag,
                                      CSSPseudoElementType aPseudoType,
+                                     nsIAtom* aPseudoTag,
                                      StyleRuleInclusion aRuleInclusion)
 {
-  RefPtr<ServoComputedValues> computedValues =
-    ResolveTransientServoStyle(aElement, aPseudoType, aRuleInclusion);
+  RefPtr<ServoStyleContext> computedValues =
+    ResolveTransientServoStyle(aElement, aPseudoType, aPseudoTag, aRuleInclusion);
 
   return GetContext(computedValues.forget(),
                     nullptr,
@@ -533,14 +544,15 @@ ServoStyleSet::ResolveTransientStyle(Element* aElement,
                     aPseudoType, nullptr);
 }
 
-already_AddRefed<ServoComputedValues>
+already_AddRefed<ServoStyleContext>
 ServoStyleSet::ResolveTransientServoStyle(
     Element* aElement,
     CSSPseudoElementType aPseudoType,
+    nsIAtom* aPseudoTag,
     StyleRuleInclusion aRuleInclusion)
 {
   PreTraverseSync();
-  return ResolveStyleLazily(aElement, aPseudoType, aRuleInclusion);
+  return ResolveStyleLazily(aElement, aPseudoType, aPseudoTag, nullptr, aRuleInclusion);
 }
 
 already_AddRefed<ServoStyleContext>
@@ -555,11 +567,10 @@ ServoStyleSet::ResolveInheritingAnonymousBoxStyle(nsIAtom* aPseudoTag,
   bool skipFixup =
     nsCSSAnonBoxes::AnonBoxSkipsParentDisplayBasedStyleFixup(aPseudoTag);
 
-  const ServoComputedValues* parentStyle =
-    aParentContext ? aParentContext->ComputedValues()
-                   : nullptr;
-  RefPtr<ServoComputedValues> computedValues =
-    Servo_ComputedValues_GetForAnonymousBox(parentStyle, aPseudoTag, skipFixup,
+  ServoStyleContext* parent = aParentContext ? aParentContext->AsServo() : nullptr;
+  RefPtr<ServoStyleContext> computedValues =
+    Servo_ComputedValues_GetForAnonymousBox(parent, CSSPseudoElementType::InheritingAnonBox,
+                                            aPseudoTag, skipFixup,
                                             mRawSet.get()).Consume();
 #ifdef DEBUG
   if (!computedValues) {
@@ -602,8 +613,9 @@ ServoStyleSet::ResolveNonInheritingAnonymousBoxStyle(nsIAtom* aPseudoTag)
   // are indeed annotated as skipping this fixup.)
   MOZ_ASSERT(!nsCSSAnonBoxes::IsNonInheritingAnonBox(nsCSSAnonBoxes::viewport),
              "viewport needs fixup to handle blockifying it");
-  RefPtr<ServoComputedValues> computedValues =
-    Servo_ComputedValues_GetForAnonymousBox(nullptr, aPseudoTag, true,
+  RefPtr<ServoStyleContext> computedValues =
+    Servo_ComputedValues_GetForAnonymousBox(nullptr, CSSPseudoElementType::NonInheritingAnonBox,
+                                            aPseudoTag, true,
                                             mRawSet.get()).Consume();
 #ifdef DEBUG
   if (!computedValues) {
@@ -832,10 +844,13 @@ ServoStyleSet::ProbePseudoElementStyle(Element* aOriginatingElement,
   // aOriginatingElement's styles anyway.
   MOZ_ASSERT(aType < CSSPseudoElementType::Count);
 
-  RefPtr<ServoComputedValues> computedValues =
-    Servo_ResolvePseudoStyle(aOriginatingElement, aType,
+  nsIAtom* pseudoTag = nsCSSPseudoElements::GetPseudoAtom(aType);
+  ServoStyleContext* parent = aParentContext ? aParentContext->AsServo() : nullptr;
+  RefPtr<ServoStyleContext> computedValues =
+    Servo_ResolvePseudoStyle(aOriginatingElement, aType, pseudoTag,
                              /* is_probe = */ true,
                              nullptr,
+                             parent,
                              mRawSet.get()).Consume();
   if (!computedValues) {
     return nullptr;
@@ -847,8 +862,8 @@ ServoStyleSet::ProbePseudoElementStyle(Element* aOriginatingElement,
   bool isBeforeOrAfter = aType == CSSPseudoElementType::before ||
                          aType == CSSPseudoElementType::after;
   if (isBeforeOrAfter) {
-    const nsStyleDisplay* display = Servo_GetStyleDisplay(computedValues);
-    const nsStyleContent* content = Servo_GetStyleContent(computedValues);
+    const nsStyleDisplay* display = Servo_GetStyleDisplay(computedValues->ComputedValues());
+    const nsStyleContent* content = Servo_GetStyleContent(computedValues->ComputedValues());
     // XXXldb What is contentCount for |content: ""|?
     if (display->mDisplay == StyleDisplay::None ||
         content->ContentCount() == 0) {
@@ -856,7 +871,6 @@ ServoStyleSet::ProbePseudoElementStyle(Element* aOriginatingElement,
     }
   }
 
-  nsIAtom* pseudoTag = nsCSSPseudoElements::GetPseudoAtom(aType);
   return GetContext(computedValues.forget(), aParentContext, pseudoTag, aType,
                     isBeforeOrAfter ? aOriginatingElement : nullptr);
 }
@@ -1080,12 +1094,10 @@ ServoStyleSet::GetBaseContextForElement(dom::Element* aElement,
                          nsIAtom* aPseudoTag,
                          CSSPseudoElementType aPseudoType)
 {
-  RefPtr<ServoComputedValues> cv = Servo_StyleSet_GetBaseComputedValuesForElement(mRawSet.get(),
+  return Servo_StyleSet_GetBaseComputedValuesForElement(mRawSet.get(),
                                                         aElement,
                                                         &Snapshots(),
                                                         aPseudoType).Consume();
-  return ServoStyleContext::Create(nullptr, aPresContext, aPseudoTag,
-                                   aPseudoType, cv.forget());
 }
 
 already_AddRefed<RawServoAnimationValue>
@@ -1152,7 +1164,7 @@ ServoStyleSet::CompatibilityModeChanged()
   Servo_StyleSet_CompatModeChanged(mRawSet.get());
 }
 
-already_AddRefed<ServoComputedValues>
+already_AddRefed<ServoStyleContext>
 ServoStyleSet::ResolveServoStyle(Element* aElement)
 {
   UpdateStylistIfNeeded();
@@ -1167,9 +1179,11 @@ ServoStyleSet::ClearNonInheritingStyleContexts()
   }
 }
 
-already_AddRefed<ServoComputedValues>
+already_AddRefed<ServoStyleContext>
 ServoStyleSet::ResolveStyleLazily(Element* aElement,
                                   CSSPseudoElementType aPseudoType,
+                                  nsIAtom* aPseudoTag,
+                                  const ServoStyleContext* aParentContext,
                                   StyleRuleInclusion aRuleInclusion)
 {
   mPresContext->EffectCompositor()->PreTraverse(aElement, aPseudoType);
@@ -1202,9 +1216,11 @@ ServoStyleSet::ResolveStyleLazily(Element* aElement,
     }
   }
 
-  RefPtr<ServoComputedValues> computedValues =
+  RefPtr<ServoStyleContext> computedValues =
     Servo_ResolveStyleLazily(elementForStyleResolution,
                              pseudoTypeForStyleResolution,
+                             aPseudoTag,
+                             aParentContext,
                              aRuleInclusion,
                              &Snapshots(),
                              mRawSet.get()).Consume();
@@ -1213,6 +1229,8 @@ ServoStyleSet::ResolveStyleLazily(Element* aElement,
     computedValues =
       Servo_ResolveStyleLazily(elementForStyleResolution,
                                pseudoTypeForStyleResolution,
+                               aPseudoTag,
+                               aParentContext,
                                aRuleInclusion,
                                &Snapshots(),
                                mRawSet.get()).Consume();
@@ -1235,9 +1253,9 @@ ServoStyleSet::CounterStyleRuleForName(nsIAtom* aName)
   return Servo_StyleSet_GetCounterStyleRule(mRawSet.get(), aName);
 }
 
-already_AddRefed<ServoComputedValues>
+already_AddRefed<ServoStyleContext>
 ServoStyleSet::ResolveForDeclarations(
-  ServoComputedValuesBorrowedOrNull aParentOrNull,
+  const ServoStyleContext* aParentOrNull,
   RawServoDeclarationBlockBorrowed aDeclarations)
 {
   UpdateStylistIfNeeded();

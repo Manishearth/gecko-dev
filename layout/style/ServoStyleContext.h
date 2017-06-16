@@ -13,14 +13,6 @@ namespace mozilla {
 
 class ServoStyleContext final : public nsStyleContext {
 public:
-
-  static already_AddRefed<ServoStyleContext>
-  Create(nsStyleContext* aParentContext,
-         nsPresContext* aPresContext,
-         nsIAtom* aPseudoTag,
-         mozilla::CSSPseudoElementType aPseudoType,
-         already_AddRefed<ServoComputedValues> aComputedValues);
-
   ServoStyleContext(nsStyleContext* aParent,
                     nsPresContext* aPresContext,
                     nsIAtom* aPseudoTag,
@@ -34,6 +26,15 @@ public:
   ServoComputedValues* ComputedValues() const {
     return mSource;
   }
+
+  void AddRef() {
+    Servo_StyleContext_AddRef(this);
+  }
+
+  void Release() {
+    Servo_StyleContext_Release(this);
+  }
+
   ~ServoStyleContext() {
     Destructor();
   }

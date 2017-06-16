@@ -18,7 +18,7 @@ use invalidation::media_queries::{EffectiveMediaQueryResults, ToMediaListKey};
 use matching::CascadeVisitedMode;
 use media_queries::Device;
 use properties::{self, CascadeFlags, ComputedValues, ComputedValuesInner};
-use properties::{AnimationRules, PropertyDeclarationBlock};
+use properties::{AnimationRules, PropertyDeclarationBlock, PseudoInfo, ParentStyleContextInfo};
 #[cfg(feature = "servo")]
 use properties::INHERIT_ALL;
 use rule_tree::{CascadeLevel, RuleTree, StrongRuleNode, StyleSource};
@@ -601,7 +601,9 @@ impl Stylist {
                                          pseudo: &PseudoElement,
                                          parent: Option<&ComputedValuesInner>,
                                          cascade_flags: CascadeFlags,
-                                         font_metrics: &FontMetricsProvider)
+                                         font_metrics: &FontMetricsProvider,
+                                         pseudo_info: PseudoInfo,
+                                         parent_style_context: ParentStyleContextInfo)
                                          -> Arc<ComputedValues> {
         debug_assert!(pseudo.is_precomputed());
 
@@ -639,7 +641,8 @@ impl Stylist {
                             None,
                             font_metrics,
                             cascade_flags,
-                            self.quirks_mode).to_outer()
+                            self.quirks_mode).to_outer(self.device(), parent_style_context,
+                                                       Some(pseudo_info))
     }
 
     /// Returns the style for an anonymous box of the given type.
@@ -676,7 +679,7 @@ impl Stylist {
             cascade_flags.insert(INHERIT_ALL);
         }
         self.precomputed_values_for_pseudo(guards, &pseudo, Some(parent_style), cascade_flags,
-                                           &ServoMetricsProvider)
+                                           &ServoMetricsProvider, (), ())
     }
 
     /// Computes a pseudo-element style lazily during layout.
@@ -693,7 +696,9 @@ impl Stylist {
                                                   rule_inclusion: RuleInclusion,
                                                   parent_style: &ComputedValuesInner,
                                                   is_probe: bool,
-                                                  font_metrics: &FontMetricsProvider)
+                                                  font_metrics: &FontMetricsProvider,
+                                                  pseudo_info: PseudoInfo,
+                                                  parent_style_context: ParentStyleContextInfo)
                                                   -> Option<Arc<ComputedValues>>
         where E: TElement,
     {
@@ -702,7 +707,9 @@ impl Stylist {
         self.compute_pseudo_element_style_with_inputs(&cascade_inputs,
                                                       guards,
                                                       parent_style,
-                                                      font_metrics)
+                                                      font_metrics,
+                                                      pseudo_info,
+                                                      parent_style_context)
     }
 
     /// Computes a pseudo-element style lazily using the given CascadeInputs.
@@ -713,7 +720,9 @@ impl Stylist {
                                                     inputs: &CascadeInputs,
                                                     guards: &StylesheetGuards,
                                                     parent_style: &ComputedValuesInner,
-                                                    font_metrics: &FontMetricsProvider)
+                                                    font_metrics: &FontMetricsProvider,
+                                                    pseudo_info: PseudoInfo,
+                                                    parent_style_context: ParentStyleContextInfo)
                                                     -> Option<Arc<ComputedValues>>
     {
         // We may have only visited rules in cases when we are actually
@@ -746,7 +755,8 @@ impl Stylist {
                                     None,
                                     font_metrics,
                                     CascadeFlags::empty(),
-                                    self.quirks_mode).to_outer();
+                                    self.quirks_mode).to_outer(self.device(), parent_style_context,
+                                                               Some(pseudo_info.clone()));
 
             Some(computed)
         } else {
@@ -776,7 +786,9 @@ impl Stylist {
                             None,
                             font_metrics,
                             CascadeFlags::empty(),
-                            self.quirks_mode).to_outer())
+                            self.quirks_mode).to_outer(self.device(),
+                                                       parent_style_context,
+                                                       Some(pseudo_info)))
     }
 
     /// Computes the cascade inputs for a lazily-cascaded pseudo-element.
@@ -1336,7 +1348,8 @@ impl Stylist {
     pub fn compute_for_declarations(&self,
                                     guards: &StylesheetGuards,
                                     parent_style: &ComputedValuesInner,
-                                    declarations: Arc<Locked<PropertyDeclarationBlock>>)
+                                    declarations: Arc<Locked<PropertyDeclarationBlock>>,
+                                    parent_style_context: ParentStyleContextInfo)
                                     -> Arc<ComputedValues> {
         use font_metrics::get_metrics_provider_for_product;
 
@@ -1360,7 +1373,7 @@ impl Stylist {
                             None,
                             &metrics,
                             CascadeFlags::empty(),
-                            self.quirks_mode).to_outer()
+                            self.quirks_mode).to_outer(self.device(), parent_style_context, None)
     }
 
     /// Accessor for a shared reference to the device.

@@ -339,7 +339,8 @@ trait PrivateMatchMethods: TElement {
                           cascade_target: CascadeTarget,
                           cascade_visited: CascadeVisitedMode,
                           parent_info: Option<&ParentElementAndStyle<Self>>,
-                          visited_values_to_insert: Option<Arc<ComputedValues>>)
+                          visited_values_to_insert: Option<Arc<ComputedValues>>,
+                          pseudo: Option<&PseudoElement>)
                           -> Arc<ComputedValues> {
         let mut cascade_info = CascadeInfo::new();
         let mut cascade_flags = CascadeFlags::empty();
@@ -385,9 +386,6 @@ trait PrivateMatchMethods: TElement {
             layout_parent_style = Some(cascade_visited.values(layout_parent_data.styles.primary()));
         }
 
-        let style_to_inherit_from = style_to_inherit_from.map(|x| &x.inner);
-        let layout_parent_style = layout_parent_style.map(|x| &x.inner);
-
         // Propagate the "can be fragmented" bit. It would be nice to
         // encapsulate this better.
         //
@@ -403,17 +401,25 @@ trait PrivateMatchMethods: TElement {
             unsafe { self.as_node().set_can_be_fragmented(can_be_fragmented); }
         }
 
+        #[cfg(feature = "gecko")]
+        let parent_style_context = style_to_inherit_from.map(|x| &**x);
+        #[cfg(feature = "servo")]
+        let parent_style_context = ();
+
         // Invoke the cascade algorithm.
         let values = cascade(shared_context.stylist.device(),
                              rule_node,
                              &shared_context.guards,
-                             style_to_inherit_from,
-                             layout_parent_style,
+                             style_to_inherit_from.map(|x| &***x),
+                             layout_parent_style.map(|x| &***x),
                              visited_values_to_insert,
                              Some(&mut cascade_info),
                              font_metrics_provider,
                              cascade_flags,
-                             shared_context.quirks_mode).to_outer();
+                             shared_context.quirks_mode)
+            .to_outer(shared_context.stylist.device(),
+                           parent_style_context,
+                           pseudo.map(|x| x.pseudo_info()));
 
         cascade_info.finish(&self.as_node());
         values
@@ -432,7 +438,8 @@ trait PrivateMatchMethods: TElement {
                         primary_inputs: &CascadeInputs,
                         eager_pseudo_inputs: Option<&CascadeInputs>,
                         parent_info: Option<&ParentElementAndStyle<Self>>,
-                        cascade_visited: CascadeVisitedMode)
+                        cascade_visited: CascadeVisitedMode,
+                        pseudo: Option<&PseudoElement>)
                         -> Arc<ComputedValues> {
         if let Some(pseudo) = self.implemented_pseudo_element() {
             debug_assert!(eager_pseudo_inputs.is_none());
@@ -496,7 +503,8 @@ trait PrivateMatchMethods: TElement {
                                 cascade_target,
                                 cascade_visited,
                                 parent_info,
-                                visited_values_to_insert)
+                                visited_values_to_insert,
+                                pseudo)
     }
 
     /// Computes values and damage for the primary style of an element, setting
@@ -538,7 +546,8 @@ trait PrivateMatchMethods: TElement {
                                   primary_inputs,
                                   None,
                                   /* parent_info = */ None,
-                                  cascade_visited)
+                                  cascade_visited,
+                                  self.implemented_pseudo_element().as_ref())
         };
 
         // NB: Animations for pseudo-elements in Gecko are handled while
@@ -641,7 +650,8 @@ trait PrivateMatchMethods: TElement {
                                   primary_inputs,
                                   Some(pseudo_inputs),
                                   /* parent_info = */ None,
-                                  cascade_visited)
+                                  cascade_visited,
+                                  Some(&pseudo))
         };
 
         if cascade_visited.should_accumulate_damage() {
@@ -686,7 +696,8 @@ trait PrivateMatchMethods: TElement {
                                      CascadeTarget::Normal,
                                      CascadeVisitedMode::Unvisited,
                                      /* parent_info = */ None,
-                                     primary_style.get_visited_style().cloned()))
+                                     primary_style.get_visited_style().cloned(),
+                                     /* pseudo */ None))
     }
 
     #[cfg(feature = "gecko")]
@@ -1699,7 +1710,7 @@ pub trait MatchMethods : TElement {
                                 CascadeTarget::Normal,
                                 CascadeVisitedMode::Unvisited,
                                 /* parent_info = */ None,
-                                None)
+                                None, None)
     }
 
 }

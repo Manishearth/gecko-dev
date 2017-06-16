@@ -82,8 +82,8 @@ using namespace mozilla::dom;
     return result.forget();          \
   }
 #include "mozilla/ServoArcTypeList.h"
+SERVO_ARC_TYPE(StyleContext, ServoStyleContext)
 #undef SERVO_ARC_TYPE
-
 
 static Mutex* sServoFontMetricsLock = nullptr;
 static RWLock* sServoLangFontPrefsLock = nullptr;
@@ -204,6 +204,26 @@ Gecko_DestroyAnonymousContentList(nsTArray<nsIContent*>* aAnonContent)
 {
   MOZ_ASSERT(aAnonContent);
   delete aAnonContent;
+}
+
+void
+Gecko_ServoStyleContext_Init(ServoStyleContext* aContext,
+                             const ServoStyleContext* aParentContext,
+                             RawGeckoPresContextBorrowed aPresContext, ServoComputedValuesStrong aValues,
+                             mozilla::CSSPseudoElementType aPseudoType, nsIAtom* aPseudoTag)
+{
+  // because it is within an Arc it is unsafe for the Rust side to ever
+  // carry around a mutable non opaque reference to the context, so we
+  // cast it here.
+  ServoStyleContext* parent = const_cast<ServoStyleContext*>(aParentContext);
+  nsPresContext* pres = const_cast<nsPresContext*>(aPresContext);
+  new (KnownNotNull, aContext) ServoStyleContext(parent, pres, aPseudoTag, aPseudoType, aValues.Consume());
+}
+
+void
+Gecko_ServoStyleContext_Destroy(ServoStyleContext* aContext)
+{
+  aContext->~ServoStyleContext();
 }
 
 void

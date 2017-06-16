@@ -1802,9 +1802,14 @@ pub mod style_structs {
 
 
 #[cfg(feature = "gecko")]
-pub use gecko_properties::ComputedValues;
-#[cfg(feature = "gecko")]
-pub use gecko_properties::ComputedValuesInner;
+pub use gecko_properties::{ComputedValues, ComputedValuesInner, ParentStyleContextInfo, PseudoInfo};
+
+#[cfg(feature = "servo")]
+/// Servo doesn't have style contexts so this is extraneous info
+pub type PseudoInfo = ();
+#[cfg(feature = "servo")]
+/// Servo doesn't have style contexts so this is extraneous info
+pub type ParentStyleContextInfo = ();
 
 
 #[cfg(feature = "servo")]
@@ -1866,7 +1871,6 @@ impl ComputedValuesInner {
         ${style_struct.ident}: Arc<style_structs::${style_struct.name}>,
         % endfor
     ) -> Self {
-        let font_computation_data = FontComputationData::new(font_size_keyword);
         ComputedValuesInner {
             custom_properties: custom_properties,
             writing_mode: writing_mode,
@@ -1902,7 +1906,8 @@ impl ops::DerefMut for ComputedValues {
 #[cfg(feature = "servo")]
 impl ComputedValuesInner {
     /// Convert to an Arc<ComputedValues>
-    pub fn to_outer(self) -> Arc<ComputedValues> {
+    pub fn to_outer(self, _: &Device, _: ParentStyleContextInfo,
+                    _: Option<PseudoInfo>) -> Arc<ComputedValues> {
         Arc::new(ComputedValues {inner: self})
     }
 
@@ -2537,7 +2542,7 @@ mod lazy_static_module {
             font_computation_data: FontComputationData::default_values(),
             rules: None,
             visited_style: None,
-            flags: flags,
+            flags: ComputedValueFlags::initial(),
         };
     }
 }
