@@ -542,11 +542,8 @@ ServoRestyleManager::ProcessPostTraversal(Element* aElement,
   if (updateContext) {
     MOZ_ASSERT(styleFrame || displayContentsNode);
 
-    auto pseudo = aElement->GetPseudoElementType();
-
-    nsIAtom* pseudoTag = pseudo == CSSPseudoElementType::NotPseudo ? nullptr : nsCSSPseudoElements::GetPseudoAtom(pseudo);
-
-    newContext = aRestyleState.StyleSet().GetContext(currentContext.forget(), aParentContext, pseudoTag, pseudo, aElement);
+    newContext = currentContext;
+    newContext->UpdateWithElementState(aElement);
 
     newContext->ResolveSameStructsAs(PresContext(), oldStyleContext);
 

@@ -192,10 +192,9 @@ ServoStyleSet::GetContext(nsIContent* aContent,
   RefPtr<ServoStyleContext> computedValues;
   if (aMayCompute == LazyComputeBehavior::Allow) {
     PreTraverseSync();
-    RefPtr<ServoStyleContext> tmp =
+    computedValues =
       ResolveStyleLazily(element, CSSPseudoElementType::NotPseudo, aPseudoTag, aParentContext);
-      computedValues = GetContext(tmp.forget(), aParentContext, aPseudoTag, aPseudoType,
-                                  element);
+      computedValues->UpdateWithElementState(element);
   } else {
     computedValues = ResolveServoStyle(element);
   }
@@ -204,50 +203,6 @@ ServoStyleSet::GetContext(nsIContent* aContent,
   return computedValues.forget();
 }
 
-already_AddRefed<ServoStyleContext>
-ServoStyleSet::GetContext(already_AddRefed<ServoStyleContext> aComputedValues,
-                          ServoStyleContext* aParentContext,
-                          nsIAtom* aPseudoTag,
-                          CSSPseudoElementType aPseudoType,
-                          Element* aElementForAnimation)
-{
-  bool isLink = false;
-  bool isVisitedLink = false;
-  // If we need visited styles for callers where `aElementForAnimation` is null,
-  // we can precompute these and pass them as flags, similar to nsStyleSet.cpp.
-  if (aElementForAnimation) {
-    isLink = nsCSSRuleProcessor::IsLink(aElementForAnimation);
-    isVisitedLink = nsCSSRuleProcessor::GetContentState(aElementForAnimation)
-                                       .HasState(NS_EVENT_STATE_VISITED);
-  }
-
-  RefPtr<ServoStyleContext> result = Move(aComputedValues);
-
-  MOZ_ASSERT(result->GetPseudoType() == aPseudoType);
-  MOZ_ASSERT(result->GetPseudo() == aPseudoTag);
-
-  // The true visited state of the relevant link is used to decided whether
-  // visited styles should be consulted for all visited dependent properties.
-  bool relevantLinkVisited = isLink ? isVisitedLink :
-    (aParentContext && aParentContext->RelevantLinkVisited());
-
-  if (relevantLinkVisited && result->GetStyleIfVisited()) {
-    result->AddStyleBit(NS_STYLE_RELEVANT_LINK_VISITED);
-  }
-
-  // Set the body color on the pres context. See nsStyleSet::GetContext
-  if (aElementForAnimation &&
-      aElementForAnimation->IsHTMLElement(nsGkAtoms::body) &&
-      aPseudoType == CSSPseudoElementType::NotPseudo &&
-      mPresContext->CompatibilityMode() == eCompatibility_NavQuirks) {
-    nsIDocument* doc = aElementForAnimation->GetUncomposedDoc();
-    if (doc && doc->GetBodyElement() == aElementForAnimation) {
-      // Update the prescontext's body color
-      mPresContext->SetBodyTextColor(result->StyleColor()->mColor);
-    }
-  }
-  return result.forget();
-}
 
 const ServoElementSnapshotTable&
 ServoStyleSet::Snapshots()
@@ -426,10 +381,8 @@ ServoStyleSet::ResolveStyleForText(nsIContent* aTextNode,
                                  nsCSSAnonBoxes::mozText,
                                  aParentContext,
                                  InheritTarget::Text).Consume();
-  return GetContext(computedValues.forget(), aParentContext,
-                    nsCSSAnonBoxes::mozText,
-                    CSSPseudoElementType::InheritingAnonBox,
-                    nullptr);
+  computedValues->UpdateWithElementState(nullptr);
+  return computedValues.forget();
 }
 
 already_AddRefed<nsStyleContext>
@@ -444,10 +397,8 @@ ServoStyleSet::ResolveStyleForFirstLetterContinuation(ServoStyleContext* aParent
                                  .Consume();
   MOZ_ASSERT(computedValues);
 
-  return GetContext(computedValues.forget(), aParentContext,
-                    nsCSSAnonBoxes::firstLetterContinuation,
-                    CSSPseudoElementType::InheritingAnonBox,
-                    nullptr);
+  computedValues->UpdateWithElementState(nullptr);
+  return computedValues.forget();
 }
 
 already_AddRefed<nsStyleContext>
@@ -469,13 +420,9 @@ ServoStyleSet::ResolveStyleForPlaceholder()
                                  .Consume();
   MOZ_ASSERT(computedValues);
 
-  RefPtr<nsStyleContext> retval =
-    GetContext(computedValues.forget(), nullptr,
-               nsCSSAnonBoxes::oofPlaceholder,
-               CSSPseudoElementType::NonInheritingAnonBox,
-               nullptr);
-  cache = retval;
-  return retval.forget();
+  computedValues->UpdateWithElementState(nullptr);
+  cache = computedValues;
+  return computedValues.forget();
 }
 
 already_AddRefed<nsStyleContext>
@@ -512,9 +459,8 @@ ServoStyleSet::ResolvePseudoElementStyle(Element* aOriginatingElement,
 
   bool isBeforeOrAfter = aType == CSSPseudoElementType::before ||
                          aType == CSSPseudoElementType::after;
-
-  return GetContext(computedValues.forget(), aParentContext, pseudoTag, aType,
-                    isBeforeOrAfter ? aOriginatingElement : nullptr);
+  computedValues->UpdateWithElementState(isBeforeOrAfter ? aOriginatingElement : nullptr);
+  return computedValues.forget();
 }
 
 already_AddRefed<nsStyleContext>
@@ -525,10 +471,8 @@ ServoStyleSet::ResolveTransientStyle(Element* aElement,
 {
   RefPtr<ServoStyleContext> result =
     ResolveTransientServoStyle(aElement, aPseudoType, aPseudoTag, aRuleInclusion);
-  return GetContext(result.forget(),
-                    nullptr,
-                    aPseudoTag,
-                    aPseudoType, nullptr);
+  result->UpdateWithElementState(nullptr);
+  return result.forget();
 }
 
 already_AddRefed<ServoStyleContext>
@@ -565,8 +509,8 @@ ServoStyleSet::ResolveInheritingAnonymousBoxStyle(nsIAtom* aPseudoTag,
   }
 #endif
 
-  return GetContext(computedValues.forget(), aParentContext, aPseudoTag,
-                    CSSPseudoElementType::InheritingAnonBox, nullptr);
+  computedValues->UpdateWithElementState(nullptr);
+  return computedValues.forget();
 }
 
 already_AddRefed<nsStyleContext>
@@ -610,11 +554,9 @@ ServoStyleSet::ResolveNonInheritingAnonymousBoxStyle(nsIAtom* aPseudoTag)
   }
 #endif
 
-  RefPtr<nsStyleContext> retval =
-    GetContext(computedValues.forget(), nullptr, aPseudoTag,
-               CSSPseudoElementType::NonInheritingAnonBox, nullptr);
-  cache = retval;
-  return retval.forget();
+  computedValues->UpdateWithElementState(nullptr);
+  cache = computedValues;
+  return computedValues.forget();
 }
 
 // manage the set of style sheets in the style set
@@ -853,8 +795,8 @@ ServoStyleSet::ProbePseudoElementStyle(Element* aOriginatingElement,
     }
   }
 
-  return GetContext(computedValues.forget(), aParentContext, pseudoTag, aType,
-                    isBeforeOrAfter ? aOriginatingElement : nullptr);
+  computedValues->UpdateWithElementState(isBeforeOrAfter ? aOriginatingElement : nullptr);
+  return computedValues.forget();
 }
 
 nsRestyleHint
