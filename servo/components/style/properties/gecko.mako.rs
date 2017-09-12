@@ -2248,8 +2248,8 @@ fn static_assert() {
     }
 
     pub fn set_font_size(&mut self, v: longhands::font_size::computed_value::T) {
-        self.gecko.mSize = v.value();
-        self.gecko.mScriptUnconstrainedSize = v.value();
+        self.gecko.mSize = v.size().0;
+        self.gecko.mScriptUnconstrainedSize = v.size().0;
     }
 
     /// Set font size, taking into account scriptminsize and scriptlevel
@@ -2266,7 +2266,7 @@ fn static_assert() {
             self.fixup_font_min_size(device);
             None
         } else {
-            self.gecko.mSize = v.value();
+            self.gecko.mSize = v.size().0;
             self.fixup_font_min_size(device);
             Some(Au(parent.gecko.mScriptUnconstrainedSize).into())
         }
@@ -2429,7 +2429,10 @@ fn static_assert() {
     }
 
     pub fn clone_font_size(&self) -> longhands::font_size::computed_value::T {
-        Au(self.gecko.mSize).into()
+        longhands::font_size::computed_value::T {
+            size: Au(self.gecko.mSize).into(),
+            info: None, // XXXManishearth this is a placeholder
+        }
     }
 
     pub fn set_font_weight(&mut self, v: longhands::font_weight::computed_value::T) {

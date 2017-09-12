@@ -34,7 +34,7 @@ impl ToComputedValue for specified::NoCalcLength {
             specified::NoCalcLength::ViewportPercentage(length) =>
                 length.to_computed_value(context.viewport_size_for_viewport_unit_resolution()),
             specified::NoCalcLength::ServoCharacterWidth(length) =>
-                length.to_computed_value(context.style().get_font().clone_font_size().0),
+                length.to_computed_value(context.style().get_font().clone_font_size().size()),
             #[cfg(feature = "gecko")]
             specified::NoCalcLength::Physical(length) =>
                 length.to_computed_value(context),
